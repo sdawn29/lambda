@@ -1,9 +1,26 @@
 import { app, BrowserWindow } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { transformSync } from "esbuild";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
+
+function buildPreload(): string {
+  const src = readFileSync(path.join(__dirname, "preload.ts"), "utf-8");
+  const { code } = transformSync(src, {
+    loader: "ts",
+    format: "cjs",
+    platform: "node",
+  });
+  const out = path.join(tmpdir(), "asphalt-preload.js");
+  writeFileSync(out, code);
+  return out;
+}
+
+const PRELOAD_PATH = buildPreload();
 
 const DEV_SERVER_URL = "http://localhost:5173";
 const PROD_INDEX = path.join(__dirname, "../../web/dist/index.html");
@@ -55,9 +72,12 @@ async function createWindow() {
     height: 800,
     show: false,
     backgroundColor: "#09090b",
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 12, y: 16 },
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: PRELOAD_PATH,
     },
   });
 

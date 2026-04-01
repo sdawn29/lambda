@@ -16,8 +16,8 @@ const items = [{ title: "New Thread", url: "/", icon: Edit }]
 
 export function AppSidebar() {
   return (
-    <Sidebar collapsible="icon">
-      <SidebarContent>
+    <Sidebar collapsible="offcanvas">
+      <SidebarContent className="mt-10">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
