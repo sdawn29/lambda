@@ -58,7 +58,7 @@ export function ChatTextbox({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={1}
-        className="border-none bg-card px-0 py-0 shadow-none ring-0 outline-none focus-visible:border-none focus-visible:ring-0"
+        className="border-none bg-card px-0 py-0 shadow-none ring-0 outline-none focus-visible:border-none focus-visible:ring-0 dark:bg-card"
       />
 
       <div className="flex items-center justify-between">
