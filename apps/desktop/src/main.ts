@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -93,6 +93,14 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  ipcMain.handle("select-folder", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(win!, {
+      properties: ["openDirectory"],
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+
   await createWindow();
 
   app.on("activate", async () => {

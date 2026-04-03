@@ -1,4 +1,4 @@
-import { Edit, Plus } from "lucide-react"
+import { Edit, FolderOpen, Plus } from "lucide-react"
 
 import {
   Sidebar,
@@ -10,11 +10,23 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Button } from "./ui/button"
+import { Button } from "@/components/ui/button"
+import { useWorkspace } from "@/hooks/workspace-context"
 
 const items = [{ title: "New Thread", url: "/", icon: Edit }]
 
 export function AppSidebar() {
+  const { workspaces, activeWorkspace, selectWorkspace, createWorkspace } =
+    useWorkspace()
+
+  async function handleCreateWorkspace() {
+    const folderPath = await window.electronAPI?.selectFolder()
+    if (folderPath) {
+      const folderName = folderPath.split(/[/\\]/).pop() || folderPath
+      createWorkspace(folderName, folderPath)
+    }
+  }
+
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarContent className="mt-10">
@@ -38,16 +50,31 @@ export function AppSidebar() {
         <SidebarGroup>
           <div className="flex items-center justify-between">
             <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={handleCreateWorkspace}>
               <Plus />
             </Button>
           </div>
           <SidebarGroupContent>
-            <SidebarMenuItem>
-              <div className="my-2 text-center text-muted-foreground">
-                No workspaces available
-              </div>
-            </SidebarMenuItem>
+            <SidebarMenu>
+              {workspaces.length === 0 ? (
+                <div className="my-2 text-center text-muted-foreground">
+                  No workspaces available
+                </div>
+              ) : (
+                workspaces.map((ws) => (
+                  <SidebarMenuItem key={ws.id}>
+                    <SidebarMenuButton
+                      isActive={activeWorkspace?.id === ws.id}
+                      onClick={() => selectWorkspace(ws)}
+                      tooltip={ws.name}
+                    >
+                      <FolderOpen />
+                      <span>{ws.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
