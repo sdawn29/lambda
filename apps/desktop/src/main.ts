@@ -4,10 +4,68 @@ import path from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { transformSync } from "esbuild";
+import { spawn, type ChildProcess } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
 console.log(`Running in ${isDev ? "development" : "production"} mode`);
+
+let serverProcess: ChildProcess | null = null;
+let serverPort = 3001;
+
+async function spawnServer(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    // In dev: use the tsx binary to run TypeScript source directly.
+    // In prod: use Electron's bundled Node to run the pre-built CJS bundle.
+    const monorepoRoot = path.join(__dirname, "../../..");
+    const [executable, args] = isDev
+      ? ([
+          path.join(monorepoRoot, "node_modules/.bin/tsx"),
+          [path.join(__dirname, "../../server/src/index.ts")],
+        ] as const)
+      : ([
+          process.execPath,
+          [path.join(process.resourcesPath, "server", "server.cjs")],
+        ] as const);
+
+    serverProcess = spawn(executable, args, {
+      env: { ...process.env, PORT: "0" },
+      // pipe stdout to read the ready JSON line; inherit stderr for logs
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+
+    let resolved = false;
+
+    serverProcess.stdout!.on("data", (chunk: Buffer) => {
+      for (const line of chunk.toString().split("\n")) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line) as { ready?: boolean; port?: number };
+          if (msg.ready && typeof msg.port === "number" && !resolved) {
+            resolved = true;
+            resolve(msg.port);
+          }
+        } catch {
+          // Non-JSON stdout lines after ready — ignore
+        }
+      }
+    });
+
+    serverProcess.on("error", (err) => {
+      if (!resolved) reject(err);
+    });
+
+    serverProcess.on("exit", (code) => {
+      serverProcess = null;
+      if (!resolved)
+        reject(new Error(`Server exited (code ${code}) before becoming ready`));
+    });
+
+    setTimeout(() => {
+      if (!resolved) reject(new Error("Server did not become ready within 15s"));
+    }, 15_000);
+  });
+}
 
 function buildPreload(): string {
   const src = readFileSync(path.join(__dirname, "preload.ts"), "utf-8");
@@ -94,6 +152,8 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  serverPort = await spawnServer();
+
   ipcMain.handle("select-folder", async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showOpenDialog(win!, {
@@ -102,6 +162,8 @@ app.whenReady().then(async () => {
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle("get-server-port", () => serverPort);
+
   await createWindow();
 
   app.on("activate", async () => {
@@ -109,6 +171,11 @@ app.whenReady().then(async () => {
       await createWindow();
     }
   });
+});
+
+app.on("before-quit", () => {
+  serverProcess?.kill("SIGTERM");
+  serverProcess = null;
 });
 
 app.on("window-all-closed", () => {
