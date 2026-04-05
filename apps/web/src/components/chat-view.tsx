@@ -1,11 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  Loader2Icon,
-  WrenchIcon,
-  XIcon,
-} from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
 
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -15,25 +8,11 @@ import { sendPrompt, getBranch, generateTitle } from "@/api/sessions"
 import { listMessages, type StoredMessageDto } from "@/api/workspaces"
 import { apiUrl } from "@/api/client"
 import { useWorkspace } from "@/hooks/workspace-context"
-import { cn } from "@/lib/utils"
+import { ToolCallBlock } from "@/components/tool-call-block"
+import { markdownComponents } from "@/components/markdown-components"
+import type { Message, TextMessage, ToolMessage } from "@/components/chat-types"
 
-// ── Message types ─────────────────────────────────────────────────────────────
-
-interface TextMessage {
-  role: "user" | "assistant"
-  content: string
-}
-
-interface ToolMessage {
-  role: "tool"
-  toolCallId: string
-  toolName: string
-  args: unknown
-  status: "running" | "done" | "error"
-  result?: unknown
-}
-
-type Message = TextMessage | ToolMessage
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function storedToMessage(m: StoredMessageDto): Message {
   if (m.role === "tool") {
@@ -54,145 +33,6 @@ function storedToMessage(m: StoredMessageDto): Message {
     }
   }
   return { role: m.role as "user" | "assistant", content: m.content }
-}
-
-// ── ToolCallBlock ─────────────────────────────────────────────────────────────
-
-function LivePre({ text, live }: { text: string; live: boolean }) {
-  const ref = useRef<HTMLPreElement>(null)
-  useEffect(() => {
-    if (live && ref.current) {
-      ref.current.scrollTop = ref.current.scrollHeight
-    }
-  }, [text, live])
-  return (
-    <pre
-      ref={ref}
-      className="max-h-64 overflow-auto break-all whitespace-pre-wrap text-muted-foreground"
-    >
-      {text}
-    </pre>
-  )
-}
-
-function argsSummary(args: unknown): string {
-  if (typeof args !== "object" || args === null) return ""
-  const a = args as Record<string, unknown>
-  if (typeof a.command === "string") return a.command
-  if (typeof a.file_path === "string") return a.file_path
-  if (typeof a.path === "string") return a.path
-  if (typeof a.pattern === "string") return a.pattern
-  const first = Object.values(a)[0]
-  return typeof first === "string" ? first : ""
-}
-
-function ToolCallBlock({ msg }: { msg: ToolMessage }) {
-  // Auto-expand while running, collapse when done unless user has toggled it
-  const [userToggled, setUserToggled] = useState(false)
-  const [manualExpanded, setManualExpanded] = useState(false)
-  const expanded = userToggled ? manualExpanded : msg.status === "running"
-
-  function toggle() {
-    setUserToggled(true)
-    setManualExpanded((e) => !e)
-  }
-
-  const argsText = useMemo(
-    () =>
-      typeof msg.args === "object"
-        ? JSON.stringify(msg.args, null, 2)
-        : String(msg.args),
-    [msg.args]
-  )
-
-  const resultText = useMemo(() => {
-    if (msg.result === undefined) return null
-    if (typeof msg.result === "string") return msg.result
-    // MCP-style tool output: { content: [{ type: "text", text: "..." }] }
-    if (
-      typeof msg.result === "object" &&
-      msg.result !== null &&
-      Array.isArray((msg.result as Record<string, unknown>).content)
-    ) {
-      const parts = (msg.result as { content: { type: string; text?: string }[] }).content
-      const text = parts
-        .filter((p) => p.type === "text" && typeof p.text === "string")
-        .map((p) => p.text)
-        .join("")
-      if (text) return text
-    }
-    return JSON.stringify(msg.result, null, 2)
-  }, [msg.result])
-
-  const summary = argsSummary(msg.args)
-
-  return (
-    <div className="w-full max-w-2xl self-start rounded-lg border border-border bg-muted/20 text-xs">
-      <button
-        className="flex w-full items-center gap-2 px-3 py-2 text-left"
-        onClick={toggle}
-      >
-        {msg.status === "running" ? (
-          <Loader2Icon className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-        ) : msg.status === "error" ? (
-          <XIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />
-        ) : (
-          <CheckIcon className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-        )}
-        <WrenchIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="font-medium text-foreground">{msg.toolName}</span>
-        {summary && (
-          <span className="truncate text-muted-foreground">{summary}</span>
-        )}
-        <ChevronDownIcon
-          className={cn(
-            "ml-auto h-3 w-3 shrink-0 text-muted-foreground transition-transform",
-            expanded && "rotate-180"
-          )}
-        />
-      </button>
-
-      {expanded && (
-        <div className="space-y-2 border-t border-border px-3 py-2">
-          <pre className="max-h-32 overflow-auto break-all whitespace-pre-wrap text-muted-foreground">
-            {argsText}
-          </pre>
-          {resultText && (
-            <>
-              <div className="border-t border-border" />
-              <LivePre text={resultText} live={msg.status === "running"} />
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Markdown components (stable reference) ────────────────────────────────────
-
-const markdownComponents = {
-  table: ({ children }: { children?: React.ReactNode }) => (
-    <div className="my-2 overflow-x-auto rounded-lg border border-border">
-      <table className="w-full border-collapse text-sm">{children}</table>
-    </div>
-  ),
-  thead: ({ children }: { children?: React.ReactNode }) => (
-    <thead className="bg-muted/50">{children}</thead>
-  ),
-  th: ({ children }: { children?: React.ReactNode }) => (
-    <th className="border-b border-border px-4 py-2 text-left font-medium">
-      {children}
-    </th>
-  ),
-  td: ({ children }: { children?: React.ReactNode }) => (
-    <td className="border-b border-border/50 px-4 py-2 last:border-0">
-      {children}
-    </td>
-  ),
-  tr: ({ children }: { children?: React.ReactNode }) => (
-    <tr className="transition-colors hover:bg-muted/30">{children}</tr>
-  ),
 }
 
 // ── ChatView ──────────────────────────────────────────────────────────────────
@@ -285,7 +125,7 @@ export function ChatView({
           toolName: data.toolName,
           args: data.args,
           status: "running",
-        },
+        } satisfies ToolMessage,
       ])
     })
 
