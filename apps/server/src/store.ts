@@ -4,14 +4,15 @@ import type { ManagedSessionHandle } from "@asphalt/pi-sdk";
 interface StoredSession {
   handle: ManagedSessionHandle;
   createdAt: number;
+  cwd: string;
 }
 
 class SessionStore {
   private sessions = new Map<string, StoredSession>();
 
-  create(handle: ManagedSessionHandle): string {
+  create(handle: ManagedSessionHandle, cwd: string): string {
     const id = randomUUID();
-    this.sessions.set(id, { handle, createdAt: Date.now() });
+    this.sessions.set(id, { handle, createdAt: Date.now(), cwd });
     return id;
   }
 
@@ -21,6 +22,10 @@ class SessionStore {
 
   has(id: string): boolean {
     return this.sessions.has(id);
+  }
+
+  getCwd(id: string): string | undefined {
+    return this.sessions.get(id)?.cwd;
   }
 
   delete(id: string): boolean {

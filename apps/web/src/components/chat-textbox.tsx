@@ -25,6 +25,7 @@ interface ChatTextboxProps {
   onStop?: () => void
   placeholder?: string
   className?: string
+  footerLabel?: string
 }
 
 export function ChatTextbox({
@@ -33,6 +34,7 @@ export function ChatTextbox({
   onStop,
   placeholder = "Ask anything…",
   className,
+  footerLabel,
 }: ChatTextboxProps) {
   const [value, setValue] = React.useState("")
   const [selectedModelId, setSelectedModelId] = React.useState<string | null>(
@@ -77,79 +79,81 @@ export function ChatTextbox({
   }
 
   return (
-    <div
-      className={cn(
-        "relative flex w-full flex-col gap-2 rounded-xl border border-input bg-card p-3 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30",
-        className
-      )}
-    >
-      <Textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        rows={1}
-        className="border-none bg-card px-0 py-0 shadow-none ring-0 outline-none focus-visible:border-none focus-visible:ring-0 dark:bg-card"
-      />
+    <div className={cn("flex w-full flex-col gap-1", className)}>
+      <div className="relative flex w-full flex-col gap-2 rounded-xl border border-input bg-card p-3 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+        <Textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          rows={1}
+          className="border-none bg-card px-0 py-0 shadow-none ring-0 outline-none focus-visible:border-none focus-visible:ring-0 dark:bg-card"
+        />
 
-      <div className="flex items-center justify-between">
-        <Select
-          value={selectedModel?.id ?? ""}
-          onValueChange={(id) => setSelectedModelId(id)}
-          disabled={models.length === 0}
-        >
-          <SelectTrigger className="h-6 w-auto min-w-40 border-none px-2 py-0 text-xs shadow-none focus:ring-0">
-            {selectedModel?.name ?? "Select model"}
-          </SelectTrigger>
-          <SelectContent className="max-h-64">
-            {grouped.map(([provider, items]) => (
-              <SelectGroup key={provider}>
-                <SelectLabel>{provider}</SelectLabel>
-                {items.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center justify-between">
+          <Select
+            value={selectedModel?.id ?? ""}
+            onValueChange={(id) => setSelectedModelId(id)}
+            disabled={models.length === 0}
+          >
+            <SelectTrigger className="h-6 w-auto min-w-40 border-none px-2 py-0 text-xs shadow-none focus:ring-0">
+              {selectedModel?.name ?? "Select model"}
+            </SelectTrigger>
+            <SelectContent className="max-h-64">
+              {grouped.map(([provider, items]) => (
+                <SelectGroup key={provider}>
+                  <SelectLabel>{provider}</SelectLabel>
+                  {items.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {isLoading ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={onStop}
-                  aria-label="Stop generation"
-                >
-                  <SquareIcon />
-                </Button>
-              }
-            />
-            <TooltipContent>Stop</TooltipContent>
-          </Tooltip>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon-sm"
-                  onClick={handleSend}
-                  disabled={!canSend}
-                  aria-label="Send message"
-                >
-                  <ArrowUpIcon />
-                </Button>
-              }
-            />
-            <TooltipContent>Send</TooltipContent>
-          </Tooltip>
-        )}
+          {isLoading ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={onStop}
+                    aria-label="Stop generation"
+                  >
+                    <SquareIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent>Stop</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    onClick={handleSend}
+                    disabled={!canSend}
+                    aria-label="Send message"
+                  >
+                    <ArrowUpIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent>Send</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </div>
+      {footerLabel && (
+        <span className="truncate py-2 text-xs text-muted-foreground">
+          {footerLabel}
+        </span>
+      )}
     </div>
   )
 }

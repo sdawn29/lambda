@@ -3,12 +3,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRouter } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useWorkspace } from "@/hooks/workspace-context"
 
 const isMac =
   typeof window !== "undefined" && window.electronAPI?.platform === "darwin"
 
 export function TitleBar() {
   const router = useRouter()
+  const { activeThread } = useWorkspace()
 
   const { subscribe, getSnapshot } = useMemo(() => {
     let count = 0
@@ -32,6 +34,7 @@ export function TitleBar() {
       className="sticky top-0 z-20 flex h-12 shrink-0 items-center bg-transparent"
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
+      {/* Nav controls — left side */}
       <div
         className={`flex items-center gap-1 ${isMac ? "pl-20" : "pl-2"}`}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
@@ -56,6 +59,18 @@ export function TitleBar() {
           <span className="sr-only">Go forward</span>
         </Button>
       </div>
+
+      {/* Thread title — centered over the chat area */}
+      {activeThread && (
+        <div
+          className="pointer-events-none absolute inset-x-0 flex justify-center px-4"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <span className="max-w-sm truncate text-sm font-medium">
+            {activeThread.title}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

@@ -8,9 +8,17 @@ export const Route = createFileRoute("/")({
 })
 
 function Index() {
-  const { activeWorkspace } = useWorkspace()
+  const { activeWorkspace, activeThread } = useWorkspace()
 
-  if (!activeWorkspace) return null
+  if (!activeWorkspace || !activeThread) return null
 
-  return <ChatView key={activeWorkspace.id} sessionId={activeWorkspace.sessionId} />
+  return (
+    <ChatView
+      key={activeThread.id}
+      sessionId={activeThread.sessionId}
+      workspaceName={activeWorkspace.name}
+      workspaceId={activeWorkspace.id}
+      threadId={activeThread.id}
+    />
+  )
 }

@@ -36,3 +36,23 @@ export function sendPrompt(id: string, text: string): Promise<SendPromptResponse
     body: JSON.stringify({ text }),
   })
 }
+
+export interface BranchResponse {
+  branch: string | null
+}
+
+export function getBranch(sessionId: string): Promise<BranchResponse> {
+  return apiFetch<BranchResponse>(`/session/${sessionId}/branch`)
+}
+
+export interface TitleResponse {
+  title: string
+}
+
+export function generateTitle(message: string): Promise<TitleResponse> {
+  return apiFetch<TitleResponse>("/title", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  })
+}

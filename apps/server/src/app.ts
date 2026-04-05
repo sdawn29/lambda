@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
-import { createManagedSession, getAvailableModels, type SdkConfig } from "@asphalt/pi-sdk";
+import { createManagedSession, getAvailableModels, generateThreadTitle, type SdkConfig } from "@asphalt/pi-sdk";
+import { getCurrentBranch } from "@asphalt/git";
 import { store } from "./store.js";
 
 const app = new Hono();
@@ -16,6 +17,16 @@ app.get("/models", (c) => {
   return c.json({ models: getAvailableModels() });
 });
 
+app.post("/title", async (c) => {
+  const body = await c.req.json<{ message?: string; provider?: string; model?: string }>().catch((): { message?: string; provider?: string; model?: string } => ({}));
+  if (!body.message) return c.json({ error: "message is required" }, 400);
+  const title = await generateThreadTitle(body.message, {
+    provider: body.provider,
+    model: body.model,
+  });
+  return c.json({ title });
+});
+
 app.post("/session", async (c) => {
   const body = await c.req.json<Partial<SdkConfig>>().catch((): Partial<SdkConfig> => ({}));
   const config: SdkConfig = {
@@ -25,7 +36,8 @@ app.post("/session", async (c) => {
     model: body.model,
   };
   const handle = await createManagedSession(config);
-  const sessionId = store.create(handle);
+  const resolvedCwd = body.cwd ?? process.cwd();
+  const sessionId = store.create(handle, resolvedCwd);
   return c.json({ sessionId }, 201);
 });
 
@@ -49,6 +61,13 @@ app.post("/session/:id/prompt", async (c) => {
   });
 
   return c.json({ accepted: true }, 202);
+});
+
+app.get("/session/:id/branch", async (c) => {
+  const cwd = store.getCwd(c.req.param("id"));
+  if (!cwd) return c.json({ branch: null });
+  const branch = await getCurrentBranch(cwd);
+  return c.json({ branch });
 });
 
 app.get("/session/:id/events", async (c) => {

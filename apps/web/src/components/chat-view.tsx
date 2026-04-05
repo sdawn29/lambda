@@ -1,20 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 
 import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 import { ChatTextbox } from "@/components/chat-textbox"
-import { sendPrompt } from "@/api/sessions"
+import { sendPrompt, getBranch, generateTitle } from "@/api/sessions"
 import { apiUrl } from "@/api/client"
+import { useWorkspace } from "@/hooks/workspace-context"
 
 interface Message {
   role: "user" | "assistant"
   content: string
 }
 
-export function ChatView({ sessionId }: { sessionId: string }) {
+interface ChatViewProps {
+  sessionId: string
+  workspaceName: string
+  workspaceId: string
+  threadId: string
+}
+
+export function ChatView({
+  sessionId,
+  workspaceName,
+  workspaceId,
+  threadId,
+}: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [branch, setBranch] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const hasTitledRef = useRef(false)
+
+  const { setThreadTitle } = useWorkspace()
+
+  useEffect(() => {
+    getBranch(sessionId)
+      .then((r) => setBranch(r.branch))
+      .catch(() => {})
+  }, [sessionId])
 
   useEffect(() => {
     let active = true
@@ -61,16 +85,24 @@ export function ChatView({ sessionId }: { sessionId: string }) {
 
   const handleSend = useCallback(
     (text: string) => {
+      if (!hasTitledRef.current) {
+        hasTitledRef.current = true
+        generateTitle(text)
+          .then(({ title }) => setThreadTitle(workspaceId, threadId, title))
+          .catch(() => {})
+      }
       setMessages((prev) => [...prev, { role: "user", content: text }])
       setIsLoading(true)
       sendPrompt(sessionId, text).catch(() => setIsLoading(false))
     },
-    [sessionId]
+    [sessionId, workspaceId, threadId, setThreadTitle]
   )
 
+  const footerLabel = `${workspaceName}${branch ? ` / ${branch}` : ""}`
+
   return (
-    <div className="flex h-full flex-col p-6">
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex h-full flex-col">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -83,19 +115,59 @@ export function ChatView({ sessionId }: { sessionId: string }) {
             {msg.role === "user" ? (
               msg.content
             ) : (
-              <Markdown>{msg.content}</Markdown>
+              <Markdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ children }) => (
+                    <div className="my-2 overflow-x-auto rounded-lg border border-border">
+                      <table className="w-full border-collapse text-sm">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead className="bg-muted/50">{children}</thead>
+                  ),
+                  th: ({ children }) => (
+                    <th className="border-b border-border px-4 py-2 text-left font-medium">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border-b border-border/50 px-4 py-2 last:border-0">
+                      {children}
+                    </td>
+                  ),
+                  tr: ({ children }) => (
+                    <tr className="transition-colors hover:bg-muted/30">
+                      {children}
+                    </tr>
+                  ),
+                }}
+              >
+                {msg.content}
+              </Markdown>
             )}
           </div>
         ))}
-        {isLoading && !(messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 1]?.content.length > 0) && (
-          <p className="text-muted-foreground self-start text-sm animate-pulse">
-            Thinking…
-          </p>
-        )}
+        {isLoading &&
+          !(
+            messages[messages.length - 1]?.role === "assistant" &&
+            messages[messages.length - 1]?.content.length > 0
+          ) && (
+            <p className="animate-pulse self-start text-sm text-muted-foreground">
+              Thinking…
+            </p>
+          )}
         <div ref={bottomRef} />
       </div>
-      <div className="mx-auto w-full max-w-2xl">
-        <ChatTextbox onSend={handleSend} isLoading={isLoading} />
+
+      <div className="mx-auto w-full max-w-2xl px-6 pb-6">
+        <ChatTextbox
+          onSend={handleSend}
+          isLoading={isLoading}
+          footerLabel={footerLabel}
+        />
       </div>
     </div>
   )
