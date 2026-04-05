@@ -68,12 +68,10 @@ export function AppSidebar() {
                         tooltip={ws.name}
                         className="flex-1"
                       >
-                        <span className="relative h-4 w-4 shrink-0">
-                          <FolderOpen className="absolute inset-0 h-4 w-4 transition-opacity group-hover/ws:opacity-0" />
-                          <ChevronRight
-                            className={`absolute inset-0 h-4 w-4 opacity-0 transition-all group-hover/ws:opacity-100 ${collapsed[ws.id] ? "" : "rotate-90"}`}
-                          />
-                        </span>
+                        <ChevronRight
+                          className={`h-3 w-3 shrink-0 transition-transform ${collapsed[ws.id] ? "" : "rotate-90"}`}
+                        />
+                        <FolderOpen className="h-4 w-4 shrink-0" />
                         <span>{ws.name}</span>
                       </SidebarMenuButton>
                       <Button

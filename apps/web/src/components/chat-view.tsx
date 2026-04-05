@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm"
 
 import { ChatTextbox } from "@/components/chat-textbox"
 import { sendPrompt, getBranch, generateTitle } from "@/api/sessions"
+import { listMessages, type StoredMessageDto } from "@/api/workspaces"
 import { apiUrl } from "@/api/client"
 import { useWorkspace } from "@/hooks/workspace-context"
 import { cn } from "@/lib/utils"
@@ -33,6 +34,27 @@ interface ToolMessage {
 }
 
 type Message = TextMessage | ToolMessage
+
+function storedToMessage(m: StoredMessageDto): Message {
+  if (m.role === "tool") {
+    const data = JSON.parse(m.content) as {
+      toolCallId: string
+      toolName: string
+      args: unknown
+      result: unknown
+      status: "running" | "done" | "error"
+    }
+    return {
+      role: "tool",
+      toolCallId: data.toolCallId,
+      toolName: data.toolName,
+      args: data.args,
+      result: data.result,
+      status: data.status,
+    }
+  }
+  return { role: m.role as "user" | "assistant", content: m.content }
+}
 
 // ── ToolCallBlock ─────────────────────────────────────────────────────────────
 
@@ -184,6 +206,23 @@ export function ChatView({
   const hasTitledRef = useRef(false)
 
   const { setThreadTitle } = useWorkspace()
+
+  // ── Load message history on mount (component is keyed by threadId) ──────────
+  useEffect(() => {
+    let cancelled = false
+    listMessages(sessionId)
+      .then(({ messages: stored }) => {
+        if (cancelled) return
+        const loaded = stored.map(storedToMessage)
+        setMessages(loaded)
+        hasTitledRef.current = loaded.length > 0
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     getBranch(sessionId)

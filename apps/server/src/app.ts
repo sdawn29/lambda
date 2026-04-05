@@ -3,7 +3,20 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { createManagedSession, getAvailableModels, generateThreadTitle, type SdkConfig } from "@asphalt/pi-sdk";
 import { getCurrentBranch } from "@asphalt/git";
+import {
+  listWorkspacesWithThreads,
+  getWorkspace,
+  insertWorkspace,
+  deleteWorkspace,
+  insertThread,
+  getThread,
+  deleteThread,
+  updateThreadTitle,
+  listMessages,
+  insertMessage,
+} from "@asphalt/db";
 import { store } from "./store.js";
+import { messageBuffer } from "./message-buffer.js";
 
 const app = new Hono();
 
@@ -27,6 +40,118 @@ app.post("/title", async (c) => {
   return c.json({ title });
 });
 
+// ── Workspace endpoints ────────────────────────────────────────────────────────
+
+app.get("/workspaces", (c) => {
+  const wsWithThreads = listWorkspacesWithThreads();
+  const result = wsWithThreads.map((ws) => ({
+    id: ws.id,
+    name: ws.name,
+    path: ws.path,
+    createdAt: ws.createdAt,
+    threads: ws.threads.map((t) => {
+      const session = store.getByThreadId(t.id);
+      return {
+        id: t.id,
+        workspaceId: ws.id,
+        title: t.title,
+        createdAt: t.createdAt,
+        sessionId: session?.sessionId ?? null,
+      };
+    }),
+  }));
+  return c.json({ workspaces: result });
+});
+
+app.post("/workspace", async (c) => {
+  const body = await c.req.json<{ name?: string; path?: string; provider?: string; model?: string }>().catch((): { name?: string; path?: string; provider?: string; model?: string } => ({}));
+  if (!body.name || !body.path) return c.json({ error: "name and path are required" }, 400);
+
+  const workspaceId = insertWorkspace(body.name, body.path);
+  const threadId = insertThread(workspaceId);
+
+  const handle = await createManagedSession({
+    cwd: body.path,
+    provider: body.provider,
+    model: body.model,
+  });
+  const sessionId = store.create(handle, body.path, threadId);
+
+  return c.json({
+    workspace: {
+      id: workspaceId,
+      name: body.name,
+      path: body.path,
+      threads: [{
+        id: threadId,
+        workspaceId,
+        title: "New Thread",
+        createdAt: Date.now(),
+        sessionId,
+      }],
+    },
+  }, 201);
+});
+
+app.delete("/workspace/:id", (c) => {
+  const workspaceId = c.req.param("id");
+  const ws = listWorkspacesWithThreads().find((w) => w.id === workspaceId);
+  if (ws) {
+    for (const thread of ws.threads) {
+      const session = store.getByThreadId(thread.id);
+      if (session) store.delete(session.sessionId);
+    }
+  }
+  deleteWorkspace(workspaceId);
+  return new Response(null, { status: 204 });
+});
+
+app.post("/workspace/:workspaceId/thread", async (c) => {
+  const workspaceId = c.req.param("workspaceId");
+  const body = await c.req.json<{ provider?: string; model?: string }>().catch((): { provider?: string; model?: string } => ({}));
+
+  const ws = getWorkspace(workspaceId);
+  if (!ws) return c.json({ error: "Workspace not found" }, 404);
+
+  const threadId = insertThread(workspaceId);
+  const handle = await createManagedSession({
+    cwd: ws.path,
+    provider: body.provider,
+    model: body.model,
+  });
+  const sessionId = store.create(handle, ws.path, threadId);
+
+  return c.json({
+    thread: {
+      id: threadId,
+      workspaceId,
+      title: "New Thread",
+      createdAt: Date.now(),
+      sessionId,
+    },
+  }, 201);
+});
+
+app.delete("/thread/:id", (c) => {
+  const threadId = c.req.param("id");
+  const session = store.getByThreadId(threadId);
+  if (session) store.delete(session.sessionId);
+  deleteThread(threadId);
+  return new Response(null, { status: 204 });
+});
+
+app.patch("/thread/:id/title", async (c) => {
+  const threadId = c.req.param("id");
+  const body = await c.req.json<{ title?: string }>().catch((): { title?: string } => ({}));
+  if (!body.title) return c.json({ error: "title is required" }, 400);
+  const thread = getThread(threadId);
+  if (!thread) return c.json({ error: "Thread not found" }, 404);
+  updateThreadTitle(threadId, body.title);
+  return c.json({ ok: true });
+});
+
+// ── Session endpoints ──────────────────────────────────────────────────────────
+
 app.post("/session", async (c) => {
   const body = await c.req.json<Partial<SdkConfig>>().catch((): Partial<SdkConfig> => ({}));
   const config: SdkConfig = {
@@ -37,7 +162,10 @@ app.post("/session", async (c) => {
   };
   const handle = await createManagedSession(config);
   const resolvedCwd = body.cwd ?? process.cwd();
-  const sessionId = store.create(handle, resolvedCwd);
+  // Legacy endpoint: create a thread in the DB so messages can be persisted
+  const workspaceId = insertWorkspace("Untitled", resolvedCwd);
+  const threadId = insertThread(workspaceId);
+  const sessionId = store.create(handle, resolvedCwd, threadId);
   return c.json({ sessionId }, 201);
 });
 
@@ -55,6 +183,8 @@ app.post("/session/:id/prompt", async (c) => {
   const body = await c.req.json<{ text?: string }>().catch((): { text?: string } => ({}));
   if (!body.text) return c.json({ error: "text is required" }, 400);
 
+  insertMessage(entry.threadId, "user", body.text);
+
   // Fire and forget — events arrive via GET /session/:id/events
   entry.handle.prompt(body.text).catch((err: unknown) => {
     console.error(`[prompt:${id}]`, err);
@@ -70,19 +200,62 @@ app.get("/session/:id/branch", async (c) => {
   return c.json({ branch });
 });
 
+app.get("/session/:id/messages", (c) => {
+  const id = c.req.param("id");
+  const threadId = store.getThreadId(id);
+  if (!threadId) return c.json({ error: "Session not found" }, 404);
+  const msgs = listMessages(threadId);
+  return c.json({ messages: msgs });
+});
+
 app.get("/session/:id/events", async (c) => {
   const id = c.req.param("id");
   const entry = store.get(id);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
+  const threadId = entry.threadId;
+
   return streamSSE(c, async (stream) => {
     const generator = entry.handle.events();
 
     stream.onAbort(async () => {
+      messageBuffer.flush(id);
       await generator.return(undefined);
     });
 
     for await (const event of generator) {
+      // ── Persistence side-effects ───────────────────────────────────────────
+      if (event.type === "message_start") {
+        messageBuffer.startAssistant(id, threadId);
+      } else if (event.type === "message_update") {
+        const e = event as { assistantMessageEvent?: { type: string; delta: string } };
+        if (e.assistantMessageEvent?.type === "text_delta") {
+          messageBuffer.appendDelta(id, e.assistantMessageEvent.delta);
+        }
+      } else if (event.type === "tool_execution_end") {
+        const e = event as {
+          toolCallId: string;
+          toolName?: string;
+          args?: unknown;
+          result: unknown;
+          isError: boolean;
+        };
+        insertMessage(
+          threadId,
+          "tool",
+          JSON.stringify({
+            toolCallId: e.toolCallId,
+            toolName: e.toolName ?? "",
+            args: e.args ?? {},
+            result: e.result,
+            status: e.isError ? "error" : "done",
+          }),
+        );
+      } else if (event.type === "agent_end") {
+        messageBuffer.flush(id);
+      }
+
+      // ── SSE passthrough ────────────────────────────────────────────────────
       let data: string;
       try {
         data = JSON.stringify(event);

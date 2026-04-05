@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { activeWorkspace, activeThread } = useWorkspace()
 
-  if (!activeWorkspace || !activeThread) return null
+  if (!activeWorkspace || !activeThread || !activeThread.sessionId) return null
 
   return (
     <ChatView
