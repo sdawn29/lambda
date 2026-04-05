@@ -18,29 +18,15 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useWorkspace } from "@/hooks/workspace-context"
+import { useWorkspace, useCreateWorkspaceAction } from "@/hooks/workspace-context"
 
 export function AppSidebar() {
-  const {
-    workspaces,
-    activeThread,
-    selectWorkspace,
-    createWorkspace,
-    createThread,
-    selectThread,
-  } = useWorkspace()
+  const { workspaces, activeThread, selectWorkspace, createThread, selectThread } = useWorkspace()
+  const handleCreateWorkspace = useCreateWorkspaceAction()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
   const location = useLocation()
   const isSettings = location.pathname === "/settings"
-
-  async function handleCreateWorkspace() {
-    const folderPath = await window.electronAPI?.selectFolder()
-    if (folderPath) {
-      const folderName = folderPath.split(/[/\\]/).pop() || folderPath
-      createWorkspace(folderName, folderPath)
-    }
-  }
 
   return (
     <Sidebar collapsible="offcanvas">

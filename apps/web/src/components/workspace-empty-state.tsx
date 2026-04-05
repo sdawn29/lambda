@@ -8,18 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useWorkspace } from "@/hooks/workspace-context"
+import { useCreateWorkspaceAction } from "@/hooks/workspace-context"
 
 export function WorkspaceEmptyState() {
-  const { createWorkspace } = useWorkspace()
-
-  async function handleCreateWorkspace() {
-    const folderPath = await window.electronAPI?.selectFolder()
-    if (folderPath) {
-      const folderName = folderPath.split(/[/\\]/).pop() || folderPath
-      createWorkspace(folderName, folderPath)
-    }
-  }
+  const handleCreateWorkspace = useCreateWorkspaceAction()
 
   return (
     <div className="flex h-full items-center justify-center">

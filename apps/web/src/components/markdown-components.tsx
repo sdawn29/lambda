@@ -2,6 +2,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import vs from "react-syntax-highlighter/dist/esm/styles/prism/vs"
 import type { Components } from "react-markdown"
+import { useTheme } from "@/components/theme-provider"
 
 function CodeBlock({
   className,
@@ -10,8 +11,11 @@ function CodeBlock({
   className?: string
   children?: React.ReactNode
 }) {
+  const { theme } = useTheme()
+  const isDark =
+    theme === "dark" ||
+    (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
   const match = /language-(\w+)/.exec(className ?? "")
-  const isDark = document.documentElement.classList.contains("dark")
   const code = String(children).replace(/\n$/, "")
 
   if (match) {

@@ -24,6 +24,19 @@ const app = new Hono();
 
 app.use(cors());
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+async function createSessionForThread(
+  threadId: string,
+  cwd: string,
+  opts: Omit<Partial<SdkConfig>, "cwd"> = {},
+): Promise<string> {
+  const handle = await createManagedSession({ cwd, ...opts });
+  const sessionId = store.create(handle, cwd, threadId);
+  if (handle.sessionFile) updateThreadSessionFile(threadId, handle.sessionFile);
+  return sessionId;
+}
+
 app.get("/health", (c) =>
   c.json({ status: "ok", uptime: process.uptime() }),
 );
@@ -71,14 +84,10 @@ app.post("/workspace", async (c) => {
 
   const workspaceId = insertWorkspace(body.name, body.path);
   const threadId = insertThread(workspaceId);
-
-  const handle = await createManagedSession({
-    cwd: body.path,
+  const sessionId = await createSessionForThread(threadId, body.path, {
     provider: body.provider,
     model: body.model,
   });
-  const sessionId = store.create(handle, body.path, threadId);
-  if (handle.sessionFile) updateThreadSessionFile(threadId, handle.sessionFile);
 
   return c.json({
     workspace: {
@@ -129,13 +138,10 @@ app.post("/workspace/:workspaceId/thread", async (c) => {
   if (!ws) return c.json({ error: "Workspace not found" }, 404);
 
   const threadId = insertThread(workspaceId);
-  const handle = await createManagedSession({
-    cwd: ws.path,
+  const sessionId = await createSessionForThread(threadId, ws.path, {
     provider: body.provider,
     model: body.model,
   });
-  const sessionId = store.create(handle, ws.path, threadId);
-  if (handle.sessionFile) updateThreadSessionFile(threadId, handle.sessionFile);
 
   return c.json({
     thread: {
@@ -170,19 +176,15 @@ app.patch("/thread/:id/title", async (c) => {
 
 app.post("/session", async (c) => {
   const body = await c.req.json<Partial<SdkConfig>>().catch((): Partial<SdkConfig> => ({}));
-  const config: SdkConfig = {
-    anthropicApiKey: body.anthropicApiKey,
-    cwd: body.cwd,
-    provider: body.provider,
-    model: body.model,
-  };
-  const handle = await createManagedSession(config);
   const resolvedCwd = body.cwd ?? process.cwd();
   // Legacy endpoint: create a thread in the DB so messages can be persisted
   const workspaceId = insertWorkspace("Untitled", resolvedCwd);
   const threadId = insertThread(workspaceId);
-  const sessionId = store.create(handle, resolvedCwd, threadId);
-  if (handle.sessionFile) updateThreadSessionFile(threadId, handle.sessionFile);
+  const sessionId = await createSessionForThread(threadId, resolvedCwd, {
+    anthropicApiKey: body.anthropicApiKey,
+    provider: body.provider,
+    model: body.model,
+  });
   return c.json({ sessionId }, 201);
 });
 

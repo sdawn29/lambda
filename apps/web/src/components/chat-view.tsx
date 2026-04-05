@@ -184,12 +184,12 @@ export function ChatView({
     }
   }, [messages, isLoading])
 
-  function handleScroll() {
+  const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current
     if (!el) return
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
     pinnedRef.current = distanceFromBottom < 80
-  }
+  }, [])
 
   const handleSend = useCallback(
     (text: string, modelId: string, provider: string) => {
@@ -207,6 +207,10 @@ export function ChatView({
     },
     [sessionId, workspaceId, threadId, setThreadTitle]
   )
+
+  const lastMsg = messages[messages.length - 1]
+  const showThinking =
+    isLoading && !(lastMsg?.role === "assistant" && (lastMsg as TextMessage).content.length > 0)
 
   const footerLabel = `${workspaceName}${branch ? ` / ${branch}` : ""}`
 
@@ -243,15 +247,11 @@ export function ChatView({
             </div>
           )
         })}
-        {isLoading &&
-          !(
-            messages[messages.length - 1]?.role === "assistant" &&
-            (messages[messages.length - 1] as TextMessage).content.length > 0
-          ) && (
-            <p className="animate-pulse self-start text-sm text-muted-foreground">
-              Thinking…
-            </p>
-          )}
+        {showThinking && (
+          <p className="animate-pulse self-start text-sm text-muted-foreground">
+            Thinking…
+          </p>
+        )}
         <div ref={bottomRef} />
       </div>
 

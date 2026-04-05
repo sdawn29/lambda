@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -42,9 +43,15 @@ const LS_THREAD_KEY = "lambda-code:activeThreadId"
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const workspacesRef = useRef<Workspace[]>([])
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null)
   const [activeThread, setActiveThread] = useState<Thread | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Keep ref in sync so callbacks can read current workspaces without stale closures
+  useEffect(() => {
+    workspacesRef.current = workspaces
+  }, [workspaces])
 
   // ── Init: fetch from server and restore last selection ─────────────────────
   useEffect(() => {
@@ -106,11 +113,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const selectThread = useCallback((workspaceId: string, thread: Thread) => {
-    setWorkspaces((prev) => {
-      const ws = prev.find((w) => w.id === workspaceId)
-      if (ws) setActiveWorkspace(ws)
-      return prev
-    })
+    const ws = workspacesRef.current.find((w) => w.id === workspaceId)
+    if (ws) setActiveWorkspace(ws)
     setActiveThread(thread)
   }, [])
 
@@ -184,4 +188,15 @@ export function useWorkspace() {
     throw new Error("useWorkspace must be used within a WorkspaceProvider")
   }
   return context
+}
+
+/** Returns a stable callback that opens the native folder picker and creates a workspace. */
+export function useCreateWorkspaceAction() {
+  const { createWorkspace } = useWorkspace()
+  return useCallback(async () => {
+    const folderPath = await window.electronAPI?.selectFolder()
+    if (!folderPath) return
+    const folderName = folderPath.split(/[/\\]/).pop() || folderPath
+    await createWorkspace(folderName, folderPath)
+  }, [createWorkspace])
 }
