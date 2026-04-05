@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useRouter } from "@tanstack/react-router"
+import { useRouter, useParams } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { useWorkspace } from "@/hooks/workspace-context"
@@ -11,7 +11,11 @@ const isMac =
 export function TitleBar() {
   const router = useRouter()
   const { open } = useSidebar()
-  const { activeThread } = useWorkspace()
+  const { workspaces } = useWorkspace()
+  const { threadId } = useParams({ strict: false }) as { threadId?: string }
+  const activeThread = threadId
+    ? workspaces.flatMap((w) => w.threads).find((t) => t.id === threadId)
+    : undefined
 
   const { subscribe, getSnapshot } = useMemo(() => {
     let count = 0

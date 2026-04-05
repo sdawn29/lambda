@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ChevronRight, FolderOpen, Plus, Settings } from "lucide-react"
-import { useNavigate, useLocation } from "@tanstack/react-router"
+import { useNavigate, useLocation, useParams } from "@tanstack/react-router"
 
 import {
   Sidebar,
@@ -21,12 +21,15 @@ import { cn } from "@/lib/utils"
 import { useWorkspace, useCreateWorkspaceAction } from "@/hooks/workspace-context"
 
 export function AppSidebar() {
-  const { workspaces, activeThread, selectWorkspace, createThread, selectThread } = useWorkspace()
+  const { workspaces, createThread } = useWorkspace()
   const handleCreateWorkspace = useCreateWorkspaceAction()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
   const location = useLocation()
   const isSettings = location.pathname === "/settings"
+
+  // Get the active thread from URL params (undefined on non-thread routes)
+  const { threadId: activeThreadId } = useParams({ strict: false }) as { threadId?: string }
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -50,7 +53,6 @@ export function AppSidebar() {
                     <div className="group/ws flex items-center">
                       <SidebarMenuButton
                         onClick={() => {
-                          selectWorkspace(ws)
                           setCollapsed((prev) => ({
                             ...prev,
                             [ws.id]: !prev[ws.id],
@@ -69,7 +71,13 @@ export function AppSidebar() {
                         variant="ghost"
                         size="icon-sm"
                         className="shrink-0 opacity-0 transition-opacity group-hover/ws:opacity-100"
-                        onClick={() => createThread(ws.id)}
+                        onClick={async () => {
+                          const thread = await createThread(ws.id)
+                          navigate({
+                            to: "/thread/$threadId",
+                            params: { threadId: thread.id },
+                          })
+                        }}
                         title="New Thread"
                       >
                         <Plus />
@@ -81,8 +89,13 @@ export function AppSidebar() {
                         {ws.threads.map((thread) => (
                           <SidebarMenuSubItem key={thread.id}>
                             <SidebarMenuSubButton
-                              isActive={activeThread?.id === thread.id}
-                              onClick={() => selectThread(ws.id, thread)}
+                              isActive={activeThreadId === thread.id}
+                              onClick={() =>
+                                navigate({
+                                  to: "/thread/$threadId",
+                                  params: { threadId: thread.id },
+                                })
+                              }
                             >
                               <span className="truncate">{thread.title}</span>
                             </SidebarMenuSubButton>
@@ -103,7 +116,7 @@ export function AppSidebar() {
             "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
             isSettings
               ? "bg-muted text-foreground"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
           onClick={() => navigate({ to: "/settings" })}
         >
