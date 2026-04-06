@@ -18,6 +18,10 @@ export function getWorkspace(id: string) {
   return db.select().from(workspaces).where(eq(workspaces.id, id)).get()
 }
 
+export function getWorkspaceByPath(path: string) {
+  return db.select().from(workspaces).where(eq(workspaces.path, path)).get()
+}
+
 export function insertWorkspace(name: string, path: string): string {
   const id = randomUUID()
   db.insert(workspaces)

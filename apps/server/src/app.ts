@@ -6,6 +6,7 @@ import { getCurrentBranch } from "@asphalt/git";
 import {
   listWorkspacesWithThreads,
   getWorkspace,
+  getWorkspaceByPath,
   insertWorkspace,
   deleteWorkspace,
   deleteAllWorkspaces,
@@ -81,6 +82,16 @@ app.get("/workspaces", (c) => {
 app.post("/workspace", async (c) => {
   const body = await c.req.json<{ name?: string; path?: string; provider?: string; model?: string }>().catch((): { name?: string; path?: string; provider?: string; model?: string } => ({}));
   if (!body.name || !body.path) return c.json({ error: "name and path are required" }, 400);
+
+  const existing = getWorkspaceByPath(body.path);
+  if (existing) {
+    const wsWithThreads = listWorkspacesWithThreads().find((w) => w.id === existing.id);
+    const threads = (wsWithThreads?.threads ?? []).map((t) => {
+      const session = store.getByThreadId(t.id);
+      return { id: t.id, workspaceId: existing.id, title: t.title, createdAt: t.createdAt, sessionId: session?.sessionId ?? null };
+    });
+    return c.json({ error: "A workspace already exists for this path", workspace: { ...existing, threads } }, 409);
+  }
 
   const workspaceId = insertWorkspace(body.name, body.path);
   const threadId = insertThread(workspaceId);

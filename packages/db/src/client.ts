@@ -51,6 +51,15 @@ function createDb() {
     // Column already exists — nothing to do
   }
 
+  // Enforce one workspace per path — deduplicate before creating the index
+  sqlite.exec(`
+    DELETE FROM workspaces
+    WHERE id NOT IN (
+      SELECT MIN(id) FROM workspaces GROUP BY path
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS workspaces_path_unique ON workspaces(path);
+  `)
+
   return db
 }
 

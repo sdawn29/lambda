@@ -1,4 +1,4 @@
-import { apiFetch } from "./client"
+import { apiFetch, apiUrl } from "./client"
 
 export interface ThreadDto {
   id: string
@@ -20,17 +20,26 @@ export function listWorkspaces(): Promise<{ workspaces: WorkspaceDto[] }> {
   return apiFetch<{ workspaces: WorkspaceDto[] }>("/workspaces")
 }
 
-export function createWorkspace(body: {
+export async function createWorkspace(body: {
   name: string
   path: string
   provider?: string
   model?: string
-}): Promise<{ workspace: WorkspaceDto }> {
-  return apiFetch<{ workspace: WorkspaceDto }>("/workspace", {
+}): Promise<{ workspace: WorkspaceDto; existing?: true }> {
+  const res = await fetch(apiUrl("/workspace"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
+  if (res.status === 409) {
+    const data = (await res.json()) as { workspace: WorkspaceDto }
+    return { workspace: data.workspace, existing: true }
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`API ${res.status}: ${text}`)
+  }
+  return res.json() as Promise<{ workspace: WorkspaceDto }>
 }
 
 export function deleteWorkspace(id: string): Promise<void> {

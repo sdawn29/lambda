@@ -52,8 +52,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const createWorkspace = useCallback(
     async (name: string, path: string): Promise<Workspace> => {
-      const { workspace } = await apiCreateWorkspace({ name, path })
-      setWorkspaces((prev) => [...prev, workspace])
+      const { workspace, existing } = await apiCreateWorkspace({ name, path })
+      if (!existing) setWorkspaces((prev) => [...prev, workspace])
       return workspace
     },
     [],
