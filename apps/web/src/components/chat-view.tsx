@@ -5,7 +5,13 @@ import remarkGfm from "remark-gfm"
 
 import { ChatTextbox } from "@/components/chat-textbox"
 import { TerminalPanel } from "@/components/terminal-panel"
-import { sendPrompt, getBranch, generateTitle } from "@/api/sessions"
+import {
+  sendPrompt,
+  getBranch,
+  listBranches,
+  checkoutBranch,
+  generateTitle,
+} from "@/api/sessions"
 import { listMessages, type StoredMessageDto } from "@/api/workspaces"
 import { apiUrl } from "@/api/client"
 import { useWorkspace } from "@/hooks/workspace-context"
@@ -57,6 +63,7 @@ export function ChatView({
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [branch, setBranch] = useState<string | null>(null)
+  const [branches, setBranches] = useState<string[]>([])
   const [selectedModelId, setSelectedModelId] = useState<string | null>(() =>
     localStorage.getItem(`lambda-code:threadModel:${threadId}`)
   )
@@ -89,7 +96,21 @@ export function ChatView({
     getBranch(sessionId)
       .then((r) => setBranch(r.branch))
       .catch(() => {})
+    listBranches(sessionId)
+      .then((r) => setBranches(r.branches))
+      .catch(() => {})
   }, [sessionId])
+
+  const handleBranchSelect = useCallback(
+    (selectedBranch: string) => {
+      checkoutBranch(sessionId, selectedBranch)
+        .then((r) => {
+          if (r.branch) setBranch(r.branch)
+        })
+        .catch(() => {})
+    },
+    [sessionId]
+  )
 
   useEffect(() => {
     let active = true
@@ -221,8 +242,6 @@ export function ChatView({
       (lastMsg as TextMessage).content.length > 0
     )
 
-  const footerLabel = `${workspaceName}${branch ? ` / ${branch}` : ""}`
-
   return (
     <div className="flex h-full flex-col">
       <div
@@ -268,7 +287,10 @@ export function ChatView({
         <ChatTextbox
           onSend={handleSend}
           isLoading={isLoading}
-          footerLabel={footerLabel}
+          workspaceName={workspaceName}
+          branch={branch}
+          branches={branches}
+          onBranchSelect={handleBranchSelect}
           selectedModelId={selectedModelId}
           onModelChange={(id) => {
             setSelectedModelId(id)

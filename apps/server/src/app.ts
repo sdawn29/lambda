@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { createManagedSession, getAvailableModels, generateThreadTitle, type SdkConfig } from "@asphalt/pi-sdk";
-import { getCurrentBranch } from "@asphalt/git";
+import { getCurrentBranch, listBranches, checkoutBranch } from "@asphalt/git";
 import {
   listWorkspacesWithThreads,
   getWorkspace,
@@ -234,6 +234,27 @@ app.get("/session/:id/branch", async (c) => {
   if (!cwd) return c.json({ branch: null });
   const branch = await getCurrentBranch(cwd);
   return c.json({ branch });
+});
+
+app.get("/session/:id/branches", async (c) => {
+  const cwd = store.getCwd(c.req.param("id"));
+  if (!cwd) return c.json({ branches: [] });
+  const branches = await listBranches(cwd);
+  return c.json({ branches });
+});
+
+app.post("/session/:id/checkout", async (c) => {
+  const cwd = store.getCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const body = await c.req.json<{ branch: string }>();
+  if (!body.branch) return c.json({ error: "branch is required" }, 400);
+  try {
+    await checkoutBranch(cwd, body.branch);
+    const branch = await getCurrentBranch(cwd);
+    return c.json({ branch });
+  } catch {
+    return c.json({ error: "Checkout failed" }, 500);
+  }
 });
 
 app.get("/session/:id/messages", (c) => {

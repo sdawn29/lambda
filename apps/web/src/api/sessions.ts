@@ -49,6 +49,25 @@ export function getBranch(sessionId: string): Promise<BranchResponse> {
   return apiFetch<BranchResponse>(`/session/${sessionId}/branch`)
 }
 
+export interface BranchesResponse {
+  branches: string[]
+}
+
+export function listBranches(sessionId: string): Promise<BranchesResponse> {
+  return apiFetch<BranchesResponse>(`/session/${sessionId}/branches`)
+}
+
+export function checkoutBranch(
+  sessionId: string,
+  branch: string
+): Promise<BranchResponse> {
+  return apiFetch<BranchResponse>(`/session/${sessionId}/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch }),
+  })
+}
+
 export interface TitleResponse {
   title: string
 }

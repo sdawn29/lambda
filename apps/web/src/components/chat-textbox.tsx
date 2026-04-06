@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useModels } from "@/queries/use-models"
+import { BranchSelector } from "@/components/branch-selector"
 
 interface ChatTextboxProps {
   onSend?: (message: string, modelId: string, provider: string) => void
@@ -25,7 +26,10 @@ interface ChatTextboxProps {
   onStop?: () => void
   placeholder?: string
   className?: string
-  footerLabel?: string
+  workspaceName?: string
+  branch?: string | null
+  branches?: string[]
+  onBranchSelect?: (branch: string) => void
   selectedModelId?: string | null
   onModelChange?: (modelId: string) => void
 }
@@ -36,7 +40,10 @@ export function ChatTextbox({
   onStop,
   placeholder = "Ask anything…",
   className,
-  footerLabel,
+  workspaceName,
+  branch,
+  branches = [],
+  onBranchSelect,
   selectedModelId: controlledModelId,
   onModelChange,
 }: ChatTextboxProps) {
@@ -158,10 +165,24 @@ export function ChatTextbox({
           )}
         </div>
       </div>
-      {footerLabel && (
-        <span className="truncate py-2 text-xs text-muted-foreground">
-          {footerLabel}
-        </span>
+      {(workspaceName || branch !== undefined) && (
+        <div className="flex items-center gap-1 py-1">
+          {workspaceName && (
+            <span className="truncate text-xs text-muted-foreground">
+              {workspaceName}
+            </span>
+          )}
+          {workspaceName && branch !== undefined && (
+            <span className="text-xs text-muted-foreground">/</span>
+          )}
+          {branch !== undefined && (
+            <BranchSelector
+              branch={branch ?? null}
+              branches={branches}
+              onBranchSelect={onBranchSelect}
+            />
+          )}
+        </div>
       )}
     </div>
   )

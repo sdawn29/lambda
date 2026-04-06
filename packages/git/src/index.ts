@@ -44,3 +44,34 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
   const root = await getRepoRoot(cwd)
   return root !== null
 }
+
+/**
+ * Returns all local branch names for the given directory,
+ * or an empty array if the directory is not a git repo.
+ */
+export async function listBranches(cwd: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["branch", "--format=%(refname:short)"],
+      { cwd, timeout: 3000 }
+    )
+    return stdout
+      .split("\n")
+      .map((b) => b.trim())
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Checks out the given branch in the given directory.
+ * Throws if the checkout fails.
+ */
+export async function checkoutBranch(
+  cwd: string,
+  branch: string
+): Promise<void> {
+  await execFileAsync("git", ["checkout", branch], { cwd, timeout: 10000 })
+}
