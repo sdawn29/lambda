@@ -57,8 +57,8 @@ export function ChatView({
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [branch, setBranch] = useState<string | null>(null)
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(
-    () => localStorage.getItem(`lambda-code:threadModel:${threadId}`)
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(() =>
+    localStorage.getItem(`lambda-code:threadModel:${threadId}`)
   )
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -82,7 +82,7 @@ export function ChatView({
     return () => {
       cancelled = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -215,7 +215,11 @@ export function ChatView({
 
   const lastMsg = messages[messages.length - 1]
   const showThinking =
-    isLoading && !(lastMsg?.role === "assistant" && (lastMsg as TextMessage).content.length > 0)
+    isLoading &&
+    !(
+      lastMsg?.role === "assistant" &&
+      (lastMsg as TextMessage).content.length > 0
+    )
 
   const footerLabel = `${workspaceName}${branch ? ` / ${branch}` : ""}`
 
@@ -260,8 +264,6 @@ export function ChatView({
         <div ref={bottomRef} />
       </div>
 
-      {terminalOpen && <TerminalPanel cwd={workspacePath} />}
-
       <div className="mx-auto w-full max-w-2xl px-6 pb-6">
         <ChatTextbox
           onSend={handleSend}
@@ -274,6 +276,7 @@ export function ChatView({
           }}
         />
       </div>
+      {terminalOpen && <TerminalPanel cwd={workspacePath} />}
     </div>
   )
 }
