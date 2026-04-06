@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -163,6 +163,10 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle("get-server-port", () => serverPort);
+
+  ipcMain.handle("open-path", (_event, filePath: string) => {
+    shell.showItemInFolder(filePath);
+  });
 
   await createWindow();
 

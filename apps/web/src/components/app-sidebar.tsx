@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, FolderOpen, Plus, Settings } from "lucide-react"
+import { ChevronRight, FolderOpen, MoreHorizontal, Plus, Settings, Trash2 } from "lucide-react"
 import { useNavigate, useLocation, useParams } from "@tanstack/react-router"
 
 import {
@@ -16,12 +16,18 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkspace, useCreateWorkspaceAction } from "@/hooks/workspace-context"
 
 export function AppSidebar() {
-  const { workspaces, createThread } = useWorkspace()
+  const { workspaces, createThread, deleteWorkspace } = useWorkspace()
   const handleCreateWorkspace = useCreateWorkspaceAction()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
@@ -61,10 +67,12 @@ export function AppSidebar() {
                         tooltip={ws.name}
                         className="flex-1"
                       >
-                        <ChevronRight
-                          className={`h-3 w-3 shrink-0 transition-transform ${collapsed[ws.id] ? "" : "rotate-90"}`}
-                        />
-                        <FolderOpen className="h-4 w-4 shrink-0" />
+                        <span className="relative h-4 w-4 shrink-0">
+                          <FolderOpen className="absolute inset-0 h-4 w-4 transition-opacity group-hover/ws:opacity-0" />
+                          <ChevronRight
+                            className={`absolute inset-0 h-4 w-4 opacity-0 transition-[opacity,transform] group-hover/ws:opacity-100 ${collapsed[ws.id] ? "" : "rotate-90"}`}
+                          />
+                        </span>
                         <span>{ws.name}</span>
                       </SidebarMenuButton>
                       <Button
@@ -82,6 +90,32 @@ export function AppSidebar() {
                       >
                         <Plus />
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-accent group-hover/ws:opacity-100"
+                          title="More options"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              // open in Finder (macOS) / File Explorer (Windows)
+                              window.electronAPI?.openPath?.(ws.path)
+                            }}
+                          >
+                            <FolderOpen className="mr-2 h-4 w-4" />
+                            Find in Finder
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => deleteWorkspace(ws)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Workspace
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
                     {!collapsed[ws.id] && ws.threads.length > 0 && (
