@@ -143,7 +143,7 @@ export function CommitDialog({ cwd }: CommitDialogProps) {
       <DialogTrigger
         render={
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon-sm"
             disabled={!cwd}
             aria-label="Commit changes"

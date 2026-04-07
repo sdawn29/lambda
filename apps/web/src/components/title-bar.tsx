@@ -59,7 +59,7 @@ export function TitleBar() {
       >
         <SidebarTrigger />
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon-sm"
           onClick={() => router.history.back()}
           disabled={!canGoBack}
@@ -68,7 +68,7 @@ export function TitleBar() {
           <span className="sr-only">Go back</span>
         </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon-sm"
           onClick={() => router.history.forward()}
           disabled={!canGoForward}
@@ -106,7 +106,7 @@ export function TitleBar() {
       >
         <CommitDialog cwd={activeWorkspace?.path} />
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon-sm"
           onClick={toggleTerminal}
           data-active={terminalOpen}
