@@ -267,80 +267,87 @@ export function ChatView({
 
   return (
     <>
-    <AlertDialog open={gitError !== null} onOpenChange={(open) => { if (!open) setGitError(null) }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Git Error</AlertDialogTitle>
-          <AlertDialogDescription>{gitError}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => setGitError(null)}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-    <div className="flex h-full min-w-0">
-      {/* Main chat column */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {messages.map((msg, i) => {
-            if (msg.role === "tool") {
-              return <ToolCallBlock key={i} msg={msg} />
-            }
-            return (
-              <div
-                key={i}
-                className={
-                  msg.role === "user"
-                    ? "self-end rounded-xl bg-muted px-4 py-2 text-sm"
-                    : "prose prose-sm w-full max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                }
-              >
-                {msg.role === "user" ? (
-                  msg.content
-                ) : (
-                  <Markdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {msg.content}
-                  </Markdown>
-                )}
-              </div>
-            )
-          })}
-          {showThinking && (
-            <p className="animate-pulse self-start text-sm text-muted-foreground">
-              Thinking…
-            </p>
-          )}
-          <div ref={bottomRef} />
+      <AlertDialog
+        open={gitError !== null}
+        onOpenChange={(open) => {
+          if (!open) setGitError(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Git Error</AlertDialogTitle>
+            <AlertDialogDescription>{gitError}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setGitError(null)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <div className="flex h-full min-w-0">
+        {/* Main chat column */}
+        <div className="flex min-w-0 flex-1 flex-col border-t">
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {messages.map((msg, i) => {
+              if (msg.role === "tool") {
+                return <ToolCallBlock key={i} msg={msg} />
+              }
+              return (
+                <div
+                  key={i}
+                  className={
+                    msg.role === "user"
+                      ? "self-end rounded-xl bg-muted px-4 py-2 text-sm"
+                      : "prose prose-sm w-full max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  }
+                >
+                  {msg.role === "user" ? (
+                    msg.content
+                  ) : (
+                    <Markdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {msg.content}
+                    </Markdown>
+                  )}
+                </div>
+              )
+            })}
+            {showThinking && (
+              <p className="animate-pulse self-start text-sm text-muted-foreground">
+                Thinking…
+              </p>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          <div className="mx-auto w-full max-w-2xl px-6 pb-6">
+            <ChatTextbox
+              onSend={handleSend}
+              isLoading={isLoading}
+              workspaceName={workspaceName}
+              branch={branch}
+              branches={branches}
+              onBranchSelect={handleBranchSelect}
+              selectedModelId={selectedModelId}
+              onModelChange={(id) => {
+                setSelectedModelId(id)
+                localStorage.setItem(`lambda-code:threadModel:${threadId}`, id)
+              }}
+            />
+          </div>
+          {terminalOpen && <TerminalPanel cwd={workspacePath} />}
         </div>
 
-        <div className="mx-auto w-full max-w-2xl px-6 pb-6">
-          <ChatTextbox
-            onSend={handleSend}
-            isLoading={isLoading}
-            workspaceName={workspaceName}
-            branch={branch}
-            branches={branches}
-            onBranchSelect={handleBranchSelect}
-            selectedModelId={selectedModelId}
-            onModelChange={(id) => {
-              setSelectedModelId(id)
-              localStorage.setItem(`lambda-code:threadModel:${threadId}`, id)
-            }}
-          />
-        </div>
-        {terminalOpen && <TerminalPanel cwd={workspacePath} />}
+        {/* Right-side diff panel */}
+        {diffOpen && <DiffPanel cwd={workspacePath} />}
       </div>
-
-      {/* Right-side diff panel */}
-      {diffOpen && <DiffPanel cwd={workspacePath} />}
-    </div>
     </>
   )
 }

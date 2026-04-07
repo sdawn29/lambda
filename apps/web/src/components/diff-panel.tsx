@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ChevronRight, GripVertical, Loader2, X, Columns2, AlignLeft } from "lucide-react"
+import {
+  ChevronRight,
+  GripVertical,
+  Loader2,
+  X,
+  Columns2,
+  AlignLeft,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DiffView, type DiffMode } from "@/components/diff-view"
 import { useDiffPanel } from "@/hooks/diff-panel-context"
@@ -52,15 +59,20 @@ function FileAccordionItem({
     <div className="border-b border-border/40 last:border-0">
       <button
         onClick={toggle}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/40"
       >
         <ChevronRight
           className={cn(
             "size-3 shrink-0 text-muted-foreground transition-transform duration-150",
-            expanded && "rotate-90",
+            expanded && "rotate-90"
           )}
         />
-        <span className={cn("w-5 shrink-0 font-mono text-xs", statusColor(file.statusCode))}>
+        <span
+          className={cn(
+            "w-5 shrink-0 font-mono text-xs",
+            statusColor(file.statusCode)
+          )}
+        >
           {file.statusCode.trim()}
         </span>
         <span className="truncate font-mono text-xs text-foreground/80">
@@ -80,7 +92,7 @@ function FileAccordionItem({
               diff={diff}
               filePath={file.filePath}
               mode={mode}
-              className="rounded-md border-border/50 mt-2"
+              className="mt-2 rounded-md border-border/50"
             />
           ) : null}
         </div>
@@ -113,7 +125,10 @@ export function DiffPanel({ cwd }: DiffPanelProps) {
           .split("\n")
           .map((l) => l.trimEnd())
           .filter(Boolean)
-          .map((l) => ({ statusCode: l.slice(0, 2) === "??" ? "U" : l.slice(0, 2), filePath: l.slice(3) }))
+          .map((l) => ({
+            statusCode: l.slice(0, 2) === "??" ? "U" : l.slice(0, 2),
+            filePath: l.slice(3),
+          }))
         setFiles(parsed)
       })
       .catch((err: Error) => setError(err.message))
@@ -140,7 +155,7 @@ export function DiffPanel({ cwd }: DiffPanelProps) {
       window.addEventListener("mousemove", onMove)
       window.addEventListener("mouseup", onUp)
     },
-    [width],
+    [width]
   )
 
   return (
@@ -150,18 +165,20 @@ export function DiffPanel({ cwd }: DiffPanelProps) {
     >
       {/* Left-edge drag handle */}
       <div
-        className="absolute inset-y-0 left-0 flex w-1 cursor-col-resize items-center justify-center hover:bg-border/60 transition-colors group"
+        className="group absolute inset-y-0 left-0 flex w-1 cursor-col-resize items-center justify-center transition-colors hover:bg-border/60"
         onMouseDown={onDragStart}
       >
         <GripVertical className="h-4 w-3 text-muted-foreground/30 group-hover:text-muted-foreground/60" />
       </div>
 
       {/* Header */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/60 pl-4 pr-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Diff</span>
+      <div className="flex h-9 min-w-0 shrink-0 items-center justify-between border-t border-b border-border/60 px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-xs font-medium text-muted-foreground">
+            Diff
+          </span>
           {files.length > 0 && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
               {files.length}
             </span>
           )}
@@ -169,7 +186,7 @@ export function DiffPanel({ cwd }: DiffPanelProps) {
 
         <div className="flex items-center gap-1">
           <Button
-            variant={mode === "inline" ? "secondary" : "ghost"}
+            variant="outline"
             size="icon-sm"
             onClick={() => setMode("inline")}
             title="Inline view"
@@ -178,7 +195,7 @@ export function DiffPanel({ cwd }: DiffPanelProps) {
             <span className="sr-only">Inline view</span>
           </Button>
           <Button
-            variant={mode === "side-by-side" ? "secondary" : "ghost"}
+            variant="outline"
             size="icon-sm"
             onClick={() => setMode("side-by-side")}
             title="Side-by-side view"
@@ -189,7 +206,7 @@ export function DiffPanel({ cwd }: DiffPanelProps) {
 
           <div className="mx-1 h-4 w-px bg-border/60" />
 
-          <Button variant="ghost" size="icon-sm" onClick={close}>
+          <Button variant="outline" size="icon-sm" onClick={close}>
             <X className="h-3 w-3" />
             <span className="sr-only">Close diff panel</span>
           </Button>
