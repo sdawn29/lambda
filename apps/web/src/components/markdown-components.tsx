@@ -1,8 +1,31 @@
+import { useState } from "react"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import vs from "react-syntax-highlighter/dist/esm/styles/prism/vs"
 import type { Components } from "react-markdown"
 import { useTheme } from "@/components/theme-provider"
+import { Check, Copy } from "lucide-react"
+
+function CopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute right-2 top-2 rounded-md border border-border bg-background p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+      aria-label="Copy code"
+    >
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+    </button>
+  )
+}
 
 function CodeBlock({
   className,
@@ -20,28 +43,43 @@ function CodeBlock({
 
   if (match) {
     return (
-      <SyntaxHighlighter
-        language={match[1]}
-        style={isDark ? vscDarkPlus : vs}
-        PreTag="div"
-        customStyle={{
-          margin: 0,
-          borderRadius: "0.5rem",
-          fontSize: "0.8125rem",
-          lineHeight: "1.6",
-        }}
-        codeTagProps={{ style: { fontFamily: "inherit" } }}
-      >
-        {code}
-      </SyntaxHighlighter>
+      <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
+        <CopyButton code={code} />
+        <SyntaxHighlighter
+          language={match[1]}
+          style={isDark ? vscDarkPlus : vs}
+          PreTag="div"
+          showLineNumbers
+          lineNumberStyle={{
+            minWidth: "2.5em",
+            paddingRight: "1em",
+            userSelect: "none",
+            opacity: 0.4,
+            fontSize: "0.75rem",
+          }}
+          customStyle={{
+            margin: 0,
+            borderRadius: 0,
+            fontSize: "0.75rem",
+            lineHeight: "1.6",
+            background: "transparent",
+          }}
+          codeTagProps={{ style: { fontFamily: "inherit" } }}
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
     )
   }
 
   // Code block without a language specifier
   return (
-    <pre className="not-prose my-4 overflow-x-auto rounded-lg bg-card px-4 py-3 font-mono text-sm leading-relaxed">
-      <code>{children}</code>
-    </pre>
+    <div className="group relative my-4">
+      <CopyButton code={String(children)} />
+      <pre className="not-prose overflow-x-auto rounded-lg border border-border bg-transparent px-4 py-3 font-mono text-xs leading-relaxed">
+        <code>{children}</code>
+      </pre>
+    </div>
   )
 }
 
