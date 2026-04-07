@@ -83,7 +83,7 @@ function FileAccordionItem({
               Loading diff…
             </div>
           ) : diff !== null ? (
-            <DiffView diff={diff} className="rounded-none border-x-0 border-b-0" />
+            <DiffView diff={diff} filePath={file.filePath} className="rounded-none border-x-0 border-b-0" />
           ) : null}
         </div>
       )}

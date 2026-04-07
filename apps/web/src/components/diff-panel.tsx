@@ -78,6 +78,7 @@ function FileAccordionItem({
           ) : diff !== null ? (
             <DiffView
               diff={diff}
+              filePath={file.filePath}
               mode={mode}
               className="rounded-md border-border/50 mt-2"
             />

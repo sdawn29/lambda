@@ -1,5 +1,9 @@
 import { useMemo } from "react"
+import { refractor } from "refractor"
+import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
+import vs from "react-syntax-highlighter/dist/esm/styles/prism/vs"
 import { cn } from "@/lib/utils"
+import { useTheme } from "@/components/theme-provider"
 
 export type DiffMode = "inline" | "side-by-side"
 
@@ -9,6 +13,163 @@ interface DiffLine {
   kind: DiffLineKind
   lineNum: string
   content: string
+}
+
+// ── Syntax highlighting ────────────────────────────────────────────────────────
+
+const EXT_TO_LANG: Record<string, string> = {
+  ts: "typescript", tsx: "typescript",
+  js: "javascript", jsx: "javascript",
+  mjs: "javascript", cjs: "javascript",
+  py: "python", rs: "rust", go: "go",
+  css: "css", html: "html", json: "json",
+  sh: "bash", bash: "bash",
+  yaml: "yaml", yml: "yaml",
+  md: "markdown", mdx: "markdown",
+  sql: "sql", java: "java",
+  c: "c", cpp: "cpp", cs: "csharp",
+  rb: "ruby", php: "php", kt: "kotlin",
+}
+
+export function detectLanguage(filePath: string): string | null {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? ""
+  const lang = EXT_TO_LANG[ext] ?? null
+  if (lang && refractor.registered(lang)) return lang
+  return null
+}
+
+type HastText = { type: "text"; value: string }
+type HastElement = {
+  type: "element"
+  tagName: string
+  properties: { className?: string[] }
+  children: HastNode[]
+}
+type HastNode = HastText | HastElement
+
+type FlatToken = { classNames: string[]; text: string }
+
+function flattenHast(nodes: HastNode[], classNames: string[] = []): FlatToken[] {
+  const tokens: FlatToken[] = []
+  for (const node of nodes) {
+    if (node.type === "text") {
+      tokens.push({ classNames, text: node.value })
+    } else if (node.type === "element") {
+      const cls = node.properties?.className ?? []
+      tokens.push(...flattenHast(node.children as HastNode[], [...classNames, ...cls]))
+    }
+  }
+  return tokens
+}
+
+function splitTokensByLine(tokens: FlatToken[]): FlatToken[][] {
+  const lines: FlatToken[][] = [[]]
+  for (const token of tokens) {
+    const parts = token.text.split("\n")
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) lines.push([])
+      if (parts[i] !== "") {
+        lines[lines.length - 1].push({ classNames: token.classNames, text: parts[i] })
+      }
+    }
+  }
+  return lines
+}
+
+function highlightSource(source: string, language: string): FlatToken[][] {
+  try {
+    const root = refractor.highlight(source, language)
+    const tokens = flattenHast(root.children as HastNode[])
+    return splitTokensByLine(tokens)
+  } catch {
+    return source.split("\n").map((line) => [{ classNames: [], text: line }])
+  }
+}
+
+type ThemeStyle = Record<string, React.CSSProperties>
+
+function tokenStyle(classNames: string[], themeStyle: ThemeStyle): React.CSSProperties {
+  let result: React.CSSProperties = {}
+  for (const cls of classNames) {
+    if (cls === "token") continue
+    if ((themeStyle as Record<string, React.CSSProperties>)[cls]) {
+      result = { ...result, ...(themeStyle as Record<string, React.CSSProperties>)[cls] }
+    }
+  }
+  return result
+}
+
+function renderTokens(tokens: FlatToken[], themeStyle: ThemeStyle): React.ReactNode {
+  if (tokens.length === 0) return " "
+  return tokens.map((token, i) => {
+    const style = tokenStyle(token.classNames, themeStyle)
+    if (Object.keys(style).length === 0) return token.text
+    return (
+      <span key={i} style={style}>
+        {token.text}
+      </span>
+    )
+  })
+}
+
+interface HighlightMap {
+  newLines: FlatToken[][]
+  oldLines: FlatToken[][]
+  newLineIndex: number[]
+  oldLineIndex: number[]
+}
+
+function buildHighlightMap(lines: DiffLine[], language: string | null): HighlightMap {
+  const newFileLines: { diffIndex: number; content: string }[] = []
+  const oldFileLines: { diffIndex: number; content: string }[] = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (line.kind !== "removed" && line.kind !== "skipped") {
+      newFileLines.push({ diffIndex: i, content: line.content })
+    }
+    if (line.kind !== "added" && line.kind !== "skipped") {
+      oldFileLines.push({ diffIndex: i, content: line.content })
+    }
+  }
+
+  const newLineIndex = new Array<number>(lines.length).fill(-1)
+  newFileLines.forEach((l, idx) => { newLineIndex[l.diffIndex] = idx })
+
+  const oldLineIndex = new Array<number>(lines.length).fill(-1)
+  oldFileLines.forEach((l, idx) => { oldLineIndex[l.diffIndex] = idx })
+
+  if (!language) {
+    const plain = (content: string): FlatToken[] => [{ classNames: [], text: content }]
+    return {
+      newLines: newFileLines.map((l) => plain(l.content)),
+      oldLines: oldFileLines.map((l) => plain(l.content)),
+      newLineIndex,
+      oldLineIndex,
+    }
+  }
+
+  const newHighlighted = highlightSource(newFileLines.map((l) => l.content).join("\n"), language)
+  const oldHighlighted = highlightSource(oldFileLines.map((l) => l.content).join("\n"), language)
+
+  return { newLines: newHighlighted, oldLines: oldHighlighted, newLineIndex, oldLineIndex }
+}
+
+function getLineTokens(
+  line: DiffLine,
+  diffIndex: number,
+  map: HighlightMap,
+): FlatToken[] {
+  const fallback: FlatToken[] = [{ classNames: [], text: line.content }]
+  if (line.kind === "removed") {
+    const idx = map.oldLineIndex[diffIndex]
+    return idx >= 0 && idx < map.oldLines.length ? (map.oldLines[idx] ?? fallback) : fallback
+  }
+  if (line.kind === "added" || line.kind === "context") {
+    const idx = map.newLineIndex[diffIndex]
+    return idx >= 0 && idx < map.newLines.length ? (map.newLines[idx] ?? fallback) : fallback
+  }
+  return fallback
 }
 
 // ── Format detection ───────────────────────────────────────────────────────────
@@ -83,7 +244,19 @@ function parseUnifiedDiff(diff: string): DiffLine[] {
 
 // ── Inline row ─────────────────────────────────────────────────────────────────
 
-function DiffRow({ line }: { line: DiffLine }) {
+function DiffRow({
+  line,
+  diffIndex,
+  map,
+  themeStyle,
+}: {
+  line: DiffLine
+  diffIndex: number
+  map: HighlightMap
+  themeStyle: ThemeStyle
+}) {
+  const tokens = getLineTokens(line, diffIndex, map)
+
   return (
     <div
       className={cn(
@@ -118,13 +291,10 @@ function DiffRow({ line }: { line: DiffLine }) {
       <span
         className={cn(
           "flex-1 whitespace-pre pl-3",
-          line.kind === "added" && "text-green-700 dark:text-green-400",
-          line.kind === "removed" && "text-red-700 dark:text-red-400",
-          line.kind === "context" && "text-foreground/60",
           line.kind === "skipped" && "italic text-muted-foreground/40",
         )}
       >
-        {line.kind === "skipped" ? "⋯" : line.content || " "}
+        {line.kind === "skipped" ? "⋯" : renderTokens(tokens, themeStyle)}
       </span>
     </div>
   )
@@ -133,8 +303,8 @@ function DiffRow({ line }: { line: DiffLine }) {
 // ── Side-by-side ───────────────────────────────────────────────────────────────
 
 interface SideBySideRow {
-  left: DiffLine | null
-  right: DiffLine | null
+  left: { line: DiffLine; diffIndex: number } | null
+  right: { line: DiffLine; diffIndex: number } | null
 }
 
 function buildSideBySideRows(lines: DiffLine[]): SideBySideRow[] {
@@ -145,20 +315,21 @@ function buildSideBySideRows(lines: DiffLine[]): SideBySideRow[] {
     const line = lines[i]
 
     if (line.kind === "context" || line.kind === "skipped") {
-      rows.push({ left: line, right: line })
+      rows.push({ left: { line, diffIndex: i }, right: { line, diffIndex: i } })
       i++
       continue
     }
 
-    // Collect a run of removed then added lines
-    const removed: DiffLine[] = []
-    const added: DiffLine[] = []
+    const removed: { line: DiffLine; diffIndex: number }[] = []
+    const added: { line: DiffLine; diffIndex: number }[] = []
 
     while (i < lines.length && lines[i].kind === "removed") {
-      removed.push(lines[i++])
+      removed.push({ line: lines[i], diffIndex: i })
+      i++
     }
     while (i < lines.length && lines[i].kind === "added") {
-      added.push(lines[i++])
+      added.push({ line: lines[i], diffIndex: i })
+      i++
     }
 
     const maxLen = Math.max(removed.length, added.length)
@@ -174,19 +345,23 @@ function buildSideBySideRows(lines: DiffLine[]): SideBySideRow[] {
 }
 
 function SideBySideCell({
-  line,
-  side,
+  entry,
+  map,
+  themeStyle,
 }: {
-  line: DiffLine | null
-  side: "left" | "right"
+  entry: { line: DiffLine; diffIndex: number } | null
+  map: HighlightMap
+  themeStyle: ThemeStyle
 }) {
-  if (!line) {
+  if (!entry) {
     return <div className="flex flex-1 leading-5 min-w-0" />
   }
 
+  const { line, diffIndex } = entry
   const isSkipped = line.kind === "skipped"
   const isAdded = line.kind === "added"
   const isRemoved = line.kind === "removed"
+  const tokens = getLineTokens(line, diffIndex, map)
 
   return (
     <div
@@ -209,23 +384,28 @@ function SideBySideCell({
       <span
         className={cn(
           "flex-1 whitespace-pre pl-2 truncate",
-          isAdded && "text-green-700 dark:text-green-400",
-          isRemoved && "text-red-700 dark:text-red-400",
-          line.kind === "context" && "text-foreground/60",
           isSkipped && "italic text-muted-foreground/40",
         )}
       >
-        {isSkipped ? "⋯" : line.content || " "}
+        {isSkipped ? "⋯" : renderTokens(tokens, themeStyle)}
       </span>
     </div>
   )
 }
 
-function SideBySideRow({ row }: { row: SideBySideRow }) {
+function SideBySideRowView({
+  row,
+  map,
+  themeStyle,
+}: {
+  row: SideBySideRow
+  map: HighlightMap
+  themeStyle: ThemeStyle
+}) {
   return (
     <div className="flex leading-5 divide-x divide-border/30">
-      <SideBySideCell line={row.left} side="left" />
-      <SideBySideCell line={row.right} side="right" />
+      <SideBySideCell entry={row.left} map={map} themeStyle={themeStyle} />
+      <SideBySideCell entry={row.right} map={map} themeStyle={themeStyle} />
     </div>
   )
 }
@@ -234,14 +414,25 @@ function SideBySideRow({ row }: { row: SideBySideRow }) {
 
 interface DiffViewProps {
   diff: string
+  filePath?: string
   className?: string
   mode?: DiffMode
 }
 
-export function DiffView({ diff, className, mode = "inline" }: DiffViewProps) {
+export function DiffView({ diff, filePath, className, mode = "inline" }: DiffViewProps) {
+  const { theme } = useTheme()
+  const isDark =
+    theme === "dark" ||
+    (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+  const themeStyle = (isDark ? vscDarkPlus : vs) as ThemeStyle
+
   const lines = useMemo(() => {
     return isSdkFormat(diff) ? parseSdkDiff(diff) : parseUnifiedDiff(diff)
   }, [diff])
+
+  const language = useMemo(() => (filePath ? detectLanguage(filePath) : null), [filePath])
+
+  const highlightMap = useMemo(() => buildHighlightMap(lines, language), [lines, language])
 
   const sideBySideRows = useMemo(() => {
     if (mode !== "side-by-side") return null
@@ -260,8 +451,12 @@ export function DiffView({ diff, className, mode = "inline" }: DiffViewProps) {
     >
       <div className="max-h-80 overflow-auto">
         {mode === "inline"
-          ? lines.map((line, i) => <DiffRow key={i} line={line} />)
-          : sideBySideRows?.map((row, i) => <SideBySideRow key={i} row={row} />)}
+          ? lines.map((line, i) => (
+              <DiffRow key={i} line={line} diffIndex={i} map={highlightMap} themeStyle={themeStyle} />
+            ))
+          : sideBySideRows?.map((row, i) => (
+              <SideBySideRowView key={i} row={row} map={highlightMap} themeStyle={themeStyle} />
+            ))}
       </div>
 
       {(added > 0 || removed > 0) && (
