@@ -9,6 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { DiffView } from "@/components/diff-view"
 import { cn } from "@/lib/utils"
 
 interface CommitDialogProps {
@@ -20,37 +21,6 @@ interface ChangedFile {
   filePath: string
 }
 
-function DiffView({ diff }: { diff: string }) {
-  const lines = diff.split("\n")
-  return (
-    <div className="font-mono text-xs">
-      {lines.map((line, i) => {
-        const isAdd = line.startsWith("+") && !line.startsWith("+++")
-        const isRemove = line.startsWith("-") && !line.startsWith("---")
-        const isHunk = line.startsWith("@@")
-        const isMeta =
-          line.startsWith("diff ") ||
-          line.startsWith("index ") ||
-          line.startsWith("--- ") ||
-          line.startsWith("+++ ")
-        return (
-          <div
-            key={i}
-            className={cn(
-              "whitespace-pre leading-5 px-3",
-              isAdd && "bg-green-500/10 text-green-700 dark:text-green-400",
-              isRemove && "bg-red-500/10 text-red-700 dark:text-red-400",
-              isHunk && "bg-blue-500/5 text-blue-500 dark:text-blue-400",
-              isMeta && "text-muted-foreground",
-            )}
-          >
-            {line || " "}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 function statusColor(code: string) {
   const c = code.trim()
@@ -106,14 +76,14 @@ function FileAccordionItem({
       </button>
 
       {expanded && (
-        <div className="border-t border-border/50 bg-muted/20 overflow-x-auto">
+        <div className="border-t border-border/50">
           {diffLoading ? (
             <div className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground">
               <Loader2 className="size-3 animate-spin" />
               Loading diff…
             </div>
           ) : diff !== null ? (
-            <DiffView diff={diff} />
+            <DiffView diff={diff} className="rounded-none border-x-0 border-b-0" />
           ) : null}
         </div>
       )}
