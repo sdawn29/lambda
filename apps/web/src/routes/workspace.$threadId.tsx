@@ -2,18 +2,24 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 
 import { ChatView } from "@/components/chat-view"
+import { DiffPanel } from "@/components/diff-panel"
+import { TerminalPanel } from "@/components/terminal-panel"
 import { useWorkspace } from "@/hooks/workspace-context"
+import { useDiffPanel } from "@/hooks/diff-panel-context"
+import { useTerminal } from "@/hooks/terminal-context"
 
 const LS_THREAD_KEY = "lambda-code:activeThreadId"
 
-export const Route = createFileRoute("/thread/$threadId")({
-  component: ThreadRoute,
+export const Route = createFileRoute("/workspace/$threadId")({
+  component: WorkspaceThreadRoute,
 })
 
-function ThreadRoute() {
+function WorkspaceThreadRoute() {
   const { threadId } = Route.useParams()
   const { workspaces } = useWorkspace()
   const navigate = useNavigate()
+  const { isOpen: diffOpen } = useDiffPanel()
+  const { isOpen: terminalOpen } = useTerminal()
 
   // Persist last-visited thread for index redirect
   useEffect(() => {
@@ -42,14 +48,25 @@ function ThreadRoute() {
     return null
   }
 
+  const cwd = foundWorkspace.path
+
   return (
-    <ChatView
-      key={foundThread.id}
-      sessionId={foundThread.sessionId}
-      workspaceName={foundWorkspace.name}
-      workspaceId={foundWorkspace.id}
-      workspacePath={foundWorkspace.path}
-      threadId={foundThread.id}
-    />
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Main row: chat + diff panel side by side */}
+      <div className="flex min-h-0 flex-1 overflow-hidden border-t">
+        <ChatView
+          key={foundThread.id}
+          sessionId={foundThread.sessionId}
+          workspaceName={foundWorkspace.name}
+          workspaceId={foundWorkspace.id}
+          threadId={foundThread.id}
+        />
+
+        {diffOpen && <DiffPanel cwd={cwd} />}
+      </div>
+
+      {/* Terminal panel anchored to bottom */}
+      {terminalOpen && <TerminalPanel cwd={cwd} />}
+    </div>
   )
 }

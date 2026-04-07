@@ -21,7 +21,9 @@ function Index() {
   const thread = allThreads.find((t) => t.id === savedThId) ?? allThreads[0]
 
   if (thread) {
-    return <Navigate to="/thread/$threadId" params={{ threadId: thread.id }} />
+    return (
+      <Navigate to="/workspace/$threadId" params={{ threadId: thread.id }} />
+    )
   }
 
   return <WorkspaceEmptyState />

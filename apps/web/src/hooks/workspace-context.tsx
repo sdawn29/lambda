@@ -145,7 +145,7 @@ export function useCreateWorkspaceAction() {
     const firstThread = workspace.threads[0]
     if (firstThread) {
       navigate({
-        to: "/thread/$threadId",
+        to: "/workspace/$threadId",
         params: { threadId: firstThread.id },
       })
     }

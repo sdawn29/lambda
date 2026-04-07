@@ -82,7 +82,7 @@ export function AppSidebar() {
                         onClick={async () => {
                           const thread = await createThread(ws.id)
                           navigate({
-                            to: "/thread/$threadId",
+                            to: "/workspace/$threadId",
                             params: { threadId: thread.id },
                           })
                         }}
@@ -126,7 +126,7 @@ export function AppSidebar() {
                               isActive={activeThreadId === thread.id}
                               onClick={() =>
                                 navigate({
-                                  to: "/thread/$threadId",
+                                  to: "/workspace/$threadId",
                                   params: { threadId: thread.id },
                                 })
                               }
