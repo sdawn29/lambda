@@ -1,6 +1,6 @@
 # AGENTS.md — web
 
-> Auto-generated context for coding agents. Last updated: 2026-04-05
+> Auto-generated context for coding agents. Last updated: 2026-04-07
 
 ## Purpose
 
@@ -43,6 +43,12 @@ Single-page React app using Vite + TanStack Router for file-based routing. UI co
 - `src/components/app-sidebar.tsx` — Application sidebar navigation
 - `src/components/theme-provider.tsx` — Theme context provider
 - `src/components/title-bar.tsx` — Custom title bar (for Electron integration)
+- `src/components/branch-selector.tsx` — Git branch selection dropdown
+- `src/components/commit-dialog.tsx` — Git commit dialog modal
+- `src/components/diff-view.tsx` — Git diff rendering component
+- `src/components/diff-panel.tsx` — Side panel for diff display
+- `src/components/terminal-panel.tsx` — Terminal output panel
+- `src/components/tool-call-block.tsx` — Tool call rendering
 - `src/hooks/workspace-context.tsx` — Workspace context provider
 
 ## Conventions
@@ -61,8 +67,10 @@ Single-page React app using Vite + TanStack Router for file-based routing. UI co
 - `@base-ui/react` — Base UI component primitives (shadcn/ui foundation)
 - `tailwindcss` — Utility-first CSS framework (v4)
 - `react-markdown` + `remark-gfm` — Markdown rendering for agent responses
+- `react-syntax-highlighter` — Syntax highlighting for code blocks
 - `lucide-react` — Icon library
 - `class-variance-authority` — Component variant management
+- `@xterm/xterm` + `@xterm/addon-fit` — Terminal emulation
 
 ## Gotchas
 
@@ -70,6 +78,7 @@ Single-page React app using Vite + TanStack Router for file-based routing. UI co
 - The app expects `VITE_SERVER_URL` env var to point to the Hono server (default: `http://localhost:3001`)
 - Tailwind CSS 4 uses a different config approach than v3 — check `index.css` for theme configuration
 - The `title-bar` component is designed for Electron frameless window integration
+- xterm.js requires the fit addon to properly resize in the terminal panel
 
 ## Related
 

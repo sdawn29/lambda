@@ -1,6 +1,6 @@
 # AGENTS.md — server
 
-> Auto-generated context for coding agents. Last updated: 2026-04-05
+> Auto-generated context for coding agents. Last updated: 2026-04-07
 
 ## Purpose
 
@@ -50,8 +50,11 @@ Hono server (default port 3001) with three layers:
 | `DELETE` | `/session/:id`                   | Delete session                                           |
 | `POST`   | `/session/:id/prompt`            | Send user prompt to agent (returns 202, fire-and-forget) |
 | `GET`    | `/session/:id/branch`            | Get current git branch for session's cwd                 |
+| `GET`    | `/session/:id/branches`          | List all git branches for session's cwd                  |
+| `POST`   | `/session/:id/checkout`          | Checkout a git branch                                    |
 | `GET`    | `/session/:id/messages`          | Get persisted messages for session                       |
 | `GET`    | `/session/:id/events`            | SSE stream of agent events                               |
+| `DELETE` | `/reset`                         | Delete all workspaces and sessions (debug)               |
 
 ## Conventions
 
