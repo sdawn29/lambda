@@ -1,7 +1,10 @@
 import { useState } from "react"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import SyntaxHighlighterAuto from "react-syntax-highlighter"
 import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import vs from "react-syntax-highlighter/dist/esm/styles/prism/vs"
+import hljsDark from "react-syntax-highlighter/dist/esm/styles/hljs/vs2015"
+import hljsLight from "react-syntax-highlighter/dist/esm/styles/hljs/vs"
 import type { Components } from "react-markdown"
 import { useTheme } from "@/components/theme-provider"
 import { Check, Copy } from "lucide-react"
@@ -64,7 +67,7 @@ function CodeBlock({
             lineHeight: "1.6",
             background: "transparent",
           }}
-          codeTagProps={{ style: { fontFamily: "inherit" } }}
+          codeTagProps={{ style: { fontFamily: "var(--font-mono, ui-monospace, monospace)" } }}
         >
           {code}
         </SyntaxHighlighter>
@@ -72,13 +75,32 @@ function CodeBlock({
     )
   }
 
-  // Code block without a language specifier
+  // Code block without a language specifier — use hljs auto-detection
   return (
-    <div className="group relative my-4">
-      <CopyButton code={String(children)} />
-      <pre className="not-prose overflow-x-auto rounded-lg border border-border bg-transparent px-4 py-3 font-mono text-xs leading-relaxed">
-        <code>{children}</code>
-      </pre>
+    <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
+      <CopyButton code={code} />
+      <SyntaxHighlighterAuto
+        style={isDark ? hljsDark : hljsLight}
+        PreTag="div"
+        showLineNumbers
+        lineNumberStyle={{
+          minWidth: "2.5em",
+          paddingRight: "1em",
+          userSelect: "none",
+          opacity: 0.4,
+          fontSize: "0.75rem",
+        }}
+        customStyle={{
+          margin: 0,
+          borderRadius: 0,
+          fontSize: "0.75rem",
+          lineHeight: "1.6",
+          background: "transparent",
+        }}
+        codeTagProps={{ style: { fontFamily: "var(--font-mono, ui-monospace, monospace)" } }}
+      >
+        {code}
+      </SyntaxHighlighterAuto>
     </div>
   )
 }
