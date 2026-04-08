@@ -1,11 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from "react"
-import { GitCommit, Loader2, ChevronRight, CheckCircle2, GitBranch } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  GitCommit,
+  Loader2,
+  ChevronRight,
+  CheckCircle2,
+  GitBranch,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { DiffView } from "@/components/diff-view"
 import { cn } from "@/lib/utils"
 import { useGitStatus } from "@/queries/use-git-status"
@@ -63,7 +65,7 @@ function FileAccordionItem({
     sessionId,
     file.filePath,
     file.statusCode,
-    expanded,
+    expanded
   )
 
   const pathParts = file.filePath.split("/")
@@ -71,7 +73,12 @@ function FileAccordionItem({
   const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") : null
 
   return (
-    <div className={cn("border-b border-border/40 last:border-0", dim && "opacity-40")}>
+    <div
+      className={cn(
+        "border-b border-border/40 last:border-0",
+        dim && "opacity-40"
+      )}
+    >
       <button
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-muted/50"
@@ -79,14 +86,21 @@ function FileAccordionItem({
         <ChevronRight
           className={cn(
             "size-3 shrink-0 text-muted-foreground transition-transform duration-150",
-            expanded && "rotate-90",
+            expanded && "rotate-90"
           )}
         />
-        <span className={cn("w-4 shrink-0 font-mono text-[11px] font-medium", statusColor(file.statusCode))}>
+        <span
+          className={cn(
+            "w-4 shrink-0 font-mono text-[11px] font-medium",
+            statusColor(file.statusCode)
+          )}
+        >
           {statusChar(file.statusCode)}
         </span>
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="shrink-0 text-xs text-foreground/90">{fileName}</span>
+          <span className="shrink-0 text-xs text-foreground/90">
+            {fileName}
+          </span>
           {dirPath && (
             <span className="truncate font-mono text-[10px] text-muted-foreground/50">
               {dirPath}
@@ -103,7 +117,11 @@ function FileAccordionItem({
               Loading diff…
             </div>
           ) : diff != null ? (
-            <DiffView diff={diff} filePath={file.filePath} className="rounded-none border-x-0 border-b-0" />
+            <DiffView
+              diff={diff}
+              filePath={file.filePath}
+              className="rounded-none border-x-0 border-b-0"
+            />
           ) : null}
         </div>
       )}
@@ -143,7 +161,7 @@ function AutoTextarea({
       rows={3}
       className={cn(
         "w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground/40",
-        className,
+        className
       )}
     />
   )
@@ -160,7 +178,10 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
   const branch = branchData?.branch ?? null
 
-  const { staged, unstaged } = useMemo<{ staged: ChangedFile[]; unstaged: ChangedFile[] }>(() => {
+  const { staged, unstaged } = useMemo<{
+    staged: ChangedFile[]
+    unstaged: ChangedFile[]
+  }>(() => {
     if (!open || !statusRaw) return { staged: [], unstaged: [] }
     const all = statusRaw
       .split("\n")
@@ -197,12 +218,17 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
   }
 
   const committing = commitMutation.isPending
-  const canCommit = !committing && !!message.trim() && staged.length > 0 && !loading
+  const canCommit =
+    !committing && !!message.trim() && staged.length > 0 && !loading
 
   if (success) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger render={<Button variant="outline" size="sm" disabled={!sessionId} />}>
+        <DialogTrigger
+          render={
+            <Button variant="outline" size="default" disabled={!sessionId} />
+          }
+        >
           <GitCommit />
           Commit
         </DialogTrigger>
@@ -228,12 +254,19 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size="sm" disabled={!sessionId} />}>
+      <DialogTrigger
+        render={
+          <Button variant="outline" size="default" disabled={!sessionId} />
+        }
+      >
         <GitCommit />
         Commit
       </DialogTrigger>
 
-      <DialogContent showCloseButton className="flex flex-col gap-0 p-0 sm:max-w-lg">
+      <DialogContent
+        showCloseButton
+        className="flex flex-col gap-0 p-0 sm:max-w-lg"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -253,7 +286,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
           {/* Staged */}
           <div>
             <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
                 Staged
               </span>
               {staged.length > 0 && (
@@ -274,9 +307,15 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                   No staged changes — stage files in the diff panel first.
                 </p>
               )}
-              {!loading && sessionId && staged.map((file, i) => (
-                <FileAccordionItem key={i} file={file} sessionId={sessionId} />
-              ))}
+              {!loading &&
+                sessionId &&
+                staged.map((file, i) => (
+                  <FileAccordionItem
+                    key={i}
+                    file={file}
+                    sessionId={sessionId}
+                  />
+                ))}
             </div>
           </div>
 
@@ -284,7 +323,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
           {unstaged.length > 0 && (
             <div className="border-t border-border/40">
               <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
                   Not staged
                 </span>
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -292,9 +331,15 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                 </span>
               </div>
               <div className="max-h-28 overflow-y-auto">
-                {sessionId && unstaged.map((file, i) => (
-                  <FileAccordionItem key={i} file={file} sessionId={sessionId} dim />
-                ))}
+                {sessionId &&
+                  unstaged.map((file, i) => (
+                    <FileAccordionItem
+                      key={i}
+                      file={file}
+                      sessionId={sessionId}
+                      dim
+                    />
+                  ))}
               </div>
             </div>
           )}
@@ -308,7 +353,8 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
               onChange={setMessage}
               placeholder="Summary (required)"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCommit()
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey))
+                  handleCommit()
               }}
             />
           </div>

@@ -13,6 +13,7 @@ import {
   useCreateWorkspace as useCreateWorkspaceMutation,
   useDeleteWorkspace as useDeleteWorkspaceMutation,
   useCreateThread as useCreateThreadMutation,
+  useDeleteThread as useDeleteThreadMutation,
   useUpdateThreadTitle,
   useResetAll as useResetAllMutation,
 } from "@/mutations/use-workspace-mutations"
@@ -27,6 +28,7 @@ interface WorkspaceContextValue {
   createWorkspace: (name: string, path: string) => Promise<Workspace>
   deleteWorkspace: (workspace: Workspace) => Promise<void>
   createThread: (workspaceId: string) => Promise<Thread>
+  deleteThread: (workspaceId: string, threadId: string) => Promise<void>
   setThreadTitle: (workspaceId: string, threadId: string, title: string) => void
   resetAll: () => Promise<void>
 }
@@ -35,7 +37,9 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { data: workspacesData, isLoading } = useWorkspaces()
-  const [optimisticWorkspaces, setOptimisticWorkspaces] = useState<Workspace[] | null>(null)
+  const [optimisticWorkspaces, setOptimisticWorkspaces] = useState<
+    Workspace[] | null
+  >(null)
 
   const workspaces = useMemo(
     () => optimisticWorkspaces ?? workspacesData ?? [],
@@ -45,12 +49,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const createWorkspaceMutation = useCreateWorkspaceMutation()
   const deleteWorkspaceMutation = useDeleteWorkspaceMutation()
   const createThreadMutation = useCreateThreadMutation()
+  const deleteThreadMutation = useDeleteThreadMutation()
   const updateTitleMutation = useUpdateThreadTitle()
   const resetAllMutation = useResetAllMutation()
 
   const createWorkspace = useCallback(
     async (name: string, path: string): Promise<Workspace> => {
-      const { workspace, existing } = await createWorkspaceMutation.mutateAsync({ name, path })
+      const { workspace, existing } = await createWorkspaceMutation.mutateAsync(
+        { name, path }
+      )
       if (!existing) {
         setOptimisticWorkspaces((prev) => [...(prev ?? workspaces), workspace])
       }
@@ -80,6 +87,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return thread
     },
     [createThreadMutation, workspaces]
+  )
+
+  const deleteThread = useCallback(
+    async (workspaceId: string, threadId: string): Promise<void> => {
+      await deleteThreadMutation.mutateAsync(threadId)
+      setOptimisticWorkspaces((prev) =>
+        (prev ?? workspaces).map((w) =>
+          w.id !== workspaceId
+            ? w
+            : { ...w, threads: w.threads.filter((t) => t.id !== threadId) }
+        )
+      )
+    },
+    [deleteThreadMutation, workspaces]
   )
 
   const setThreadTitle = useCallback(
@@ -114,6 +135,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         createWorkspace,
         deleteWorkspace,
         createThread,
+        deleteThread,
         setThreadTitle,
         resetAll,
       }}

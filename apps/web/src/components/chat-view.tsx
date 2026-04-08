@@ -37,7 +37,7 @@ function CopyButton({ text }: { text: string }) {
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
-      className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/8 hover:text-foreground group-hover:opacity-100"
+      className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/8 hover:text-foreground"
     >
       {copied ? (
         <CheckIcon className="size-3.5 text-green-500" />
@@ -231,11 +231,17 @@ export const ChatView = memo(function ChatView({
   )
 
   const handleSend = useCallback(
-    (text: string, modelId: string, provider: string, thinkingLevel?: string) => {
+    (
+      text: string,
+      modelId: string,
+      provider: string,
+      thinkingLevel?: string
+    ) => {
       if (!hasTitledRef.current) {
         hasTitledRef.current = true
         generateTitleMutation.mutate(text, {
-          onSuccess: ({ title }) => setThreadTitle(workspaceId, threadId, title),
+          onSuccess: ({ title }) =>
+            setThreadTitle(workspaceId, threadId, title),
         })
       }
       pinnedRef.current = true
@@ -247,13 +253,22 @@ export const ChatView = memo(function ChatView({
         { onError: () => setIsLoading(false) }
       )
     },
-    [sendPromptMutation, generateTitleMutation, workspaceId, threadId, setThreadTitle]
+    [
+      sendPromptMutation,
+      generateTitleMutation,
+      workspaceId,
+      threadId,
+      setThreadTitle,
+    ]
   )
 
   const lastMsg = messages[messages.length - 1]
   const showThinking =
     isLoading &&
-    !(lastMsg?.role === "assistant" && (lastMsg as TextMessage).content.length > 0)
+    !(
+      lastMsg?.role === "assistant" &&
+      (lastMsg as TextMessage).content.length > 0
+    )
 
   return (
     <>
@@ -283,13 +298,17 @@ export const ChatView = memo(function ChatView({
           className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {messages.map((msg, i) => {
-            const key = msg.role === "tool" ? msg.toolCallId : `${msg.role}-${i}`
+            const key =
+              msg.role === "tool" ? msg.toolCallId : `${msg.role}-${i}`
             if (msg.role === "tool") {
               return <ToolCallBlock key={key} msg={msg} />
             }
             if (msg.role === "user") {
               return (
-                <div key={key} className="group animate-in fade-in-0 slide-in-from-bottom-2 duration-200 flex flex-col items-end gap-1.5 self-end">
+                <div
+                  key={key}
+                  className="group flex animate-in flex-col items-end gap-1.5 self-end duration-200 fade-in-0 slide-in-from-bottom-2"
+                >
                   <div className="rounded-xl bg-muted px-4 py-2 text-sm">
                     {msg.content}
                   </div>
@@ -297,10 +316,17 @@ export const ChatView = memo(function ChatView({
                 </div>
               )
             }
+            if (!msg.content) return null
             return (
-              <div key={key} className="group animate-in fade-in-0 slide-in-from-bottom-1 duration-200 flex flex-col gap-1.5">
+              <div
+                key={key}
+                className="group flex animate-in flex-col gap-1.5 duration-200 fade-in-0 slide-in-from-bottom-1"
+              >
                 <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                  <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  <Markdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
                     {msg.content}
                   </Markdown>
                 </div>
@@ -311,10 +337,19 @@ export const ChatView = memo(function ChatView({
             )
           })}
           {showThinking && (
-            <div className="animate-in fade-in-0 duration-200 flex self-start items-center gap-1 py-1">
-              <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-thinking-dot" style={{ animationDelay: "0ms" }} />
-              <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-thinking-dot" style={{ animationDelay: "200ms" }} />
-              <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-thinking-dot" style={{ animationDelay: "400ms" }} />
+            <div className="flex animate-in items-center gap-1 self-start py-1 duration-200 fade-in-0">
+              <span
+                className="animate-thinking-dot size-1.5 rounded-full bg-muted-foreground/60"
+                style={{ animationDelay: "0ms" }}
+              />
+              <span
+                className="animate-thinking-dot size-1.5 rounded-full bg-muted-foreground/60"
+                style={{ animationDelay: "200ms" }}
+              />
+              <span
+                className="animate-thinking-dot size-1.5 rounded-full bg-muted-foreground/60"
+                style={{ animationDelay: "400ms" }}
+              />
             </div>
           )}
           <div ref={bottomRef} />

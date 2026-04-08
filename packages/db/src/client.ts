@@ -1,23 +1,24 @@
-import Database from "better-sqlite3"
-import { drizzle } from "drizzle-orm/better-sqlite3"
-import { mkdirSync } from "node:fs"
-import { homedir } from "node:os"
-import { join } from "node:path"
-import * as schema from "./schema.js"
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import * as schema from "./schema.js";
 
 function resolveDbPath(): string {
-  const dir = join(homedir(), ".lambda-code")
-  mkdirSync(dir, { recursive: true })
-  return join(dir, "db.sqlite")
+  const dir = join(homedir(), ".lambda-code");
+  mkdirSync(dir, { recursive: true });
+  return join(dir, "db.sqlite");
 }
 
 function createDb() {
-  const sqlite = new Database(resolveDbPath())
+  const sqlite = new Database(resolveDbPath(), { timeout: 10000 });
 
-  sqlite.pragma("journal_mode = WAL")
-  sqlite.pragma("foreign_keys = ON")
+  sqlite.pragma("busy_timeout = 10000");
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
 
-  const db = drizzle(sqlite, { schema })
+  const db = drizzle(sqlite, { schema });
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS workspaces (
@@ -42,11 +43,11 @@ function createDb() {
       content    TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
-  `)
+  `);
 
   // Migrate existing databases that predate the session_file column
   try {
-    sqlite.exec("ALTER TABLE threads ADD COLUMN session_file TEXT")
+    sqlite.exec("ALTER TABLE threads ADD COLUMN session_file TEXT");
   } catch {
     // Column already exists — nothing to do
   }
@@ -58,10 +59,10 @@ function createDb() {
       SELECT MIN(id) FROM workspaces GROUP BY path
     );
     CREATE UNIQUE INDEX IF NOT EXISTS workspaces_path_unique ON workspaces(path);
-  `)
+  `);
 
-  return db
+  return db;
 }
 
-export const db = createDb()
-export type Db = typeof db
+export const db = createDb();
+export type Db = typeof db;

@@ -3,6 +3,7 @@ import {
   createWorkspace as apiCreateWorkspace,
   deleteWorkspace as apiDeleteWorkspace,
   createThread as apiCreateThread,
+  deleteThread as apiDeleteThread,
   updateThreadTitle as apiUpdateThreadTitle,
   resetAllData,
 } from "@/api/workspaces"
@@ -33,6 +34,16 @@ export function useCreateThread() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (workspaceId: string) => apiCreateThread(workspaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function useDeleteThread() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId: string) => apiDeleteThread(threadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
     },
