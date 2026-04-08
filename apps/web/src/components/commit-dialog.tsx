@@ -232,7 +232,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
           <GitCommit />
           Commit
         </DialogTrigger>
-        <DialogContent showCloseButton className="sm:max-w-lg">
+        <DialogContent showCloseButton className="bg-background sm:max-w-lg">
           <div className="flex flex-col items-center gap-4 py-8">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
               <CheckCircle2 className="h-6 w-6 text-green-500" />
@@ -265,20 +265,12 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
       <DialogContent
         showCloseButton
-        className="flex flex-col gap-0 p-0 sm:max-w-lg"
+        className="flex flex-col gap-0 bg-background p-0 sm:max-w-lg"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <GitCommit className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Commit changes</span>
-          </div>
-          {branch && (
-            <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-              <GitBranch className="h-3 w-3" />
-              {branch}
-            </div>
-          )}
+        <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3">
+          <GitCommit className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Commit changes</span>
         </div>
 
         {/* Files */}
@@ -372,19 +364,27 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                 ? `${staged.length} file${staged.length !== 1 ? "s" : ""} will be committed`
                 : "Stage files to commit"}
             </p>
-            <Button
-              size="sm"
-              onClick={handleCommit}
-              disabled={!canCommit}
-              className="h-7 px-3 text-xs"
-            >
-              {committing ? (
-                <Loader2 className="mr-1.5 size-3 animate-spin" />
-              ) : (
-                <GitCommit className="mr-1.5 size-3" />
+            <div className="flex items-center gap-2">
+              {branch && (
+                <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  <GitBranch className="h-3 w-3" />
+                  {branch}
+                </div>
               )}
-              Commit
-            </Button>
+              <Button
+                size="sm"
+                onClick={handleCommit}
+                disabled={!canCommit}
+                className="h-7 px-3 text-xs"
+              >
+                {committing ? (
+                  <Loader2 className="mr-1.5 size-3 animate-spin" />
+                ) : (
+                  <GitCommit className="mr-1.5 size-3" />
+                )}
+                Commit
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
