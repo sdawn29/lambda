@@ -197,37 +197,16 @@ function FileAccordionItem({
   }
 
   const label = statusLabel(file)
+  const pathParts = file.filePath.split("/")
+  const fileName = pathParts[pathParts.length - 1] ?? file.filePath
+  const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") : null
 
   return (
-    <div className="border-b border-border/40 last:border-0">
-      <div className="flex w-full items-center gap-1 pr-1">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="ml-1 h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
-                disabled={toggling}
-                onClick={handleToggle}
-              >
-                {toggling ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : file.isStaged ? (
-                  <Minus className="h-3 w-3" />
-                ) : (
-                  <Plus className="h-3 w-3" />
-                )}
-                <span className="sr-only">{file.isStaged ? "Unstage" : "Stage"}</span>
-              </Button>
-            }
-          />
-          <TooltipContent>{file.isStaged ? "Unstage file" : "Stage file"}</TooltipContent>
-        </Tooltip>
-
+    <div className="group/file relative border-b border-border/40 last:border-0">
+      <div className="flex w-full items-center">
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 items-center gap-1.5 py-2 pr-2 text-left transition-colors hover:bg-muted/40"
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-2 pl-2 pr-8 text-left transition-colors hover:bg-muted/40"
         >
           <ChevronRight
             className={cn(
@@ -238,10 +217,43 @@ function FileAccordionItem({
           <span className={cn("w-6 shrink-0 font-mono text-xs", statusColor(file))}>
             {label}
           </span>
-          <span className="truncate font-mono text-xs text-foreground/80">
-            {file.filePath}
+          <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+            <span className="shrink-0 font-mono text-xs text-foreground/90">
+              {fileName}
+            </span>
+            {dirPath && (
+              <span className="truncate font-mono text-[10px] text-muted-foreground/50">
+                {dirPath}
+              </span>
+            )}
           </span>
         </button>
+
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover/file:opacity-100">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  disabled={toggling}
+                  onClick={handleToggle}
+                >
+                  {toggling ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : file.isStaged ? (
+                    <Minus className="h-3 w-3" />
+                  ) : (
+                    <Plus className="h-3 w-3" />
+                  )}
+                  <span className="sr-only">{file.isStaged ? "Unstage" : "Stage"}</span>
+                </Button>
+              }
+            />
+            <TooltipContent>{file.isStaged ? "Unstage file" : "Stage file"}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {expanded && (
