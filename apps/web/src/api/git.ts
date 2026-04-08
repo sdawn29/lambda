@@ -99,3 +99,11 @@ export function gitStashDrop(sessionId: string, ref: string): Promise<void> {
   })
 }
 
+export function gitRevertFile(sessionId: string, filePath: string, raw: string): Promise<void> {
+  return apiFetch<void>(`${base(sessionId)}/revert-file`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filePath, raw }),
+  })
+}
+

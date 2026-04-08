@@ -109,6 +109,26 @@ export async function gitUnstageAll(cwd: string): Promise<void> {
   await execFileAsync("git", ["restore", "--staged", "."], { cwd, timeout: 10000 })
 }
 
+/**
+ * Discards all changes to a file and restores it to HEAD.
+ * - Tracked files (M/D/R/etc): `git restore --source=HEAD --staged --worktree`
+ * - Staged-new files (A): unstages via `git restore --staged` (file stays on disk)
+ * - Untracked files (??): no-op
+ */
+export async function gitRevertFile(cwd: string, filePath: string, raw: string): Promise<void> {
+  const isUntracked = raw.trim() === "??"
+  if (isUntracked) return
+
+  const X = raw[0] ?? " "
+  const isAddedOnly = X === "A" && (raw[1] ?? " ") === " "
+
+  if (isAddedOnly) {
+    await execFileAsync("git", ["restore", "--staged", "--", filePath], { cwd, timeout: 5000 })
+  } else {
+    await execFileAsync("git", ["restore", "--source=HEAD", "--staged", "--worktree", "--", filePath], { cwd, timeout: 5000 })
+  }
+}
+
 /** Pushes a stash (includes untracked files with -u). */
 export async function gitStash(cwd: string, message?: string): Promise<void> {
   const args = message

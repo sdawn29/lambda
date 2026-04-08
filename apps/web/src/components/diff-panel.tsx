@@ -26,6 +26,7 @@ import {
   Download,
   ArrowUpDown,
   Check,
+  Undo2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -49,6 +50,7 @@ import { useGitFileDiff } from "@/queries/use-git-file-diff"
 import { useGitStage } from "@/mutations/use-git-stage"
 import { useGitStageAll } from "@/mutations/use-git-stage-all"
 import { useGitStashMutations } from "@/mutations/use-git-stash"
+import { useGitRevertFile } from "@/mutations/use-git-revert-file"
 
 const MIN_WIDTH = 300
 const DEFAULT_WIDTH = 440
@@ -185,14 +187,17 @@ function FileAccordionItem({
   sessionId,
   mode,
   onStageToggle,
+  onRevert,
 }: {
   file: ChangedFile
   sessionId: string
   mode: DiffMode
   onStageToggle: (file: ChangedFile) => Promise<void>
+  onRevert: (file: ChangedFile) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [toggling, setToggling] = useState(false)
+  const [reverting, setReverting] = useState(false)
 
   const { data: diff, isLoading: diffLoading } = useGitFileDiff(
     sessionId,
@@ -209,6 +214,17 @@ function FileAccordionItem({
       await onStageToggle(file)
     } finally {
       setToggling(false)
+    }
+  }
+
+  async function handleRevert(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (reverting) return
+    setReverting(true)
+    try {
+      await onRevert(file)
+    } finally {
+      setReverting(false)
     }
   }
 
@@ -245,7 +261,30 @@ function FileAccordionItem({
           </span>
         </button>
 
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover/file:opacity-100">
+        <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/file:opacity-100">
+          {!file.isUntracked && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    disabled={reverting}
+                    onClick={handleRevert}
+                  >
+                    {reverting ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-3 w-3" />
+                    )}
+                    <span className="sr-only">Revert changes</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>Revert changes</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger
               render={
@@ -474,6 +513,7 @@ function FilesSection({
   sessionId,
   mode,
   onStageToggle,
+  onRevert,
   emptyText,
 }: {
   label: string
@@ -481,6 +521,7 @@ function FilesSection({
   sessionId: string
   mode: DiffMode
   onStageToggle: (file: ChangedFile) => Promise<void>
+  onRevert: (file: ChangedFile) => Promise<void>
   emptyText?: string
 }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -519,6 +560,7 @@ function FilesSection({
               sessionId={sessionId}
               mode={mode}
               onStageToggle={onStageToggle}
+              onRevert={onRevert}
             />
           ))}
         </div>
@@ -598,6 +640,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
   const { stage, unstage } = useGitStage(sessionId)
   const { stageAll, unstageAll } = useGitStageAll(sessionId)
   const { stash } = useGitStashMutations(sessionId)
+  const revertFile = useGitRevertFile(sessionId)
 
   const bulkWorking = stageAll.isPending || unstageAll.isPending
 
@@ -619,6 +662,13 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
   const handleUnstageAll = useCallback(async () => {
     await unstageAll.mutateAsync()
   }, [unstageAll])
+
+  const handleRevert = useCallback(
+    async (file: ChangedFile) => {
+      await revertFile.mutateAsync({ filePath: file.filePath, raw: file.raw })
+    },
+    [revertFile]
+  )
 
   const handleStashConfirm = useCallback(
     async (message: string) => {
@@ -873,6 +923,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
             sessionId={sessionId}
             mode={mode}
             onStageToggle={handleStageToggle}
+            onRevert={handleRevert}
             emptyText="No staged changes"
           />
         )}
@@ -885,6 +936,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
             sessionId={sessionId}
             mode={mode}
             onStageToggle={handleStageToggle}
+            onRevert={handleRevert}
           />
         )}
       </div>

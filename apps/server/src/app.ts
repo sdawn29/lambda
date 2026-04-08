@@ -26,6 +26,7 @@ import {
   gitStashApply,
   gitStashDrop,
   gitDiffStat,
+  gitRevertFile,
 } from "@lambda/git";
 import {
   listWorkspacesWithThreads,
@@ -435,6 +436,15 @@ app.post("/session/:id/git/unstage-all", async (c) => {
   const cwd = gitCwd(c.req.param("id"));
   if (!cwd) return c.json({ error: "Session not found" }, 404);
   await gitUnstageAll(cwd);
+  return new Response(null, { status: 204 });
+});
+
+app.post("/session/:id/git/revert-file", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const body = await c.req.json<{ filePath?: string; raw?: string }>();
+  if (!body.filePath || body.raw === undefined) return c.json({ error: "filePath and raw are required" }, 400);
+  await gitRevertFile(cwd, body.filePath, body.raw);
   return new Response(null, { status: 204 });
 });
 
