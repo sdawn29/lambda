@@ -1,18 +1,18 @@
-import { execFile } from "node:child_process"
-import { promisify } from "node:util"
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
-const execFileAsync = promisify(execFile)
+const execFileAsync = promisify(execFile);
 
 export async function getCurrentBranch(cwd: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(
       "git",
       ["rev-parse", "--abbrev-ref", "HEAD"],
-      { cwd, timeout: 3000 }
-    )
-    return stdout.trim() || null
+      { cwd, timeout: 3000 },
+    );
+    return stdout.trim() || null;
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -21,17 +21,17 @@ export async function getRepoRoot(cwd: string): Promise<string | null> {
     const { stdout } = await execFileAsync(
       "git",
       ["rev-parse", "--show-toplevel"],
-      { cwd, timeout: 3000 }
-    )
-    return stdout.trim() || null
+      { cwd, timeout: 3000 },
+    );
+    return stdout.trim() || null;
   } catch {
-    return null
+    return null;
   }
 }
 
 export async function isGitRepo(cwd: string): Promise<boolean> {
-  const root = await getRepoRoot(cwd)
-  return root !== null
+  const root = await getRepoRoot(cwd);
+  return root !== null;
 }
 
 export async function listBranches(cwd: string): Promise<string[]> {
@@ -39,22 +39,31 @@ export async function listBranches(cwd: string): Promise<string[]> {
     const { stdout } = await execFileAsync(
       "git",
       ["branch", "--format=%(refname:short)"],
-      { cwd, timeout: 3000 }
-    )
-    return stdout.split("\n").map((b) => b.trim()).filter(Boolean)
+      { cwd, timeout: 3000 },
+    );
+    return stdout
+      .split("\n")
+      .map((b) => b.trim())
+      .filter(Boolean);
   } catch {
-    return []
+    return [];
   }
 }
 
-export async function checkoutBranch(cwd: string, branch: string): Promise<void> {
-  await execFileAsync("git", ["checkout", branch], { cwd, timeout: 10000 })
+export async function checkoutBranch(
+  cwd: string,
+  branch: string,
+): Promise<void> {
+  await execFileAsync("git", ["checkout", branch], { cwd, timeout: 10000 });
 }
 
 /** Returns raw `git status --short` output. */
 export async function gitStatus(cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["status", "--short"], { cwd, timeout: 5000 })
-  return stdout
+  const { stdout } = await execFileAsync("git", ["status", "--short"], {
+    cwd,
+    timeout: 5000,
+  });
+  return stdout;
 }
 
 /**
@@ -64,49 +73,66 @@ export async function gitStatus(cwd: string): Promise<string> {
 export async function gitFileDiff(
   cwd: string,
   filePath: string,
-  statusCode: string
+  statusCode: string,
 ): Promise<string> {
-  const isUntracked = statusCode.trim() === "??" || statusCode.trim() === "U"
+  const isUntracked = statusCode.trim() === "??" || statusCode.trim() === "U";
   const args = isUntracked
     ? ["diff", "--no-index", "--", "/dev/null", filePath]
-    : ["diff", "HEAD", "--", filePath]
+    : ["diff", "HEAD", "--", filePath];
   try {
-    const { stdout } = await execFileAsync("git", args, { cwd, timeout: 10000 })
-    return stdout
+    const { stdout } = await execFileAsync("git", args, {
+      cwd,
+      timeout: 10000,
+    });
+    return stdout;
   } catch (err: unknown) {
     // git diff --no-index exits with code 1 when there are diffs — not a real error
-    if (err && typeof err === "object" && "stdout" in err && (err as { stdout: string }).stdout) {
-      return (err as { stdout: string }).stdout
+    if (
+      err &&
+      typeof err === "object" &&
+      "stdout" in err &&
+      (err as { stdout: string }).stdout
+    ) {
+      return (err as { stdout: string }).stdout;
     }
-    throw err
+    throw err;
   }
 }
 
 /** Stages `git add -A` then commits with the given message. Returns the git output. */
 export async function gitCommit(cwd: string, message: string): Promise<string> {
-  await execFileAsync("git", ["add", "-A"], { cwd, timeout: 10000 })
-  const { stdout } = await execFileAsync("git", ["commit", "-m", message], { cwd, timeout: 10000 })
-  return stdout
+  await execFileAsync("git", ["add", "-A"], { cwd, timeout: 10000 });
+  const { stdout } = await execFileAsync("git", ["commit", "-m", message], {
+    cwd,
+    timeout: 10000,
+  });
+  return stdout;
 }
 
 /** Stages a single file: `git add -- <filePath>` */
 export async function gitStage(cwd: string, filePath: string): Promise<void> {
-  await execFileAsync("git", ["add", "--", filePath], { cwd, timeout: 5000 })
+  await execFileAsync("git", ["add", "--", filePath], { cwd, timeout: 5000 });
 }
 
 /** Unstages a single file: `git restore --staged -- <filePath>` */
 export async function gitUnstage(cwd: string, filePath: string): Promise<void> {
-  await execFileAsync("git", ["restore", "--staged", "--", filePath], { cwd, timeout: 5000 })
+  await execFileAsync("git", ["restore", "--staged", "--", filePath], {
+    cwd,
+    timeout: 5000,
+  });
 }
 
 /** Stages all changes: `git add -A` */
 export async function gitStageAll(cwd: string): Promise<void> {
-  await execFileAsync("git", ["add", "-A"], { cwd, timeout: 10000 })
+  await execFileAsync("git", ["add", "-A"], { cwd, timeout: 10000 });
 }
 
 /** Unstages all changes: `git restore --staged .` */
 export async function gitUnstageAll(cwd: string): Promise<void> {
-  await execFileAsync("git", ["restore", "--staged", "."], { cwd, timeout: 10000 })
+  await execFileAsync("git", ["restore", "--staged", "."], {
+    cwd,
+    timeout: 10000,
+  });
 }
 
 /**
@@ -115,17 +141,28 @@ export async function gitUnstageAll(cwd: string): Promise<void> {
  * - Staged-new files (A): unstages via `git restore --staged` (file stays on disk)
  * - Untracked files (??): no-op
  */
-export async function gitRevertFile(cwd: string, filePath: string, raw: string): Promise<void> {
-  const isUntracked = raw.trim() === "??"
-  if (isUntracked) return
+export async function gitRevertFile(
+  cwd: string,
+  filePath: string,
+  raw: string,
+): Promise<void> {
+  const isUntracked = raw.trim() === "??";
+  if (isUntracked) return;
 
-  const X = raw[0] ?? " "
-  const isAddedOnly = X === "A" && (raw[1] ?? " ") === " "
+  const X = raw[0] ?? " ";
+  const isAddedOnly = X === "A" && (raw[1] ?? " ") === " ";
 
   if (isAddedOnly) {
-    await execFileAsync("git", ["restore", "--staged", "--", filePath], { cwd, timeout: 5000 })
+    await execFileAsync("git", ["restore", "--staged", "--", filePath], {
+      cwd,
+      timeout: 5000,
+    });
   } else {
-    await execFileAsync("git", ["restore", "--source=HEAD", "--staged", "--worktree", "--", filePath], { cwd, timeout: 5000 })
+    await execFileAsync(
+      "git",
+      ["restore", "--source=HEAD", "--staged", "--worktree", "--", filePath],
+      { cwd, timeout: 5000 },
+    );
   }
 }
 
@@ -133,8 +170,8 @@ export async function gitRevertFile(cwd: string, filePath: string, raw: string):
 export async function gitStash(cwd: string, message?: string): Promise<void> {
   const args = message
     ? ["stash", "push", "-u", "-m", message]
-    : ["stash", "push", "-u"]
-  await execFileAsync("git", args, { cwd, timeout: 10000 })
+    : ["stash", "push", "-u"];
+  await execFileAsync("git", args, { cwd, timeout: 10000 });
 }
 
 /** Returns raw `git stash list` output formatted as `ref<TAB>subject` lines. */
@@ -143,46 +180,57 @@ export async function gitStashList(cwd: string): Promise<string> {
     const { stdout } = await execFileAsync(
       "git",
       ["stash", "list", "--format=%gd\t%s"],
-      { cwd, timeout: 5000 }
-    )
-    return stdout
+      { cwd, timeout: 5000 },
+    );
+    return stdout;
   } catch {
-    return ""
+    return "";
   }
 }
 
 /** Pops a stash: `git stash pop <ref>` */
 export async function gitStashPop(cwd: string, ref: string): Promise<void> {
-  await execFileAsync("git", ["stash", "pop", ref], { cwd, timeout: 10000 })
+  await execFileAsync("git", ["stash", "pop", ref], { cwd, timeout: 10000 });
 }
 
 /** Applies a stash without removing it: `git stash apply <ref>` */
 export async function gitStashApply(cwd: string, ref: string): Promise<void> {
-  await execFileAsync("git", ["stash", "apply", ref], { cwd, timeout: 10000 })
+  await execFileAsync("git", ["stash", "apply", ref], { cwd, timeout: 10000 });
 }
 
 /** Drops a stash without applying it: `git stash drop <ref>` */
 export async function gitStashDrop(cwd: string, ref: string): Promise<void> {
-  await execFileAsync("git", ["stash", "drop", ref], { cwd, timeout: 10000 })
+  await execFileAsync("git", ["stash", "drop", ref], { cwd, timeout: 10000 });
 }
 
 /** Returns total insertions/deletions across all uncommitted changes (`git diff --numstat HEAD`). */
-export async function gitDiffStat(cwd: string): Promise<{ additions: number; deletions: number }> {
+export async function gitDiffStat(
+  cwd: string,
+): Promise<{ additions: number; deletions: number }> {
   try {
-    const { stdout } = await execFileAsync("git", ["diff", "--numstat", "HEAD"], { cwd, timeout: 5000 })
-    let additions = 0
-    let deletions = 0
+    const { stdout } = await execFileAsync(
+      "git",
+      ["diff", "--numstat", "HEAD"],
+      { cwd, timeout: 5000 },
+    );
+    let additions = 0;
+    let deletions = 0;
     for (const line of stdout.split("\n")) {
-      const parts = line.trim().split("\t")
+      const parts = line.trim().split("\t");
       if (parts.length >= 2) {
-        const a = parseInt(parts[0], 10)
-        const d = parseInt(parts[1], 10)
-        if (!isNaN(a)) additions += a
-        if (!isNaN(d)) deletions += d
+        const a = parseInt(parts[0], 10);
+        const d = parseInt(parts[1], 10);
+        if (!isNaN(a)) additions += a;
+        if (!isNaN(d)) deletions += d;
       }
     }
-    return { additions, deletions }
+    return { additions, deletions };
   } catch {
-    return { additions: 0, deletions: 0 }
+    return { additions: 0, deletions: 0 };
   }
+}
+
+/** Pushes the current branch to its upstream: `git push`. */
+export async function gitPush(cwd: string): Promise<void> {
+  await execFileAsync("git", ["push"], { cwd, timeout: 30000 });
 }

@@ -7,8 +7,12 @@ export async function gitStatus(sessionId: string): Promise<string> {
   return raw
 }
 
-export async function gitDiffStat(sessionId: string): Promise<{ additions: number; deletions: number }> {
-  return apiFetch<{ additions: number; deletions: number }>(`${base(sessionId)}/diff-stat`)
+export async function gitDiffStat(
+  sessionId: string
+): Promise<{ additions: number; deletions: number }> {
+  return apiFetch<{ additions: number; deletions: number }>(
+    `${base(sessionId)}/diff-stat`
+  )
 }
 
 export async function gitFileDiff(
@@ -71,7 +75,9 @@ export function gitStash(sessionId: string, message?: string): Promise<void> {
 }
 
 export async function gitStashList(sessionId: string): Promise<string> {
-  const { raw } = await apiFetch<{ raw: string }>(`${base(sessionId)}/stash-list`)
+  const { raw } = await apiFetch<{ raw: string }>(
+    `${base(sessionId)}/stash-list`
+  )
   return raw
 }
 
@@ -99,7 +105,11 @@ export function gitStashDrop(sessionId: string, ref: string): Promise<void> {
   })
 }
 
-export function gitRevertFile(sessionId: string, filePath: string, raw: string): Promise<void> {
+export function gitRevertFile(
+  sessionId: string,
+  filePath: string,
+  raw: string
+): Promise<void> {
   return apiFetch<void>(`${base(sessionId)}/revert-file`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -107,3 +117,6 @@ export function gitRevertFile(sessionId: string, filePath: string, raw: string):
   })
 }
 
+export function gitPush(sessionId: string): Promise<void> {
+  return apiFetch<void>(`${base(sessionId)}/push`, { method: "POST" })
+}

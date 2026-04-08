@@ -8,7 +8,12 @@ import { homedir } from "os";
 import { join, dirname } from "path";
 import { randomUUID } from "crypto";
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
-import { createManagedSession, getAvailableModels, generateThreadTitle, type SdkConfig } from "@lambda/pi-sdk";
+import {
+  createManagedSession,
+  getAvailableModels,
+  generateThreadTitle,
+  type SdkConfig,
+} from "@lambda/pi-sdk";
 import {
   getCurrentBranch,
   listBranches,
@@ -16,6 +21,7 @@ import {
   gitStatus,
   gitFileDiff,
   gitCommit,
+  gitPush,
   gitStage,
   gitUnstage,
   gitStageAll,
@@ -64,16 +70,16 @@ async function createSessionForThread(
   return sessionId;
 }
 
-app.get("/health", (c) =>
-  c.json({ status: "ok", uptime: process.uptime() }),
-);
+app.get("/health", (c) => c.json({ status: "ok", uptime: process.uptime() }));
 
 app.get("/models", (c) => {
   return c.json({ models: getAvailableModels() });
 });
 
 app.post("/title", async (c) => {
-  const body = await c.req.json<{ message?: string; provider?: string; model?: string }>().catch((): { message?: string; provider?: string; model?: string } => ({}));
+  const body = await c.req
+    .json<{ message?: string; provider?: string; model?: string }>()
+    .catch((): { message?: string; provider?: string; model?: string } => ({}));
   if (!body.message) return c.json({ error: "message is required" }, 400);
   const title = await generateThreadTitle(body.message, {
     provider: body.provider,
@@ -106,17 +112,41 @@ app.get("/workspaces", (c) => {
 });
 
 app.post("/workspace", async (c) => {
-  const body = await c.req.json<{ name?: string; path?: string; provider?: string; model?: string }>().catch((): { name?: string; path?: string; provider?: string; model?: string } => ({}));
-  if (!body.name || !body.path) return c.json({ error: "name and path are required" }, 400);
+  const body = await c.req
+    .json<{ name?: string; path?: string; provider?: string; model?: string }>()
+    .catch(
+      (): {
+        name?: string;
+        path?: string;
+        provider?: string;
+        model?: string;
+      } => ({}),
+    );
+  if (!body.name || !body.path)
+    return c.json({ error: "name and path are required" }, 400);
 
   const existing = getWorkspaceByPath(body.path);
   if (existing) {
-    const wsWithThreads = listWorkspacesWithThreads().find((w) => w.id === existing.id);
+    const wsWithThreads = listWorkspacesWithThreads().find(
+      (w) => w.id === existing.id,
+    );
     const threads = (wsWithThreads?.threads ?? []).map((t) => {
       const session = store.getByThreadId(t.id);
-      return { id: t.id, workspaceId: existing.id, title: t.title, createdAt: t.createdAt, sessionId: session?.sessionId ?? null };
+      return {
+        id: t.id,
+        workspaceId: existing.id,
+        title: t.title,
+        createdAt: t.createdAt,
+        sessionId: session?.sessionId ?? null,
+      };
     });
-    return c.json({ error: "A workspace already exists for this path", workspace: { ...existing, threads } }, 409);
+    return c.json(
+      {
+        error: "A workspace already exists for this path",
+        workspace: { ...existing, threads },
+      },
+      409,
+    );
   }
 
   const workspaceId = insertWorkspace(body.name, body.path);
@@ -126,20 +156,25 @@ app.post("/workspace", async (c) => {
     model: body.model,
   });
 
-  return c.json({
-    workspace: {
-      id: workspaceId,
-      name: body.name,
-      path: body.path,
-      threads: [{
-        id: threadId,
-        workspaceId,
-        title: "New Thread",
-        createdAt: Date.now(),
-        sessionId,
-      }],
+  return c.json(
+    {
+      workspace: {
+        id: workspaceId,
+        name: body.name,
+        path: body.path,
+        threads: [
+          {
+            id: threadId,
+            workspaceId,
+            title: "New Thread",
+            createdAt: Date.now(),
+            sessionId,
+          },
+        ],
+      },
     },
-  }, 201);
+    201,
+  );
 });
 
 app.delete("/reset", (_c) => {
@@ -169,7 +204,9 @@ app.delete("/workspace/:id", (c) => {
 
 app.post("/workspace/:workspaceId/thread", async (c) => {
   const workspaceId = c.req.param("workspaceId");
-  const body = await c.req.json<{ provider?: string; model?: string }>().catch((): { provider?: string; model?: string } => ({}));
+  const body = await c.req
+    .json<{ provider?: string; model?: string }>()
+    .catch((): { provider?: string; model?: string } => ({}));
 
   const ws = getWorkspace(workspaceId);
   if (!ws) return c.json({ error: "Workspace not found" }, 404);
@@ -180,15 +217,18 @@ app.post("/workspace/:workspaceId/thread", async (c) => {
     model: body.model,
   });
 
-  return c.json({
-    thread: {
-      id: threadId,
-      workspaceId,
-      title: "New Thread",
-      createdAt: Date.now(),
-      sessionId,
+  return c.json(
+    {
+      thread: {
+        id: threadId,
+        workspaceId,
+        title: "New Thread",
+        createdAt: Date.now(),
+        sessionId,
+      },
     },
-  }, 201);
+    201,
+  );
 });
 
 app.delete("/thread/:id", (c) => {
@@ -201,7 +241,9 @@ app.delete("/thread/:id", (c) => {
 
 app.patch("/thread/:id/title", async (c) => {
   const threadId = c.req.param("id");
-  const body = await c.req.json<{ title?: string }>().catch((): { title?: string } => ({}));
+  const body = await c.req
+    .json<{ title?: string }>()
+    .catch((): { title?: string } => ({}));
   if (!body.title) return c.json({ error: "title is required" }, 400);
   const thread = getThread(threadId);
   if (!thread) return c.json({ error: "Thread not found" }, 404);
@@ -212,7 +254,9 @@ app.patch("/thread/:id/title", async (c) => {
 // ── Session endpoints ──────────────────────────────────────────────────────────
 
 app.post("/session", async (c) => {
-  const body = await c.req.json<Partial<SdkConfig>>().catch((): Partial<SdkConfig> => ({}));
+  const body = await c.req
+    .json<Partial<SdkConfig>>()
+    .catch((): Partial<SdkConfig> => ({}));
   const resolvedCwd = body.cwd ?? process.cwd();
   // Legacy endpoint: create a thread in the DB so messages can be persisted
   const workspaceId = insertWorkspace("Untitled", resolvedCwd);
@@ -236,7 +280,21 @@ app.post("/session/:id/prompt", async (c) => {
   const entry = store.get(id);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
-  const body = await c.req.json<{ text?: string; provider?: string; model?: string; thinkingLevel?: string }>().catch((): { text?: string; provider?: string; model?: string; thinkingLevel?: string } => ({}));
+  const body = await c.req
+    .json<{
+      text?: string;
+      provider?: string;
+      model?: string;
+      thinkingLevel?: string;
+    }>()
+    .catch(
+      (): {
+        text?: string;
+        provider?: string;
+        model?: string;
+        thinkingLevel?: string;
+      } => ({}),
+    );
   if (!body.text) return c.json({ error: "text is required" }, 400);
 
   insertMessage(entry.threadId, "user", body.text);
@@ -247,7 +305,15 @@ app.post("/session/:id/prompt", async (c) => {
       await entry.handle.setModel(body.provider, body.model);
     }
     if (body.thinkingLevel) {
-      entry.handle.setThinkingLevel(body.thinkingLevel as "off" | "minimal" | "low" | "medium" | "high" | "xhigh");
+      entry.handle.setThinkingLevel(
+        body.thinkingLevel as
+          | "off"
+          | "minimal"
+          | "low"
+          | "medium"
+          | "high"
+          | "xhigh",
+      );
     }
     await entry.handle.prompt(body.text!);
   };
@@ -285,7 +351,10 @@ app.post("/session/:id/checkout", async (c) => {
     const raw = err instanceof Error ? err.message : String(err);
     // Extract the human-readable part from the git stderr (after the first line which is the command echo)
     const lines = raw.split("\n").filter(Boolean);
-    const message = lines.find((l) => l.startsWith("error:") || l.startsWith("fatal:")) ?? lines[0] ?? "Checkout failed";
+    const message =
+      lines.find((l) => l.startsWith("error:") || l.startsWith("fatal:")) ??
+      lines[0] ??
+      "Checkout failed";
     return c.json({ error: message }, 500);
   }
 });
@@ -319,12 +388,18 @@ app.get("/session/:id/events", async (c) => {
       if (event.type === "message_start") {
         messageBuffer.startAssistant(id, threadId);
       } else if (event.type === "message_update") {
-        const e = event as { assistantMessageEvent?: { type: string; delta: string } };
+        const e = event as {
+          assistantMessageEvent?: { type: string; delta: string };
+        };
         if (e.assistantMessageEvent?.type === "text_delta") {
           messageBuffer.appendDelta(id, e.assistantMessageEvent.delta);
         }
       } else if (event.type === "tool_execution_start") {
-        const e = event as { toolCallId: string; toolName: string; args: unknown };
+        const e = event as {
+          toolCallId: string;
+          toolName: string;
+          args: unknown;
+        };
         toolMeta.set(e.toolCallId, { toolName: e.toolName, args: e.args });
       } else if (event.type === "tool_execution_end") {
         const e = event as {
@@ -393,7 +468,10 @@ app.get("/session/:id/git/diff", async (c) => {
     const diff = await gitFileDiff(cwd, file, status);
     return c.json({ diff });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
   }
 });
 
@@ -406,7 +484,24 @@ app.post("/session/:id/git/commit", async (c) => {
     const output = await gitCommit(cwd, body.message);
     return c.json({ output });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
+  }
+});
+
+app.post("/session/:id/git/push", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  try {
+    await gitPush(cwd);
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
   }
 });
 
@@ -446,7 +541,8 @@ app.post("/session/:id/git/revert-file", async (c) => {
   const cwd = gitCwd(c.req.param("id"));
   if (!cwd) return c.json({ error: "Session not found" }, 404);
   const body = await c.req.json<{ filePath?: string; raw?: string }>();
-  if (!body.filePath || body.raw === undefined) return c.json({ error: "filePath and raw are required" }, 400);
+  if (!body.filePath || body.raw === undefined)
+    return c.json({ error: "filePath and raw are required" }, 400);
   await gitRevertFile(cwd, body.filePath, body.raw);
   return new Response(null, { status: 204 });
 });
@@ -454,7 +550,9 @@ app.post("/session/:id/git/revert-file", async (c) => {
 app.post("/session/:id/git/stash", async (c) => {
   const cwd = gitCwd(c.req.param("id"));
   if (!cwd) return c.json({ error: "Session not found" }, 404);
-  const body = await c.req.json<{ message?: string }>().catch((): { message?: string } => ({}));
+  const body = await c.req
+    .json<{ message?: string }>()
+    .catch((): { message?: string } => ({}));
   await gitStash(cwd, body.message);
   return new Response(null, { status: 204 });
 });
@@ -475,7 +573,10 @@ app.post("/session/:id/git/stash-pop", async (c) => {
     await gitStashPop(cwd, body.ref);
     return new Response(null, { status: 204 });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
   }
 });
 
@@ -488,7 +589,10 @@ app.post("/session/:id/git/stash-apply", async (c) => {
     await gitStashApply(cwd, body.ref);
     return new Response(null, { status: 204 });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
   }
 });
 
@@ -501,7 +605,10 @@ app.post("/session/:id/git/stash-drop", async (c) => {
     await gitStashDrop(cwd, body.ref);
     return new Response(null, { status: 204 });
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      500,
+    );
   }
 });
 
@@ -568,30 +675,43 @@ app.post("/auth/oauth/:providerId/login", async (c) => {
   });
 
   // Run login in background — SSE stream will pick up events
-  sharedAuthStorage.login(providerId, {
-    signal: login.abortController.signal,
-    onAuth: (info) => {
-      emit({ type: "auth_url", url: info.url, instructions: info.instructions });
-    },
-    onProgress: (message) => {
-      emit({ type: "progress", message });
-    },
-    onPrompt: (prompt) => {
-      const promptId = randomUUID();
-      emit({ type: "prompt", promptId, message: prompt.message, placeholder: prompt.placeholder });
-      return new Promise<string>((resolve) => {
-        login.promptResolvers.set(promptId, resolve);
-      });
-    },
-    onManualCodeInput: () => manualInputPromise,
-  })
+  sharedAuthStorage
+    .login(providerId, {
+      signal: login.abortController.signal,
+      onAuth: (info) => {
+        emit({
+          type: "auth_url",
+          url: info.url,
+          instructions: info.instructions,
+        });
+      },
+      onProgress: (message) => {
+        emit({ type: "progress", message });
+      },
+      onPrompt: (prompt) => {
+        const promptId = randomUUID();
+        emit({
+          type: "prompt",
+          promptId,
+          message: prompt.message,
+          placeholder: prompt.placeholder,
+        });
+        return new Promise<string>((resolve) => {
+          login.promptResolvers.set(promptId, resolve);
+        });
+      },
+      onManualCodeInput: () => manualInputPromise,
+    })
     .then(() => {
       emit({ type: "done" });
       activeLogins.delete(loginId);
     })
     .catch((err: unknown) => {
       if (!login.abortController.signal.aborted) {
-        emit({ type: "error", message: err instanceof Error ? err.message : String(err) });
+        emit({
+          type: "error",
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
       activeLogins.delete(loginId);
     });
@@ -621,7 +741,10 @@ app.get("/auth/oauth/:loginId/events", async (c) => {
       login.sseFlush = async () => {
         while (login.sseQueue.length > 0) {
           const event = login.sseQueue.shift()!;
-          await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+          await stream.writeSSE({
+            event: event.type,
+            data: JSON.stringify(event),
+          });
           if (event.type === "done" || event.type === "error") {
             login.sseFlush = null;
             resolve();
@@ -641,7 +764,9 @@ app.post("/auth/oauth/:loginId/respond", async (c) => {
   const login = activeLogins.get(loginId);
   if (!login) return c.json({ error: "Login session not found" }, 404);
 
-  const body = await c.req.json<{ promptId?: string; value?: string }>().catch((): { promptId?: string; value?: string } => ({}));
+  const body = await c.req
+    .json<{ promptId?: string; value?: string }>()
+    .catch((): { promptId?: string; value?: string } => ({}));
   if (!body.promptId) return c.json({ error: "promptId is required" }, 400);
 
   const resolver = login.promptResolvers.get(body.promptId);
@@ -709,7 +834,9 @@ app.get("/providers", async (c) => {
 
 // Accepts flat map of providerId -> key string (empty string = remove)
 app.put("/providers", async (c) => {
-  const body = await c.req.json<{ providers?: Record<string, string> }>().catch((): { providers?: Record<string, string> } => ({}));
+  const body = await c.req
+    .json<{ providers?: Record<string, string> }>()
+    .catch((): { providers?: Record<string, string> } => ({}));
   if (!body.providers) return c.json({ error: "providers is required" }, 400);
 
   const auth = await readAuthJson();

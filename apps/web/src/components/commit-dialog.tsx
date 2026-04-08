@@ -3,8 +3,8 @@ import {
   GitCommit,
   Loader2,
   ChevronRight,
-  CheckCircle2,
   GitBranch,
+  CloudUpload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { useGitStatus } from "@/queries/use-git-status"
 import { useGitFileDiff } from "@/queries/use-git-file-diff"
 import { useGitCommit } from "@/mutations/use-git-commit"
+import { useGitPush } from "@/mutations/use-git-push"
 import { useBranch } from "@/queries/use-branch"
 
 interface CommitDialogProps {
@@ -170,11 +171,11 @@ function AutoTextarea({
 export function CommitDialog({ sessionId }: CommitDialogProps) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState("")
-  const [success, setSuccess] = useState<string | null>(null)
 
   const { data: statusRaw, isLoading: loading } = useGitStatus(sessionId ?? "")
   const { data: branchData } = useBranch(sessionId ?? "")
   const commitMutation = useGitCommit(sessionId ?? "")
+  const pushMutation = useGitPush(sessionId ?? "")
 
   const branch = branchData?.branch ?? null
 
@@ -199,67 +200,65 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
   async function handleCommit() {
     if (!sessionId || !message.trim() || staged.length === 0) return
-    setSuccess(null)
+    const msg = message.trim()
+    setOpen(false)
+    setMessage("")
+    commitMutation.reset()
     try {
-      await commitMutation.mutateAsync(message.trim())
-      setSuccess("committed")
-      setMessage("")
+      await commitMutation.mutateAsync(msg)
     } catch {
-      // shown via commitMutation.error
+      // error stored in commitMutation.error
+    }
+  }
+
+  async function handleCommitAndPush() {
+    if (!sessionId || !message.trim() || staged.length === 0) return
+    const msg = message.trim()
+    setOpen(false)
+    setMessage("")
+    commitMutation.reset()
+    pushMutation.reset()
+    try {
+      await commitMutation.mutateAsync(msg)
+    } catch {
+      return
+    }
+    try {
+      await pushMutation.mutateAsync()
+    } catch {
+      // error stored in pushMutation.error
     }
   }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
-    if (!nextOpen) {
-      setSuccess(null)
+    if (nextOpen) {
       commitMutation.reset()
+      pushMutation.reset()
     }
   }
 
   const committing = commitMutation.isPending
+  const pushing = pushMutation.isPending
   const canCommit =
-    !committing && !!message.trim() && staged.length > 0 && !loading
-
-  if (success) {
-    return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger
-          render={
-            <Button variant="outline" size="default" disabled={!sessionId} />
-          }
-        >
-          <GitCommit />
-          Commit
-        </DialogTrigger>
-        <DialogContent showCloseButton className="bg-background sm:max-w-lg">
-          <div className="flex flex-col items-center gap-4 py-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-              <CheckCircle2 className="h-6 w-6 text-green-500" />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium">Changes committed</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Your changes have been committed successfully.
-              </p>
-            </div>
-            <Button size="sm" onClick={() => handleOpenChange(false)}>
-              Done
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
+    !committing && !pushing && !!message.trim() && staged.length > 0 && !loading
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <Button variant="outline" size="default" disabled={!sessionId} />
+          <Button
+            variant="outline"
+            size="default"
+            disabled={!sessionId || committing || pushing}
+          />
         }
       >
-        <GitCommit />
+        {committing || pushing ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <GitCommit />
+        )}
         Commit
       </DialogTrigger>
 
@@ -371,6 +370,20 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                   {branch}
                 </div>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCommitAndPush}
+                disabled={!canCommit}
+                className="h-7 px-3 text-xs"
+              >
+                {committing || pushing ? (
+                  <Loader2 className="mr-1.5 size-3 animate-spin" />
+                ) : (
+                  <CloudUpload className="mr-1.5 size-3" />
+                )}
+                Commit & Push
+              </Button>
               <Button
                 size="sm"
                 onClick={handleCommit}
