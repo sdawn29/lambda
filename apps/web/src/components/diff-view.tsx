@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils"
 import { jellybeansdark, jellybeanslight } from "@/lib/syntax-theme"
 import { useTheme } from "@/components/theme-provider"
 
-[
+;[
   bash,
   c,
   cpp,

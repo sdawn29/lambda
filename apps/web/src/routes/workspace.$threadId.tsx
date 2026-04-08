@@ -74,7 +74,9 @@ function WorkspaceThreadRoute() {
 
         {diffOpen && (
           <Suspense
-            fallback={<div className="w-[440px] shrink-0 border-l border-border/60 bg-muted/10" />}
+            fallback={
+              <div className="w-[440px] shrink-0 border-l border-border/60 bg-muted/10" />
+            }
           >
             <DiffPanel sessionId={foundThread.sessionId} />
           </Suspense>
@@ -84,7 +86,9 @@ function WorkspaceThreadRoute() {
       {/* Terminal panel anchored to bottom */}
       {terminalOpen && (
         <Suspense
-          fallback={<div className="h-[260px] shrink-0 border-t bg-background" />}
+          fallback={
+            <div className="h-[260px] shrink-0 border-t bg-background" />
+          }
         >
           <TerminalPanel cwd={cwd} />
         </Suspense>

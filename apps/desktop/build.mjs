@@ -11,10 +11,9 @@ const serverDir = path.resolve(__dirname, "../server");
 const desktopPackageJson = JSON.parse(
   readFileSync(path.join(__dirname, "package.json"), "utf8"),
 );
-const electronVersion = String(desktopPackageJson.devDependencies.electron).replace(
-  /^[^\d]*/,
-  "",
-);
+const electronVersion = String(
+  desktopPackageJson.devDependencies.electron,
+).replace(/^[^\d]*/, "");
 const bundleOnly = process.argv.includes("--bundle-only");
 
 function run(command, args, cwd = monorepoRoot) {
@@ -32,7 +31,9 @@ function run(command, args, cwd = monorepoRoot) {
         return;
       }
 
-      reject(new Error(`${command} ${args.join(" ")} failed with exit code ${code}`));
+      reject(
+        new Error(`${command} ${args.join(" ")} failed with exit code ${code}`),
+      );
     });
   });
 }

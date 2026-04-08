@@ -1,8 +1,5 @@
 import { lazy, Suspense, useState } from "react"
-import {
-  jellybeansdark,
-  jellybeanslight,
-} from "@/lib/syntax-theme"
+import { jellybeansdark, jellybeanslight } from "@/lib/syntax-theme"
 import type { Components } from "react-markdown"
 import { useTheme } from "@/components/theme-provider"
 import { Check, Copy } from "lucide-react"
