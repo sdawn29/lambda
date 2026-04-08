@@ -129,6 +129,8 @@ async function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
+    minWidth: 680,
+    minHeight: 480,
     show: false,
     backgroundColor: "#09090b",
     titleBarStyle: "hiddenInset",
