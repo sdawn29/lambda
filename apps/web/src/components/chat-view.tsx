@@ -294,6 +294,13 @@ export const ChatView = memo(function ChatView({
           onScroll={handleScroll}
           className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
+          {messages.length === 0 && !isLoading && (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center select-none">
+              <span className="text-6xl font-light text-muted-foreground/20">λ</span>
+              <p className="text-sm font-medium text-muted-foreground">Start a conversation</p>
+              <p className="text-xs text-muted-foreground/60">Ask me to write, fix, or explain code</p>
+            </div>
+          )}
           {messages.map((msg, i) => {
             const key =
               msg.role === "tool" ? msg.toolCallId : `${msg.role}-${i}`
