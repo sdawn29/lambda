@@ -14,7 +14,12 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react"
-import { useRouter, useParams, useNavigate } from "@tanstack/react-router"
+import {
+  useRouter,
+  useParams,
+  useNavigate,
+  useLocation,
+} from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import {
@@ -41,6 +46,8 @@ const isMac =
 export function TitleBar() {
   const router = useRouter()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const isSettings = pathname === "/settings"
   const { open } = useSidebar()
   const { workspaces, setThreadTitle, deleteThread } = useWorkspace()
   const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminal()
@@ -178,24 +185,36 @@ export function TitleBar() {
           className="group/title flex min-w-0 flex-1 items-center gap-1 px-6"
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          {isRenaming ? (
-            <input
-              ref={renameInputRef}
-              autoFocus
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename()
-                if (e.key === "Escape") setIsRenaming(false)
-              }}
-              className="min-w-0 flex-1 truncate rounded border border-border bg-background px-1.5 py-0.5 text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
-            />
-          ) : (
-            <span className="truncate text-sm font-medium">
-              {activeThread.title}
-            </span>
-          )}
+          <>
+            {activeWorkspace && (
+              <>
+                <span className="shrink-0 truncate text-sm text-muted-foreground/60">
+                  {activeWorkspace.name}
+                </span>
+                <span className="shrink-0 text-sm text-muted-foreground/40">
+                  /
+                </span>
+              </>
+            )}
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitRename()
+                  if (e.key === "Escape") setIsRenaming(false)
+                }}
+                className="min-w-0 flex-1 truncate bg-transparent text-sm font-medium outline-none"
+              />
+            ) : (
+              <span className="truncate text-sm font-medium">
+                {activeThread.title}
+              </span>
+            )}
+          </>
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 hover:bg-accent hover:text-foreground focus:opacity-100 data-popup-open:opacity-100">
               <MoreHorizontal className="size-3.5" />
@@ -224,53 +243,59 @@ export function TitleBar() {
         className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
-        <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="outline"
-                size="default"
-                onClick={toggleDiff}
-                data-active={diffOpen}
-                disabled={!activeWorkspace?.path}
-                className="gap-1 px-1.5 transition-[background-color,color] duration-150 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-              >
-                <GitCompare className="size-3.5 shrink-0" />
-                {diffStat &&
-                  (diffStat.additions > 0 || diffStat.deletions > 0) && (
-                    <span className="flex animate-in items-center gap-0.5 font-mono leading-none duration-200 fade-in-0 zoom-in-90">
-                      <span className="text-green-500">
-                        +{diffStat.additions}
+        {!isSettings && (
+          <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
+        )}
+        {!isSettings && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={toggleDiff}
+                  data-active={diffOpen}
+                  disabled={!activeWorkspace?.path}
+                  className="gap-1 px-1.5 transition-[background-color,color] duration-150 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                >
+                  <GitCompare className="size-3.5 shrink-0" />
+                  {diffStat &&
+                    (diffStat.additions > 0 || diffStat.deletions > 0) && (
+                      <span className="flex animate-in items-center gap-0.5 font-mono leading-none duration-200 fade-in-0 zoom-in-90">
+                        <span className="text-green-500">
+                          +{diffStat.additions}
+                        </span>
+                        <span className="text-red-500">
+                          -{diffStat.deletions}
+                        </span>
                       </span>
-                      <span className="text-red-500">
-                        -{diffStat.deletions}
-                      </span>
-                    </span>
-                  )}
-                <span className="sr-only">Toggle diff panel</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Toggle diff panel</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={toggleTerminal}
-                data-active={terminalOpen}
-                className="transition-[background-color,color] duration-150 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-              >
-                <TerminalSquare />
-                <span className="sr-only">Toggle terminal</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Toggle terminal</TooltipContent>
-        </Tooltip>
+                    )}
+                  <span className="sr-only">Toggle diff panel</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Toggle diff panel</TooltipContent>
+          </Tooltip>
+        )}
+        {!isSettings && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleTerminal}
+                  data-active={terminalOpen}
+                  className="transition-[background-color,color] duration-150 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                >
+                  <TerminalSquare />
+                  <span className="sr-only">Toggle terminal</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Toggle terminal</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </div>
   )

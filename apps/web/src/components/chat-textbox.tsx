@@ -546,24 +546,14 @@ export const ChatTextbox = memo(function ChatTextbox({
           </div>
         </div>
       </div>
-      {(workspaceName || branch !== undefined) && (
+      {branch !== undefined && (
         <div className="flex items-center gap-1 py-1">
-          {workspaceName && (
-            <span className="truncate text-xs text-muted-foreground">
-              {workspaceName}
-            </span>
-          )}
-          {workspaceName && branch !== undefined && (
-            <span className="text-xs text-muted-foreground">/</span>
-          )}
-          {branch !== undefined && (
-            <BranchSelector
-              branch={branch ?? null}
-              branches={branches}
-              onBranchSelect={onBranchSelect}
-              sessionId={sessionId}
-            />
-          )}
+          <BranchSelector
+            branch={branch ?? null}
+            branches={branches}
+            onBranchSelect={onBranchSelect}
+            sessionId={sessionId}
+          />
         </div>
       )}
     </div>
