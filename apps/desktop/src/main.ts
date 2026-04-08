@@ -168,6 +168,10 @@ app.whenReady().then(async () => {
     shell.showItemInFolder(filePath);
   });
 
+  ipcMain.handle("open-external", (_event, url: string) => {
+    shell.openExternal(url);
+  });
+
 
   await createWindow();
 

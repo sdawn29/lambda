@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   selectFolder: () => ipcRenderer.invoke("select-folder"),
   getServerPort: () => ipcRenderer.invoke("get-server-port"),
   openPath: (path: string) => ipcRenderer.invoke("open-path", path),
+  openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
 });

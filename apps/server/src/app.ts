@@ -6,6 +6,8 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { homedir } from "os";
 import { join, dirname } from "path";
+import { randomUUID } from "crypto";
+import { AuthStorage } from "@mariozechner/pi-coding-agent";
 import { createManagedSession, getAvailableModels, generateThreadTitle, type SdkConfig } from "@lambda/pi-sdk";
 import {
   getCurrentBranch,
@@ -480,6 +482,161 @@ app.post("/session/:id/git/stash-drop", async (c) => {
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
+});
+
+// ── OAuth login endpoints ──────────────────────────────────────────────────────
+
+// Shared auth storage backed by ~/.pi/agent/auth.json
+const sharedAuthStorage = AuthStorage.create();
+
+type OAuthSseEvent =
+  | { type: "auth_url"; url: string; instructions?: string }
+  | { type: "prompt"; promptId: string; message: string; placeholder?: string }
+  | { type: "progress"; message: string }
+  | { type: "done" }
+  | { type: "error"; message: string };
+
+interface ActiveLogin {
+  sseQueue: OAuthSseEvent[];
+  sseFlush: (() => void) | null;
+  promptResolvers: Map<string, (value: string) => void>;
+  abortController: AbortController;
+}
+
+const activeLogins = new Map<string, ActiveLogin>();
+
+// List OAuth providers and their login status
+app.get("/auth/oauth/providers", (c) => {
+  sharedAuthStorage.reload();
+  const providers = sharedAuthStorage.getOAuthProviders().map((p) => {
+    const cred = sharedAuthStorage.get(p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      loggedIn: cred?.type === "oauth",
+    };
+  });
+  return c.json({ providers });
+});
+
+// Start OAuth login — returns a loginId for SSE + respond endpoints
+app.post("/auth/oauth/:providerId/login", async (c) => {
+  const providerId = c.req.param("providerId");
+  const loginId = randomUUID();
+
+  const login: ActiveLogin = {
+    sseQueue: [],
+    sseFlush: null,
+    promptResolvers: new Map(),
+    abortController: new AbortController(),
+  };
+  activeLogins.set(loginId, login);
+
+  function emit(event: OAuthSseEvent) {
+    login.sseQueue.push(event);
+    login.sseFlush?.();
+  }
+
+  // Run login in background — SSE stream will pick up events
+  sharedAuthStorage.login(providerId, {
+    signal: login.abortController.signal,
+    onAuth: (info) => {
+      emit({ type: "auth_url", url: info.url, instructions: info.instructions });
+    },
+    onProgress: (message) => {
+      emit({ type: "progress", message });
+    },
+    onPrompt: (prompt) => {
+      const promptId = randomUUID();
+      emit({ type: "prompt", promptId, message: prompt.message, placeholder: prompt.placeholder });
+      return new Promise<string>((resolve) => {
+        login.promptResolvers.set(promptId, resolve);
+      });
+    },
+  })
+    .then(() => {
+      emit({ type: "done" });
+      activeLogins.delete(loginId);
+    })
+    .catch((err: unknown) => {
+      if (!login.abortController.signal.aborted) {
+        emit({ type: "error", message: err instanceof Error ? err.message : String(err) });
+      }
+      activeLogins.delete(loginId);
+    });
+
+  return c.json({ loginId }, 201);
+});
+
+// SSE stream for an active login
+app.get("/auth/oauth/:loginId/events", async (c) => {
+  const loginId = c.req.param("loginId");
+  const login = activeLogins.get(loginId);
+  if (!login) return c.json({ error: "Login session not found" }, 404);
+
+  return streamSSE(c, async (stream) => {
+    stream.onAbort(() => {
+      login.sseFlush = null;
+    });
+
+    // Drain any events queued before SSE connected
+    while (login.sseQueue.length > 0) {
+      const event = login.sseQueue.shift()!;
+      await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+    }
+
+    // Stream future events until done/error or connection closes
+    await new Promise<void>((resolve) => {
+      login.sseFlush = async () => {
+        while (login.sseQueue.length > 0) {
+          const event = login.sseQueue.shift()!;
+          await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+          if (event.type === "done" || event.type === "error") {
+            login.sseFlush = null;
+            resolve();
+            return;
+          }
+        }
+      };
+      // Handle case where login completed before SSE connected
+      if (!activeLogins.has(loginId)) resolve();
+    });
+  });
+});
+
+// Respond to a prompt during login
+app.post("/auth/oauth/:loginId/respond", async (c) => {
+  const loginId = c.req.param("loginId");
+  const login = activeLogins.get(loginId);
+  if (!login) return c.json({ error: "Login session not found" }, 404);
+
+  const body = await c.req.json<{ promptId?: string; value?: string }>().catch((): { promptId?: string; value?: string } => ({}));
+  if (!body.promptId) return c.json({ error: "promptId is required" }, 400);
+
+  const resolver = login.promptResolvers.get(body.promptId);
+  if (!resolver) return c.json({ error: "Prompt not found" }, 404);
+
+  login.promptResolvers.delete(body.promptId);
+  resolver(body.value ?? "");
+  return c.json({ ok: true });
+});
+
+// Abort an active login
+app.post("/auth/oauth/:loginId/abort", (c) => {
+  const loginId = c.req.param("loginId");
+  const login = activeLogins.get(loginId);
+  if (!login) return c.json({ error: "Login session not found" }, 404);
+  login.abortController.abort();
+  activeLogins.delete(loginId);
+  return c.json({ ok: true });
+});
+
+// Logout (remove stored OAuth credentials)
+app.delete("/auth/oauth/:providerId", (c) => {
+  const providerId = c.req.param("providerId");
+  sharedAuthStorage.reload();
+  sharedAuthStorage.logout(providerId);
+  return c.json({ ok: true });
 });
 
 // ── Provider auth endpoints ────────────────────────────────────────────────────
