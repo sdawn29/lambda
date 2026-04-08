@@ -182,4 +182,11 @@
   .prose pre {
     @apply font-mono;
   }
+
+  /* Placeholder for contenteditable rich input */
+  .rich-input:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
 }

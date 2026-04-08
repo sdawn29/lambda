@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react"
 
-import { CheckIcon, CopyIcon } from "lucide-react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -24,29 +23,10 @@ import { useGenerateTitle } from "@/mutations/use-generate-title"
 import { useSendPrompt } from "@/mutations/use-send-prompt"
 import { ToolCallBlock } from "@/components/tool-call-block"
 import { markdownComponents } from "@/components/markdown-components"
+import { CopyButton } from "@/components/copy-button"
+import { UserMessageContent } from "@/components/user-message"
+import { ThinkingIndicator } from "@/components/thinking-indicator"
 import type { Message, TextMessage, ToolMessage } from "@/components/chat-types"
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      type="button"
-      aria-label="Copy message"
-      onClick={() => {
-        navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
-      }}
-      className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/8 hover:text-foreground"
-    >
-      {copied ? (
-        <CheckIcon className="size-3.5 text-green-500" />
-      ) : (
-        <CopyIcon className="size-3.5" />
-      )}
-    </button>
-  )
-}
 
 interface ChatViewProps {
   sessionId: string
@@ -310,7 +290,7 @@ export const ChatView = memo(function ChatView({
                   className="group flex animate-in flex-col items-end gap-1.5 self-end duration-200 fade-in-0 slide-in-from-bottom-2"
                 >
                   <div className="rounded-xl bg-muted px-4 py-2 text-sm">
-                    {msg.content}
+                    <UserMessageContent content={msg.content} />
                   </div>
                   <CopyButton text={msg.content} />
                 </div>
@@ -336,22 +316,7 @@ export const ChatView = memo(function ChatView({
               </div>
             )
           })}
-          {showThinking && (
-            <div className="flex animate-in items-center gap-1 self-start py-1 duration-200 fade-in-0">
-              <span
-                className="animate-thinking-dot size-1.5 rounded-full bg-muted-foreground/60"
-                style={{ animationDelay: "0ms" }}
-              />
-              <span
-                className="animate-thinking-dot size-1.5 rounded-full bg-muted-foreground/60"
-                style={{ animationDelay: "200ms" }}
-              />
-              <span
-                className="animate-thinking-dot size-1.5 rounded-full bg-muted-foreground/60"
-                style={{ animationDelay: "400ms" }}
-              />
-            </div>
-          )}
+          {showThinking && <ThinkingIndicator />}
           <div ref={bottomRef} />
         </div>
 

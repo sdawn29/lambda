@@ -1,6 +1,5 @@
 import { useState, useMemo, memo } from "react"
 import {
-  CheckIcon,
   ChevronDownIcon,
   FileEditIcon,
   Loader2Icon,
@@ -160,12 +159,11 @@ export const ToolCallBlock = memo(function ToolCallBlock({
         className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted/30"
         onClick={toggle}
       >
-        {msg.status === "running" ? (
+        {msg.status === "running" && (
           <Loader2Icon className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-        ) : msg.status === "error" ? (
+        )}
+        {msg.status === "error" && (
           <XIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />
-        ) : (
-          <CheckIcon className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
         )}
         {isEdit ? (
           <FileEditIcon className="h-3 w-3 shrink-0 text-muted-foreground" />

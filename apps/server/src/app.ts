@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { streamSSE } from "hono/streaming";
-import { readFile, writeFile, mkdir } from "fs/promises";
+import { readFile, writeFile, mkdir, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { homedir } from "os";
-import { join, dirname } from "path";
+import { join, dirname, relative } from "path";
 import { randomUUID } from "crypto";
 import { AuthStorage } from "@mariozechner/pi-coding-agent";
 import {
@@ -337,6 +337,44 @@ app.get("/session/:id/branches", async (c) => {
   if (!cwd) return c.json({ branches: [] });
   const branches = await listBranches(cwd);
   return c.json({ branches });
+});
+
+const EXCLUDED_DIRS = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  "out",
+  ".next",
+  "coverage",
+  ".turbo",
+]);
+
+app.get("/session/:id/workspace-files", async (c) => {
+  const cwd = store.getCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  try {
+    const rawEntries = await readdir(cwd, {
+      withFileTypes: true,
+      recursive: true,
+    });
+    const entries: { path: string; type: "file" | "dir" }[] = [];
+    for (const entry of rawEntries) {
+      const fullPath = join(entry.parentPath, entry.name);
+      const rel = relative(cwd, fullPath).replace(/\\/g, "/");
+      const parts = rel.split("/");
+      if (parts.some((p) => EXCLUDED_DIRS.has(p))) continue;
+      if (entry.isDirectory()) {
+        entries.push({ path: rel, type: "dir" });
+      } else if (entry.isFile()) {
+        entries.push({ path: rel, type: "file" });
+      }
+    }
+    entries.sort((a, b) => a.path.localeCompare(b.path));
+    return c.json({ entries });
+  } catch {
+    return c.json({ entries: [] });
+  }
 });
 
 app.post("/session/:id/checkout", async (c) => {
