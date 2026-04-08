@@ -3,6 +3,7 @@ import { getFileTypeColor } from "@/lib/file-type-color"
 
 export interface RichInputHandle {
   getValue: () => string
+  setValue: (text: string) => void
   clear: () => void
   focus: () => void
 }
@@ -115,6 +116,18 @@ export const RichInput = React.forwardRef<
       }
       walk(divRef.current.childNodes)
       return text
+    },
+    setValue(text: string) {
+      if (divRef.current) {
+        divRef.current.textContent = text
+        onInput?.()
+        divRef.current.focus()
+        const range = document.createRange()
+        range.selectNodeContents(divRef.current)
+        range.collapse(false)
+        window.getSelection()?.removeAllRanges()
+        window.getSelection()?.addRange(range)
+      }
     },
     clear() {
       if (divRef.current) divRef.current.innerHTML = ""

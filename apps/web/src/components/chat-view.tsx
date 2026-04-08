@@ -4,7 +4,7 @@ import { StopCircleIcon } from "lucide-react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
-import { ChatTextbox } from "@/components/chat-textbox"
+import { ChatTextbox, type ChatTextboxHandle } from "@/components/chat-textbox"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -57,6 +57,7 @@ export const ChatView = memo(function ChatView({
   const pinnedRef = useRef(true)
   const hasTitledRef = useRef(false)
   const seededRef = useRef(false)
+  const chatTextboxRef = useRef<ChatTextboxHandle>(null)
 
   const { setThreadTitle } = useWorkspace()
 
@@ -295,10 +296,33 @@ export const ChatView = memo(function ChatView({
           className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {messages.length === 0 && !isLoading && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center select-none">
-              <span className="text-6xl font-light text-muted-foreground/20">λ</span>
-              <p className="text-sm font-medium text-muted-foreground">Start a conversation</p>
-              <p className="text-xs text-muted-foreground/60">Ask me to write, fix, or explain code</p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center select-none">
+              <span className="text-6xl font-light text-muted-foreground/20">
+                λ
+              </span>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Start a conversation
+                </p>
+                <p className="text-xs text-muted-foreground/60">
+                  Ask me to write, fix, or explain code
+                </p>
+              </div>
+              <div className="mt-1 flex flex-wrap justify-center gap-2">
+                {[
+                  "Explain this codebase to me",
+                  "Find and fix bugs in my code",
+                  "Write tests for my functions",
+                ].map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => chatTextboxRef.current?.setValue(prompt)}
+                    className="rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {messages.map((msg, i) => {
@@ -342,7 +366,7 @@ export const ChatView = memo(function ChatView({
           })}
           {showThinking && <ThinkingIndicator />}
           {isStopped && !isLoading && (
-            <div className="flex animate-in items-center gap-1.5 self-start duration-200 fade-in-0 text-muted-foreground/60">
+            <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
               <StopCircleIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />
               <span className="text-xs">Interrupted</span>
             </div>
@@ -352,6 +376,7 @@ export const ChatView = memo(function ChatView({
 
         <div className="mx-auto w-full max-w-2xl px-6 pb-6">
           <ChatTextbox
+            ref={chatTextboxRef}
             onSend={handleSend}
             onStop={handleStop}
             isLoading={isLoading}

@@ -1,5 +1,9 @@
 import * as React from "react"
-import { memo } from "react"
+import { memo, forwardRef, useImperativeHandle } from "react"
+
+export interface ChatTextboxHandle {
+  setValue: (text: string) => void
+}
 import { ArrowUpIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -47,19 +51,23 @@ interface ChatTextboxProps {
   onModelChange?: (modelId: string) => void
 }
 
-export const ChatTextbox = memo(function ChatTextbox({
-  onSend,
-  isLoading = false,
-  onStop,
-  placeholder = "Ask me to write, fix, or explain code… Use @ to mention files",
-  className,
-  branch,
-  branches = [],
-  onBranchSelect,
-  sessionId,
-  selectedModelId: controlledModelId,
-  onModelChange,
-}: ChatTextboxProps) {
+export const ChatTextbox = memo(
+  forwardRef<ChatTextboxHandle, ChatTextboxProps>(function ChatTextbox(
+    {
+      onSend,
+      isLoading = false,
+      onStop,
+      placeholder = "Ask me to write, fix, or explain code… Use @ to mention files",
+      className,
+      branch,
+      branches = [],
+      onBranchSelect,
+      sessionId,
+      selectedModelId: controlledModelId,
+      onModelChange,
+    }: ChatTextboxProps,
+    ref
+  ) {
   const [isEmpty, setIsEmpty] = React.useState(true)
   const [internalModelId, setInternalModelId] = React.useState<string | null>(
     null
@@ -73,6 +81,13 @@ export const ChatTextbox = memo(function ChatTextbox({
   const isControlled = controlledModelId !== undefined
   const selectedModelId = isControlled ? controlledModelId : internalModelId
   const richInputRef = React.useRef<RichInputHandle>(null)
+
+  useImperativeHandle(ref, () => ({
+    setValue(text: string) {
+      richInputRef.current?.setValue(text)
+      setIsEmpty(text.trim().length === 0)
+    },
+  }))
 
   const { data } = useModels()
   const models = React.useMemo(() => data?.models ?? [], [data])
@@ -287,4 +302,4 @@ export const ChatTextbox = memo(function ChatTextbox({
       )}
     </div>
   )
-})
+}))
