@@ -1,15 +1,13 @@
-import { useState } from "react"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import SyntaxHighlighterAuto from "react-syntax-highlighter"
+import { lazy, Suspense, useState } from "react"
 import {
   jellybeansdark,
   jellybeanslight,
-  jellybeanshljsdark,
-  jellybeanshljslight,
 } from "@/lib/syntax-theme"
 import type { Components } from "react-markdown"
 import { useTheme } from "@/components/theme-provider"
 import { Check, Copy } from "lucide-react"
+
+const PrismCode = lazy(() => import("@/components/prism-code"))
 
 function CopyButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false)
@@ -51,71 +49,32 @@ function CodeBlock({
     return (
       <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
         <CopyButton code={code} />
-        <SyntaxHighlighter
-          language={match[1]}
-          style={isDark ? jellybeansdark : jellybeanslight}
-          PreTag="div"
-          showLineNumbers
-          lineNumberStyle={{
-            minWidth: "2.5em",
-            paddingRight: "1em",
-            userSelect: "none",
-            opacity: 0.4,
-            fontSize: "0.75rem",
-          }}
-          customStyle={{
-            margin: 0,
-            borderRadius: 0,
-            fontSize: "0.75rem",
-            lineHeight: "1.6",
-            background: "transparent",
-          }}
-          codeTagProps={{
-            style: {
-              fontFamily: "var(--font-mono, ui-monospace, monospace)",
-              fontWeight: "normal",
-              fontSize: "0.75rem",
-              fontSize: "0.75rem",
-            },
-          }}
+        <Suspense
+          fallback={
+            <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-xs leading-6">
+              <code>{code}</code>
+            </pre>
+          }
         >
-          {code}
-        </SyntaxHighlighter>
+          <PrismCode
+            code={code}
+            language={match[1]}
+            style={isDark ? jellybeansdark : jellybeanslight}
+            showLineNumbers
+            fontSize="0.75rem"
+          />
+        </Suspense>
       </div>
     )
   }
 
-  // Code block without a language specifier — use hljs auto-detection
+  // Unlabelled code blocks stay unhighlighted to keep the base chat chunk small.
   return (
     <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
       <CopyButton code={code} />
-      <SyntaxHighlighterAuto
-        style={isDark ? jellybeanshljsdark : jellybeanshljslight}
-        PreTag="div"
-        showLineNumbers
-        lineNumberStyle={{
-          minWidth: "2.5em",
-          paddingRight: "1em",
-          userSelect: "none",
-          opacity: 0.4,
-          fontSize: "0.75rem",
-        }}
-        customStyle={{
-          margin: 0,
-          borderRadius: 0,
-          fontSize: "0.75rem",
-          lineHeight: "1.6",
-          background: "transparent",
-        }}
-        codeTagProps={{
-          style: {
-            fontFamily: "var(--font-mono, ui-monospace, monospace)",
-            fontWeight: "normal",
-          },
-        }}
-      >
-        {code}
-      </SyntaxHighlighterAuto>
+      <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-xs leading-6">
+        <code>{code}</code>
+      </pre>
     </div>
   )
 }

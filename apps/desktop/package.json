@@ -1,13 +1,14 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "description": "",
-  "main": "bootstrap.mjs",
+  "description": "Lambda Electron desktop app",
+  "main": "dist/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron .",
-    "dev": "electron .",
-    "build": "npm run build -w web",
+    "start": "npm run build:app && electron .",
+    "dev": "electron bootstrap.mjs",
+    "build:app": "node build.mjs --bundle-only",
+    "build": "node build.mjs",
     "lint": "eslint src",
     "check-types": "tsc --project tsconfig.json --noEmit"
   },
@@ -19,14 +20,63 @@
     "@lambda/server": "*"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.0",
-    "electron": "^41.1.1",
+    "electron": "41.1.1",
+    "electron-builder": "^26.0.12",
     "esbuild": "^0.27.4",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
     "tsx": "^4.21.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0"
+  },
+  "build": {
+    "appId": "com.sdawn29.lambda",
+    "productName": "Lambda",
+    "electronVersion": "41.1.1",
+    "directories": {
+      "output": "release"
+    },
+    "compression": "maximum",
+    "asar": true,
+    "files": [
+      "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../server/dist",
+        "to": "server",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    }
   }
 }

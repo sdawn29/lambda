@@ -9,6 +9,21 @@ import { defineConfig } from "vite"
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("@xterm/")) {
+            return "xterm"
+          }
+
+          if (id.includes("react-markdown") || id.includes("remark-gfm")) {
+            return "markdown"
+          }
+        },
+      },
+    },
+  },
   plugins: [
     tanstackRouter({
       target: "react",

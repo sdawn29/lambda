@@ -120,30 +120,27 @@
   --sidebar-ring: #4a6880;
 }
 
-/* ── Thinking dots animation ───────────────────────────────────────────── */
-@keyframes thinking-dot {
-  0%,
-  60%,
-  100% {
-    opacity: 0.25;
-    transform: translateY(0);
+/* ── Thinking shimmer animation ────────────────────────────────────────── */
+@keyframes thinking-shimmer {
+  0% {
+    background-position: 200% 0;
   }
-  30% {
-    opacity: 1;
-    transform: translateY(-3px);
+  100% {
+    background-position: -200% 0;
   }
 }
 
 @layer utilities {
-  .animate-thinking-dot {
-    animation: thinking-dot 1.4s ease-in-out infinite;
+  .animate-thinking-shimmer {
+    animation: thinking-shimmer 2.2s linear infinite;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-thinking-dot {
+  .animate-thinking-shimmer {
     animation: none;
-    opacity: 0.6;
+    background-image: none;
+    color: var(--muted-foreground);
   }
 }
 

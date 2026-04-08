@@ -1,8 +1,53 @@
 import { useMemo } from "react"
-import { refractor } from "refractor"
+import { refractor } from "refractor/core"
+import bash from "refractor/bash"
+import c from "refractor/c"
+import cpp from "refractor/cpp"
+import csharp from "refractor/csharp"
+import css from "refractor/css"
+import go from "refractor/go"
+import html from "refractor/markup"
+import java from "refractor/java"
+import javascript from "refractor/javascript"
+import json from "refractor/json"
+import kotlin from "refractor/kotlin"
+import markdown from "refractor/markdown"
+import php from "refractor/php"
+import python from "refractor/python"
+import ruby from "refractor/ruby"
+import rust from "refractor/rust"
+import sql from "refractor/sql"
+import tsx from "refractor/tsx"
+import typescript from "refractor/typescript"
+import yaml from "refractor/yaml"
 import { cn } from "@/lib/utils"
 import { jellybeansdark, jellybeanslight } from "@/lib/syntax-theme"
 import { useTheme } from "@/components/theme-provider"
+
+[
+  bash,
+  c,
+  cpp,
+  csharp,
+  css,
+  go,
+  html,
+  java,
+  javascript,
+  json,
+  kotlin,
+  markdown,
+  php,
+  python,
+  ruby,
+  rust,
+  sql,
+  tsx,
+  typescript,
+  yaml,
+].forEach((language) => {
+  refractor.register(language)
+})
 
 export type DiffMode = "inline" | "side-by-side"
 

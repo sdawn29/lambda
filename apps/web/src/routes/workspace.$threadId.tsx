@@ -1,12 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useEffect } from "react"
+import { lazy, Suspense, useEffect } from "react"
 
 import { ChatView } from "@/components/chat-view"
-import { DiffPanel } from "@/components/diff-panel"
-import { TerminalPanel } from "@/components/terminal-panel"
 import { useWorkspace } from "@/hooks/workspace-context"
 import { useDiffPanel } from "@/hooks/diff-panel-context"
 import { useTerminal } from "@/hooks/terminal-context"
+
+const DiffPanel = lazy(() =>
+  import("@/components/diff-panel").then((module) => ({
+    default: module.DiffPanel,
+  }))
+)
+
+const TerminalPanel = lazy(() =>
+  import("@/components/terminal-panel").then((module) => ({
+    default: module.TerminalPanel,
+  }))
+)
 
 const LS_THREAD_KEY = "lambda-code:activeThreadId"
 
@@ -62,11 +72,23 @@ function WorkspaceThreadRoute() {
           threadId={foundThread.id}
         />
 
-        {diffOpen && <DiffPanel sessionId={foundThread.sessionId} />}
+        {diffOpen && (
+          <Suspense
+            fallback={<div className="w-[440px] shrink-0 border-l border-border/60 bg-muted/10" />}
+          >
+            <DiffPanel sessionId={foundThread.sessionId} />
+          </Suspense>
+        )}
       </div>
 
       {/* Terminal panel anchored to bottom */}
-      {terminalOpen && <TerminalPanel cwd={cwd} />}
+      {terminalOpen && (
+        <Suspense
+          fallback={<div className="h-[260px] shrink-0 border-t bg-background" />}
+        >
+          <TerminalPanel cwd={cwd} />
+        </Suspense>
+      )}
     </div>
   )
 }

@@ -177,8 +177,19 @@ export const ChatView = memo(function ChatView({
   }, [sessionId])
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
+  // During streaming, smooth scrolling is called on every delta and the browser
+  // interrupts each animation before it finishes, causing the view to lag behind
+  // the final content. Rapid smooth-scroll calls also fire onScroll mid-animation,
+  // which can flip pinnedRef to false and stop further scrolls entirely.
+  // Fix: use instant scrollTop assignment while loading so every update reliably
+  // lands at the bottom; only use smooth scroll once the stream is stable.
   useEffect(() => {
-    if (pinnedRef.current) {
+    if (!pinnedRef.current) return
+    const el = scrollContainerRef.current
+    if (!el) return
+    if (isLoading) {
+      el.scrollTop = el.scrollHeight
+    } else {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }
   }, [messages, isLoading])

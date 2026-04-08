@@ -263,7 +263,7 @@ function SidebarTrigger({
       variant="outline"
       size="icon-sm"
       className={cn(className)}
-      onClick={(event: React.MouseEvent) => {
+      onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}

@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from "react"
+import { lazy, memo, Suspense, useMemo, useState } from "react"
 import {
   ChevronDownIcon,
   FileEditIcon,
@@ -6,7 +6,6 @@ import {
   WrenchIcon,
   XIcon,
 } from "lucide-react"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { jellybeansdark, jellybeanslight } from "@/lib/syntax-theme"
 
 import { cn } from "@/lib/utils"
@@ -14,6 +13,8 @@ import { LivePre } from "@/components/live-pre"
 import { DiffView, detectLanguage } from "@/components/diff-view"
 import { useTheme } from "@/components/theme-provider"
 import type { ToolMessage } from "@/components/chat-types"
+
+const PrismCode = lazy(() => import("@/components/prism-code"))
 
 // ── Edit tool detection ────────────────────────────────────────────────────────
 
@@ -100,21 +101,21 @@ function ReadView({
 
   return (
     <div className="max-h-64 overflow-auto rounded-md border border-border/60 text-xs">
-      <SyntaxHighlighter
-        language={language}
-        style={isDark ? jellybeansdark : jellybeanslight}
-        customStyle={{
-          margin: 0,
-          padding: "0.5rem 0.75rem",
-          background: "transparent",
-          fontSize: "0.75rem",
-          lineHeight: "1.5",
-          opacity: live ? 0.7 : 1,
-        }}
-        wrapLongLines={false}
+      <Suspense
+        fallback={
+          <pre className="overflow-auto px-3 py-2 text-xs text-muted-foreground">
+            {text}
+          </pre>
+        }
       >
-        {text}
-      </SyntaxHighlighter>
+        <PrismCode
+          code={text}
+          language={language}
+          style={isDark ? jellybeansdark : jellybeanslight}
+          fontSize="0.75rem"
+          opacity={live ? 0.7 : 1}
+        />
+      </Suspense>
     </div>
   )
 }

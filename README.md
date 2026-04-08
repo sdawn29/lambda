@@ -1,3 +1,15 @@
+# Lambda
+
+## Desktop Packaging
+
+Build an optimized Apple Silicon macOS desktop app with:
+
+```sh
+npm run build -w desktop
+```
+
+This produces signed-ready `arm64` artifacts in `apps/desktop/release/` and bundles the production web app plus the embedded server for Electron.
+
 # Turborepo starter
 
 This Turborepo starter is maintained by the Turborepo core team.

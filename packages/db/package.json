@@ -13,8 +13,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.0",
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "^0.44.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

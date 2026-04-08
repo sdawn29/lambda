@@ -1,0 +1,5 @@
+declare module "react-syntax-highlighter/dist/esm/languages/prism/*" {
+  const language: (instance: unknown) => void
+
+  export default language
+}

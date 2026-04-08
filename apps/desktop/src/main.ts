@@ -1,26 +1,26 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { transformSync } from "esbuild";
 import { spawn, type ChildProcess } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
+const DEV_MONOREPO_ROOT = path.join(__dirname, "../../..");
+const DEV_SERVER_URL = "http://localhost:5173";
+const PROD_INDEX = isDev
+  ? ""
+  : path.join(process.resourcesPath, "web", "index.html");
 console.log(`Running in ${isDev ? "development" : "production"} mode`);
 
 let serverProcess: ChildProcess | null = null;
 let serverPort = 3001;
+let preloadPathPromise: Promise<string> | null = null;
 
 async function spawnServer(): Promise<number> {
   return new Promise((resolve, reject) => {
-    // In dev: use the tsx binary to run TypeScript source directly.
-    // In prod: use Electron's bundled Node to run the pre-built CJS bundle.
-    const monorepoRoot = path.join(__dirname, "../../..");
     const [executable, args] = isDev
       ? ([
-          path.join(monorepoRoot, "node_modules/.bin/tsx"),
+          path.join(DEV_MONOREPO_ROOT, "node_modules/.bin/tsx"),
           [path.join(__dirname, "../../server/src/index.ts")],
         ] as const)
       : ([
@@ -29,7 +29,11 @@ async function spawnServer(): Promise<number> {
         ] as const);
 
     serverProcess = spawn(executable, args, {
-      env: { ...process.env, PORT: "0" },
+      env: {
+        ...process.env,
+        PORT: "0",
+        ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: "1" }),
+      },
       // pipe stdout to read the ready JSON line; inherit stderr for logs
       stdio: ["ignore", "pipe", "inherit"],
     });
@@ -68,7 +72,13 @@ async function spawnServer(): Promise<number> {
   });
 }
 
-function buildPreload(): string {
+async function buildPreload(): Promise<string> {
+  const [{ readFileSync, writeFileSync }, { tmpdir }, { transformSync }] =
+    await Promise.all([
+      import("node:fs"),
+      import("node:os"),
+      import("esbuild"),
+    ]);
   const src = readFileSync(path.join(__dirname, "preload.ts"), "utf-8");
   const { code } = transformSync(src, {
     loader: "ts",
@@ -80,10 +90,14 @@ function buildPreload(): string {
   return out;
 }
 
-const PRELOAD_PATH = buildPreload();
+async function getPreloadPath(): Promise<string> {
+  if (!isDev) {
+    return path.join(__dirname, "preload.cjs");
+  }
 
-const DEV_SERVER_URL = "http://localhost:5173";
-const PROD_INDEX = path.join(__dirname, "../../web/dist/index.html");
+  preloadPathPromise ??= buildPreload();
+  return preloadPathPromise;
+}
 
 const LOADING_HTML = `data:text/html,${encodeURIComponent(`<!DOCTYPE html>
 <html>
@@ -127,6 +141,7 @@ async function waitForDevServer(url: string, timeout = 30_000): Promise<void> {
 }
 
 async function createWindow() {
+  const preloadPath = await getPreloadPath();
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -139,7 +154,7 @@ async function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: PRELOAD_PATH,
+      preload: preloadPath,
     },
   });
 
