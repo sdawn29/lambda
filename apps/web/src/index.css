@@ -135,6 +135,16 @@
     top: 3rem;
   }
 
+  /* Remove all native scrollbars */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Remove the backtick pseudo-elements Tailwind Typography adds around <code> */
   .prose code::before,
   .prose code::after {
