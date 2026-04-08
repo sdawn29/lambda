@@ -39,7 +39,6 @@ interface ChatTextboxProps {
   onStop?: () => void
   placeholder?: string
   className?: string
-  workspaceName?: string
   branch?: string | null
   branches?: string[]
   onBranchSelect?: (branch: string) => void
@@ -52,7 +51,7 @@ export const ChatTextbox = memo(function ChatTextbox({
   onSend,
   isLoading = false,
   onStop,
-  placeholder = "Ask anything…",
+  placeholder = "Ask me to write, fix, or explain code… Use @ to mention files",
   className,
   branch,
   branches = [],
@@ -166,53 +165,58 @@ export const ChatTextbox = memo(function ChatTextbox({
 
   return (
     <div className={cn("flex w-full flex-col gap-1", className)}>
-      <div className="relative flex w-full flex-col gap-2 rounded-xl border border-input bg-card p-3 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+      <div className="relative flex w-full flex-col rounded-2xl border border-input bg-card shadow-sm transition-all focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
         <FileMentionDropdown
           entries={mentionEntries2}
           open={atMention !== null && mentionEntries2.length > 0}
           selectedIndex={atMention?.selectedIndex ?? 0}
           onSelect={handleSelectFile}
         />
-        <RichInput
-          ref={richInputRef}
-          placeholder={placeholder}
-          mentionActive={atMention !== null && mentionEntries2.length > 0}
-          onAtMentionChange={handleAtMentionChange}
-          onSend={handleSend}
-          onInput={handleInput}
-          onMentionEnter={() => {
-            const idx = atMention?.selectedIndex ?? 0
-            const entry = mentionEntries2[idx]
-            if (entry) handleSelectFile(entry)
-          }}
-          onArrowUp={() =>
-            setAtMention((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    selectedIndex:
-                      (prev.selectedIndex - 1 + mentionEntries.current.length) %
-                      mentionEntries.current.length,
-                  }
-                : prev
-            )
-          }
-          onArrowDown={() =>
-            setAtMention((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    selectedIndex:
-                      (prev.selectedIndex + 1) % mentionEntries.current.length,
-                  }
-                : prev
-            )
-          }
-          onEscape={() => setAtMention(null)}
-        />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
+        <div className="px-3 pt-3 pb-2">
+          <RichInput
+            ref={richInputRef}
+            placeholder={placeholder}
+            mentionActive={atMention !== null && mentionEntries2.length > 0}
+            onAtMentionChange={handleAtMentionChange}
+            onSend={handleSend}
+            onInput={handleInput}
+            onMentionEnter={() => {
+              const idx = atMention?.selectedIndex ?? 0
+              const entry = mentionEntries2[idx]
+              if (entry) handleSelectFile(entry)
+            }}
+            onArrowUp={() =>
+              setAtMention((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      selectedIndex:
+                        (prev.selectedIndex - 1 + mentionEntries.current.length) %
+                        mentionEntries.current.length,
+                    }
+                  : prev
+              )
+            }
+            onArrowDown={() =>
+              setAtMention((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      selectedIndex:
+                        (prev.selectedIndex + 1) % mentionEntries.current.length,
+                    }
+                  : prev
+              )
+            }
+            onEscape={() => setAtMention(null)}
+          />
+        </div>
+
+        <div className="mx-3 border-t border-border/50" />
+
+        <div className="flex items-center justify-between px-2 py-1.5">
+          <div className="flex items-center gap-0.5">
             <ModelCombobox
               groups={grouped}
               selected={selectedModel}
@@ -231,7 +235,7 @@ export const ChatTextbox = memo(function ChatTextbox({
             )}
           </div>
 
-          <div className="transition-[transform,opacity] duration-150">
+          <div className="pr-0.5">
             {isLoading ? (
               <Tooltip>
                 <TooltipTrigger
@@ -260,7 +264,7 @@ export const ChatTextbox = memo(function ChatTextbox({
                       aria-label="Send message"
                       className="animate-in duration-150 fade-in-0 zoom-in-90"
                     >
-                      <ArrowUpIcon className="transition-transform duration-150 group-hover/button:scale-110" />
+                      <ArrowUpIcon />
                     </Button>
                   }
                 />

@@ -277,7 +277,7 @@ export const RichInput = React.forwardRef<
       onKeyDown={handleKeyDown}
       onInput={handleInput}
       onPaste={handlePaste}
-      className="rich-input min-h-6 w-full cursor-text bg-transparent text-sm outline-none"
+      className="rich-input min-h-20 w-full cursor-text bg-transparent text-sm leading-relaxed outline-none"
     />
   )
 })
