@@ -5,7 +5,6 @@ import {
   useState,
   useMemo,
   memo,
-  useId,
 } from "react"
 import {
   ChevronRight,
@@ -22,6 +21,11 @@ import {
   MoreHorizontal,
   Archive,
   Trash2,
+  GitBranch,
+  PackageOpen,
+  Download,
+  ArrowUpDown,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -90,7 +94,9 @@ function statusColor(file: ChangedFile) {
 
 interface StashEntry {
   ref: string
-  label: string
+  index: number
+  branch: string
+  message: string
 }
 
 function parseStashList(raw: string): StashEntry[] {
@@ -100,8 +106,18 @@ function parseStashList(raw: string): StashEntry[] {
     .filter(Boolean)
     .map((l) => {
       const tab = l.indexOf("\t")
-      if (tab === -1) return { ref: l, label: l }
-      return { ref: l.slice(0, tab), label: l.slice(tab + 1) }
+      const ref = tab === -1 ? l : l.slice(0, tab)
+      const rest = tab === -1 ? l : l.slice(tab + 1)
+
+      const indexMatch = ref.match(/\{(\d+)\}/)
+      const index = indexMatch ? parseInt(indexMatch[1], 10) : 0
+
+      // "On branch: msg" or "WIP on branch: msg"
+      const branchMatch = rest.match(/^(?:WIP )?[Oo]n ([^:]+):?\s*(.*)/)
+      const branch = branchMatch?.[1]?.trim() ?? ""
+      const message = branchMatch?.[2]?.trim() || rest
+
+      return { ref, index, branch, message: message || "WIP changes" }
     })
 }
 
@@ -291,7 +307,6 @@ function StashEntryRow({
   onDrop: (ref: string) => Promise<void>
 }) {
   const [working, setWorking] = useState<"apply" | "pop" | "drop" | null>(null)
-  const id = useId()
 
   async function run(action: "apply" | "pop" | "drop") {
     if (working) return
@@ -305,43 +320,87 @@ function StashEntryRow({
     }
   }
 
-  // Strip the "WIP on branch:" prefix git adds automatically
-  const displayLabel = entry.label.replace(/^On \S+: |^WIP on \S+: /, "")
-
   return (
-    <div className="group flex items-center gap-1 py-1 pl-3 pr-1 hover:bg-muted/40">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs text-foreground/80">{displayLabel}</p>
-        <p className="font-mono text-[10px] text-muted-foreground/60">{entry.ref}</p>
+    <div className="group flex items-start gap-2.5 px-3 py-2 hover:bg-muted/40">
+      {/* Index badge + icon */}
+      <div className="relative mt-0.5 shrink-0">
+        <Archive className="h-3.5 w-3.5 text-muted-foreground/50" />
+        <span className="absolute -right-1.5 -top-1.5 flex h-3 min-w-3 items-center justify-center rounded-full bg-muted px-0.5 text-[8px] font-semibold text-muted-foreground">
+          {entry.index}
+        </span>
       </div>
 
+      {/* Label + branch */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs text-foreground/85">
+          {entry.message}
+        </p>
+        {entry.branch && (
+          <div className="mt-0.5 flex items-center gap-1">
+            <GitBranch className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
+            <span className="truncate font-mono text-[10px] text-muted-foreground/50">
+              {entry.branch}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
       {working ? (
-        <Loader2 className="mr-1 h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+        <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
       ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
-            aria-label={`Actions for ${id}`}
-          >
-            <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem onClick={() => run("apply")}>
-              Apply stash
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => run("pop")}>
-              Pop stash
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => run("drop")}
-            >
-              <Trash2 className="mr-2 h-3.5 w-3.5" />
-              Drop stash
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                  onClick={() => run("pop")}
+                >
+                  <PackageOpen className="h-3 w-3" />
+                  <span className="sr-only">Pop</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Pop stash</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                  onClick={() => run("apply")}
+                >
+                  <Download className="h-3 w-3" />
+                  <span className="sr-only">Apply</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Apply stash</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-5 w-5 text-destructive/60 hover:text-destructive"
+                  onClick={() => run("drop")}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  <span className="sr-only">Drop</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Drop stash</TooltipContent>
+          </Tooltip>
+        </div>
       )}
     </div>
   )
@@ -352,7 +411,7 @@ function StashEntryRow({
 function StashSection({ sessionId }: { sessionId: string }) {
   const [collapsed, setCollapsed] = useState(false)
 
-  const { data: stashRaw, isLoading, refetch } = useGitStashList(sessionId)
+  const { data: stashRaw, isLoading } = useGitStashList(sessionId)
   const { apply, pop, drop } = useGitStashMutations(sessionId)
 
   const stashes = useMemo(() => parseStashList(stashRaw ?? ""), [stashRaw])
@@ -363,56 +422,34 @@ function StashSection({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="shrink-0 border-t border-border/60">
-      {/* Section header */}
-      <div className="flex h-8 items-center gap-1 px-2">
-        <button
-          onClick={() => setCollapsed((v) => !v)}
-          className="flex flex-1 items-center gap-1 text-left"
-        >
-          <ChevronRight
-            className={cn(
-              "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150",
-              !collapsed && "rotate-90"
-            )}
-          />
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Stashes
+      <button
+        onClick={() => setCollapsed((v) => !v)}
+        className="flex w-full items-center gap-1.5 bg-muted/30 px-2 py-1.5 text-left"
+      >
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150",
+            !collapsed && "rotate-90"
+          )}
+        />
+        <Archive className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+        <span className="flex-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Stashes
+        </span>
+        {isLoading && (
+          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
+        )}
+        {!isLoading && stashes.length > 0 && (
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            {stashes.length}
           </span>
-          {stashes.length > 0 && (
-            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {stashes.length}
-            </span>
-          )}
-        </button>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="h-5 w-5 text-muted-foreground"
-                onClick={() => refetch()}
-              >
-                <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
-                <span className="sr-only">Refresh</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Refresh stashes</TooltipContent>
-        </Tooltip>
-      </div>
+        )}
+      </button>
 
-      {/* Stash entries */}
       {!collapsed && (
-        <>
-          {isLoading && stashes.length === 0 && (
-            <div className="flex items-center gap-1.5 px-3 pb-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Loading…
-            </div>
-          )}
+        <div>
           {!isLoading && stashes.length === 0 && (
-            <p className="px-3 pb-2 text-xs text-muted-foreground/50">No stashes</p>
+            <p className="px-4 py-2.5 text-xs text-muted-foreground/40">No stashes</p>
           )}
           {stashes.map((s) => (
             <StashEntryRow
@@ -423,7 +460,7 @@ function StashSection({ sessionId }: { sessionId: string }) {
               onDrop={handleDrop}
             />
           ))}
-        </>
+        </div>
       )}
     </div>
   )
@@ -490,6 +527,45 @@ function FilesSection({
   )
 }
 
+// ── Sort ────────────────────────────────────────────────────────────────────
+
+type SortMode = "name" | "name-desc" | "status" | "path"
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: "name", label: "Name (A → Z)" },
+  { value: "name-desc", label: "Name (Z → A)" },
+  { value: "status", label: "Status" },
+  { value: "path", label: "Path" },
+]
+
+const STATUS_ORDER: Record<string, number> = { A: 0, M: 1, R: 2, D: 3, U: 4 }
+
+function applySortMode(files: ChangedFile[], sort: SortMode): ChangedFile[] {
+  const sorted = [...files]
+  switch (sort) {
+    case "name":
+      return sorted.sort((a, b) => {
+        const na = a.filePath.split("/").pop() ?? a.filePath
+        const nb = b.filePath.split("/").pop() ?? b.filePath
+        return na.localeCompare(nb)
+      })
+    case "name-desc":
+      return sorted.sort((a, b) => {
+        const na = a.filePath.split("/").pop() ?? a.filePath
+        const nb = b.filePath.split("/").pop() ?? b.filePath
+        return nb.localeCompare(na)
+      })
+    case "status":
+      return sorted.sort((a, b) => {
+        const la = statusLabel(a)
+        const lb = statusLabel(b)
+        return (STATUS_ORDER[la] ?? 5) - (STATUS_ORDER[lb] ?? 5) || a.filePath.localeCompare(b.filePath)
+      })
+    case "path":
+      return sorted.sort((a, b) => a.filePath.localeCompare(b.filePath))
+  }
+}
+
 // ── DiffPanel ───────────────────────────────────────────────────────────────
 
 interface DiffPanelProps {
@@ -500,6 +576,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
   const { close } = useDiffPanel()
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [mode, setMode] = useState<DiffMode>("inline")
+  const [sortMode, setSortMode] = useState<SortMode>("name")
   const [stashInputOpen, setStashInputOpen] = useState(false)
   const dragStartRef = useRef<{ x: number; w: number } | null>(null)
 
@@ -511,10 +588,10 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
       .filter(Boolean)
       .map(parseStatusLine)
     return {
-      staged: all.filter((f) => f.isStaged),
-      unstaged: all.filter((f) => !f.isStaged),
+      staged: applySortMode(all.filter((f) => f.isStaged), sortMode),
+      unstaged: applySortMode(all.filter((f) => !f.isStaged), sortMode),
     }
-  }, [statusRaw])
+  }, [statusRaw, sortMode])
   const files = useMemo(() => [...staged, ...unstaged], [staged, unstaged])
   const error = statusError instanceof Error ? statusError.message : null
 
@@ -684,6 +761,40 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
             />
             <TooltipContent>Side-by-side view</TooltipContent>
           </Tooltip>
+
+          <div className="mx-0.5 h-4 w-px bg-border/60" />
+
+          {/* Sort */}
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                    data-active={sortMode !== "name"}
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    <span className="sr-only">Sort</span>
+                  </DropdownMenuTrigger>
+                }
+              />
+              <TooltipContent>Sort files</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-44">
+              {SORT_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setSortMode(opt.value)}
+                  className="flex items-center justify-between"
+                >
+                  {opt.label}
+                  {sortMode === opt.value && (
+                    <Check className="ml-2 h-3 w-3 text-muted-foreground" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="mx-0.5 h-4 w-px bg-border/60" />
 
