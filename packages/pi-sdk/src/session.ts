@@ -17,6 +17,7 @@ function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["se
       const model = modelRegistry.find(provider, modelId);
       if (model) await session.setModel(model);
     },
+    setThinkingLevel: (level) => session.setThinkingLevel(level),
     get sessionFile() {
       return session.sessionFile;
     },
@@ -45,6 +46,7 @@ export async function createManagedSession(
     sessionManager,
     cwd,
     model,
+    thinkingLevel: config.thinkingLevel,
   });
 
   return buildHandle(session, modelRegistry);

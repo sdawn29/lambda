@@ -5,6 +5,8 @@ export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
+  /** Whether the model supports extended thinking/reasoning. */
+  reasoning: boolean;
 }
 
 export interface SdkConfig {
@@ -16,6 +18,8 @@ export interface SdkConfig {
   provider?: string;
   /** Model ID to use, e.g. "claude-opus-4-5". */
   model?: string;
+  /** Thinking/reasoning effort level. Only applies to models with reasoning support. */
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 }
 
 /**
@@ -31,6 +35,8 @@ export interface ManagedSessionHandle {
   prompt(text: string): Promise<void>;
   /** Switch the model used for subsequent prompts. */
   setModel(provider: string, modelId: string): Promise<void>;
+  /** Set the thinking/reasoning effort level. Only affects reasoning-capable models. */
+  setThinkingLevel(level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh"): void;
   /** Path to the persisted session file, or undefined for in-memory sessions. */
   readonly sessionFile: string | undefined;
   /** Abort the current agent turn. */

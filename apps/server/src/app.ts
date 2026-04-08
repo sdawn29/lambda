@@ -236,7 +236,7 @@ app.post("/session/:id/prompt", async (c) => {
   const entry = store.get(id);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
-  const body = await c.req.json<{ text?: string; provider?: string; model?: string }>().catch((): { text?: string; provider?: string; model?: string } => ({}));
+  const body = await c.req.json<{ text?: string; provider?: string; model?: string; thinkingLevel?: string }>().catch((): { text?: string; provider?: string; model?: string; thinkingLevel?: string } => ({}));
   if (!body.text) return c.json({ error: "text is required" }, 400);
 
   insertMessage(entry.threadId, "user", body.text);
@@ -245,6 +245,9 @@ app.post("/session/:id/prompt", async (c) => {
   const run = async () => {
     if (body.provider && body.model) {
       await entry.handle.setModel(body.provider, body.model);
+    }
+    if (body.thinkingLevel) {
+      entry.handle.setThinkingLevel(body.thinkingLevel as "off" | "minimal" | "low" | "medium" | "high" | "xhigh");
     }
     await entry.handle.prompt(body.text!);
   };

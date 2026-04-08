@@ -13,5 +13,6 @@ export function getAvailableModels(): ModelInfo[] {
     id: m.id,
     name: m.name,
     provider: m.provider,
+    reasoning: m.reasoning ?? false,
   }));
 }

@@ -4,6 +4,7 @@ export interface Model {
   id: string
   name: string
   provider: string
+  reasoning: boolean
 }
 
 export interface ModelsResponse {

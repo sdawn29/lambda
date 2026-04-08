@@ -33,11 +33,12 @@ export function sendPrompt(
   id: string,
   text: string,
   model?: { provider: string; modelId: string },
+  thinkingLevel?: string,
 ): Promise<SendPromptResponse> {
   return apiFetch<SendPromptResponse>(`/session/${id}/prompt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, provider: model?.provider, model: model?.modelId }),
+    body: JSON.stringify({ text, provider: model?.provider, model: model?.modelId, thinkingLevel }),
   })
 }
 

@@ -231,7 +231,7 @@ export const ChatView = memo(function ChatView({
   )
 
   const handleSend = useCallback(
-    (text: string, modelId: string, provider: string) => {
+    (text: string, modelId: string, provider: string, thinkingLevel?: string) => {
       if (!hasTitledRef.current) {
         hasTitledRef.current = true
         generateTitleMutation.mutate(text, {
@@ -243,7 +243,7 @@ export const ChatView = memo(function ChatView({
       setIsLoading(true)
       const model = modelId && provider ? { provider, modelId } : undefined
       sendPromptMutation.mutate(
-        { text, model },
+        { text, model, thinkingLevel },
         { onError: () => setIsLoading(false) }
       )
     },
