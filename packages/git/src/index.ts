@@ -145,3 +145,24 @@ export async function gitStashApply(cwd: string, ref: string): Promise<void> {
 export async function gitStashDrop(cwd: string, ref: string): Promise<void> {
   await execFileAsync("git", ["stash", "drop", ref], { cwd, timeout: 10000 })
 }
+
+/** Returns total insertions/deletions across all uncommitted changes (`git diff --numstat HEAD`). */
+export async function gitDiffStat(cwd: string): Promise<{ additions: number; deletions: number }> {
+  try {
+    const { stdout } = await execFileAsync("git", ["diff", "--numstat", "HEAD"], { cwd, timeout: 5000 })
+    let additions = 0
+    let deletions = 0
+    for (const line of stdout.split("\n")) {
+      const parts = line.trim().split("\t")
+      if (parts.length >= 2) {
+        const a = parseInt(parts[0], 10)
+        const d = parseInt(parts[1], 10)
+        if (!isNaN(a)) additions += a
+        if (!isNaN(d)) deletions += d
+      }
+    }
+    return { additions, deletions }
+  } catch {
+    return { additions: 0, deletions: 0 }
+  }
+}

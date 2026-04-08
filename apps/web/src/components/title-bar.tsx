@@ -7,6 +7,7 @@ import { useWorkspace } from "@/hooks/workspace-context"
 import { useTerminal } from "@/hooks/terminal-context"
 import { useDiffPanel } from "@/hooks/diff-panel-context"
 import { CommitDialog } from "@/components/commit-dialog"
+import { useGitDiffStat } from "@/queries/use-git-diff-stat"
 
 const isMac =
   typeof window !== "undefined" && window.electronAPI?.platform === "darwin"
@@ -24,6 +25,8 @@ export function TitleBar() {
   const activeWorkspace = activeThread
     ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id))
     : undefined
+  const activeSessionId = activeThread?.sessionId ?? ""
+  const { data: diffStat } = useGitDiffStat(activeSessionId)
 
   const { subscribe, getSnapshot } = useMemo(() => {
     let count = 0
@@ -109,13 +112,19 @@ export function TitleBar() {
         <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
         <Button
           variant="outline"
-          size="icon-sm"
+          size="sm"
           onClick={toggleDiff}
           data-active={diffOpen}
           disabled={!activeWorkspace?.path}
-          className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+          className="data-[active=true]:bg-accent data-[active=true]:text-accent-foreground h-6 gap-1 px-1.5"
         >
-          <GitCompare />
+          <GitCompare className="size-3 shrink-0" />
+          {diffStat && (diffStat.additions > 0 || diffStat.deletions > 0) && (
+            <span className="flex items-center gap-0.5 font-mono leading-none">
+              <span className="text-green-500">+{diffStat.additions}</span>
+              <span className="text-red-500">-{diffStat.deletions}</span>
+            </span>
+          )}
           <span className="sr-only">Toggle diff panel</span>
         </Button>
         <Button

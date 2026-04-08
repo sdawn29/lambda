@@ -25,6 +25,7 @@ import {
   gitStashPop,
   gitStashApply,
   gitStashDrop,
+  gitDiffStat,
 } from "@lambda/git";
 import {
   listWorkspacesWithThreads,
@@ -369,6 +370,13 @@ app.get("/session/:id/git/status", async (c) => {
   if (!cwd) return c.json({ error: "Session not found" }, 404);
   const raw = await gitStatus(cwd);
   return c.json({ raw });
+});
+
+app.get("/session/:id/git/diff-stat", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const stat = await gitDiffStat(cwd);
+  return c.json(stat);
 });
 
 app.get("/session/:id/git/diff", async (c) => {

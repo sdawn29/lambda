@@ -7,6 +7,10 @@ export async function gitStatus(sessionId: string): Promise<string> {
   return raw
 }
 
+export async function gitDiffStat(sessionId: string): Promise<{ additions: number; deletions: number }> {
+  return apiFetch<{ additions: number; deletions: number }>(`${base(sessionId)}/diff-stat`)
+}
+
 export async function gitFileDiff(
   sessionId: string,
   filePath: string,
