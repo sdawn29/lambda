@@ -1,13 +1,13 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { TitleBar } from "@/components/title-bar"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { WorkspaceProvider, useWorkspace } from "@/hooks/workspace-context"
-import { TerminalProvider } from "@/hooks/terminal-context"
-import { DiffPanelProvider } from "@/hooks/diff-panel-context"
+import { AppSidebar } from "@/features/workspace"
+import { TitleBar } from "@/features/layout"
+import { SidebarInset, SidebarProvider } from "@/shared/ui/sidebar"
+import { TooltipProvider } from "@/shared/ui/tooltip"
+import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
+import { TerminalProvider } from "@/features/terminal"
+import { DiffPanelProvider } from "@/features/git"
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()

@@ -11,7 +11,7 @@ import "./index.css"
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen"
-import { ThemeProvider } from "./components/theme-provider"
+import { ThemeProvider } from "./shared/components/theme-provider"
 
 const router = createRouter({ routeTree, history: createHashHistory() })
 const queryClient = new QueryClient()

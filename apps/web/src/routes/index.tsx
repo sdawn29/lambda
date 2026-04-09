@@ -1,7 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router"
 
-import { WorkspaceEmptyState } from "@/components/workspace-empty-state"
-import { useWorkspace } from "@/hooks/workspace-context"
+import { WorkspaceEmptyState } from "@/features/workspace"
+import { useWorkspace } from "@/features/workspace"
 
 const LS_THREAD_KEY = "lambda-code:activeThreadId"
 

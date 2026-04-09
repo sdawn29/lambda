@@ -1,19 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect } from "react"
 
-import { ChatView } from "@/components/chat-view"
-import { useWorkspace } from "@/hooks/workspace-context"
-import { useDiffPanel } from "@/hooks/diff-panel-context"
-import { useTerminal } from "@/hooks/terminal-context"
+import { ChatView } from "@/features/chat"
+import { useWorkspace } from "@/features/workspace"
+import { useDiffPanel } from "@/features/git"
+import { useTerminal } from "@/features/terminal"
 
 const DiffPanel = lazy(() =>
-  import("@/components/diff-panel").then((module) => ({
+  import("@/features/git").then((module) => ({
     default: module.DiffPanel,
   }))
 )
 
 const TerminalPanel = lazy(() =>
-  import("@/components/terminal-panel").then((module) => ({
+  import("@/features/terminal").then((module) => ({
     default: module.TerminalPanel,
   }))
 )

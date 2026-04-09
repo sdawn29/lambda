@@ -1,0 +1,145 @@
+import { apiFetch } from "@/shared/lib/client"
+import type { StoredMessageDto } from "./types"
+
+// ── Session ───────────────────────────────────────────────────────────────────
+
+export interface CreateSessionBody {
+  anthropicApiKey?: string
+  cwd?: string
+  provider?: string
+  model?: string
+}
+
+export interface CreateSessionResponse {
+  sessionId: string
+}
+
+export interface SendPromptResponse {
+  accepted: boolean
+}
+
+export function createSession(
+  body: CreateSessionBody = {}
+): Promise<CreateSessionResponse> {
+  return apiFetch<CreateSessionResponse>("/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteSession(id: string): Promise<void> {
+  return apiFetch<void>(`/session/${id}`, { method: "DELETE" })
+}
+
+export function abortSession(id: string): Promise<void> {
+  return apiFetch<void>(`/session/${id}/abort`, { method: "POST" })
+}
+
+export function sendPrompt(
+  id: string,
+  text: string,
+  model?: { provider: string; modelId: string },
+  thinkingLevel?: string
+): Promise<SendPromptResponse> {
+  return apiFetch<SendPromptResponse>(`/session/${id}/prompt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      provider: model?.provider,
+      model: model?.modelId,
+      thinkingLevel,
+    }),
+  })
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+
+export function listMessages(sessionId: string): Promise<{ messages: StoredMessageDto[] }> {
+  return apiFetch<{ messages: StoredMessageDto[] }>(`/session/${sessionId}/messages`)
+}
+
+// ── Title ─────────────────────────────────────────────────────────────────────
+
+export interface TitleResponse {
+  title: string
+}
+
+export function generateTitle(message: string): Promise<TitleResponse> {
+  return apiFetch<TitleResponse>("/title", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  })
+}
+
+// ── Branches ──────────────────────────────────────────────────────────────────
+
+export interface BranchResponse {
+  branch: string | null
+}
+
+export interface BranchesResponse {
+  branches: string[]
+}
+
+export function getBranch(sessionId: string): Promise<BranchResponse> {
+  return apiFetch<BranchResponse>(`/session/${sessionId}/branch`)
+}
+
+export function listBranches(sessionId: string): Promise<BranchesResponse> {
+  return apiFetch<BranchesResponse>(`/session/${sessionId}/branches`)
+}
+
+export function checkoutBranch(
+  sessionId: string,
+  branch: string
+): Promise<BranchResponse> {
+  return apiFetch<BranchResponse>(`/session/${sessionId}/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch }),
+  })
+}
+
+export function createBranch(
+  sessionId: string,
+  branch: string
+): Promise<BranchResponse> {
+  return apiFetch<BranchResponse>(`/session/${sessionId}/branch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch }),
+  })
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+export interface Model {
+  id: string
+  name: string
+  provider: string
+  reasoning: boolean
+}
+
+export interface ModelsResponse {
+  models: Model[]
+}
+
+export function fetchModels(signal?: AbortSignal): Promise<ModelsResponse> {
+  return apiFetch<ModelsResponse>("/models", { signal })
+}
+
+// ── Workspace files ───────────────────────────────────────────────────────────
+
+export type WorkspaceEntry = { path: string; type: "file" | "dir" }
+
+export async function listWorkspaceFiles(
+  sessionId: string
+): Promise<WorkspaceEntry[]> {
+  const data = await apiFetch<{ entries: WorkspaceEntry[] }>(
+    `/session/${sessionId}/workspace-files`
+  )
+  return data.entries
+}
