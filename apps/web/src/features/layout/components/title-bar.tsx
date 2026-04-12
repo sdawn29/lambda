@@ -9,10 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   TerminalSquare,
-  GitCompare,
   MoreHorizontal,
   Pencil,
   Trash2,
+  FileDiff,
 } from "lucide-react"
 import {
   useRouter,
@@ -284,10 +284,10 @@ export function TitleBar() {
                   disabled={!activeWorkspace?.path}
                   className={`gap-1 px-1.5 ${activeTitleBarButtonClassName}`}
                 >
-                  <GitCompare className="size-3.5 shrink-0" />
+                  <FileDiff className="size-3.5 shrink-0" />
                   {diffStat &&
                     (diffStat.additions > 0 || diffStat.deletions > 0) && (
-                      <span className="flex animate-in items-center gap-0.5 font-mono leading-none duration-200 fade-in-0 zoom-in-90">
+                      <span className="flex animate-in items-center gap-1 font-mono leading-none duration-200 fade-in-0 zoom-in-90">
                         <span className="text-green-500">
                           +{diffStat.additions}
                         </span>
