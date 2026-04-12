@@ -33,28 +33,13 @@ import {
 import { useWorkspace } from "@/features/workspace"
 import { useTerminal } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
+import { useElectronFullscreen, useElectronPlatform } from "@/features/electron"
 import { CommitDialog } from "@/features/git"
 import { useGitDiffStat } from "@/features/git/queries"
 import { OpenWithButton } from "./open-with-button"
 
-const isMac =
-  typeof window !== "undefined" && window.electronAPI?.platform === "darwin"
-
 const activeTitleBarButtonClassName =
   "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
-
-function useIsFullscreen() {
-  const [isFullscreen, setIsFullscreen] = useState(false)
-
-  useEffect(() => {
-    if (!window.electronAPI) return
-    window.electronAPI.getFullscreen().then(setIsFullscreen)
-    const unsub = window.electronAPI.onFullscreenChange(setIsFullscreen)
-    return unsub
-  }, [])
-
-  return isFullscreen
-}
 
 export function TitleBar() {
   const router = useRouter()
@@ -73,7 +58,10 @@ export function TitleBar() {
     ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id))
     : undefined
   const activeSessionId = activeThread?.sessionId ?? ""
+  const { data: platform } = useElectronPlatform()
+  const { data: isFullscreen = false } = useElectronFullscreen()
   const { data: diffStat } = useGitDiffStat(activeSessionId)
+  const isMac = platform === "darwin"
 
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
@@ -127,8 +115,6 @@ export function TitleBar() {
 
   const canGoBack = router.history.canGoBack()
   const canGoForward = useSyncExternalStore(subscribe, getSnapshot, () => false)
-
-  const isFullscreen = useIsFullscreen()
 
   const navRef = useRef<HTMLDivElement>(null)
   const [navWidth, setNavWidth] = useState(0)

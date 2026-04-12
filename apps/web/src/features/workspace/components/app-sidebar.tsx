@@ -29,12 +29,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
+import { useOpenPath } from "@/features/electron"
 import { Button } from "@/shared/ui/button"
 import { useWorkspace, useCreateWorkspaceAction } from "../context"
 
 export function AppSidebar() {
   const { workspaces, createThread, deleteWorkspace } = useWorkspace()
   const handleCreateWorkspace = useCreateWorkspaceAction()
+  const openPathMutation = useOpenPath()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
   const location = useLocation()
@@ -112,8 +114,7 @@ export function AppSidebar() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => {
-                              // open in Finder (macOS) / File Explorer (Windows)
-                              window.electronAPI?.openPath?.(ws.path)
+                              openPathMutation.mutate(ws.path)
                             }}
                           >
                             <FolderOpen className="mr-2 h-4 w-4" />

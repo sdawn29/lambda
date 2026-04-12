@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { StopCircleIcon } from "lucide-react"
 
 import Markdown from "react-markdown"
@@ -15,15 +16,17 @@ import {
   AlertDialogAction,
 } from "@/shared/ui/alert-dialog"
 import { Button } from "@/shared/ui/button"
-import { getServerUrl } from "@/shared/lib/client"
 import { useWorkspace } from "@/features/workspace"
-import { useMessages } from "../queries"
+import { messagesQueryKey, useMessages } from "../queries"
 import { useBranch } from "@/features/git/queries"
 import { useBranches } from "@/features/git/queries"
 import { useCheckoutBranch } from "@/features/git/mutations"
-import { useGenerateTitle } from "../mutations"
-import { useSendPrompt } from "../mutations"
-import { abortSession } from "../api"
+import {
+  useAbortSession,
+  useGenerateTitle,
+  useOpenSessionEventSource,
+  useSendPrompt,
+} from "../mutations"
 import { ToolCallBlock } from "./tool-call-block"
 import { markdownComponents } from "./markdown-components"
 import { CopyButton } from "@/shared/components/copy-button"
@@ -145,6 +148,7 @@ export const ChatView = memo(function ChatView({
   workspaceId,
   threadId,
 }: ChatViewProps) {
+  const queryClient = useQueryClient()
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const stoppedKey = `lambda-code:stopped:${threadId}`
@@ -174,7 +178,9 @@ export const ChatView = memo(function ChatView({
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
   const checkoutBranchMutation = useCheckoutBranch(sessionId)
+  const abortSessionMutation = useAbortSession(sessionId)
   const generateTitleMutation = useGenerateTitle()
+  const { mutateAsync: openSessionEventSource } = useOpenSessionEventSource()
   const sendPromptMutation = useSendPrompt(sessionId)
 
   // ── Track the latest persisted messages for local optimistic updates ──────────
@@ -189,125 +195,142 @@ export const ChatView = memo(function ChatView({
     let active = true
     let es: EventSource | null = null
 
-    getServerUrl().then((base) => {
-      if (!active) return
-      es = new EventSource(`${base}/session/${sessionId}/events`)
-
-      es.addEventListener("message_start", () => {
-        if (!active) return
-        setMessages((prev) => [
-          ...resolveMessages(prev, initialMessagesRef.current),
-          { role: "assistant", content: "" },
-        ])
-      })
-
-      es.addEventListener("message_update", (e: MessageEvent) => {
-        if (!active) return
-        const data = JSON.parse(e.data) as {
-          assistantMessageEvent?: { type: string; delta: string }
+    openSessionEventSource(sessionId)
+      .then((nextEventSource) => {
+        if (!active) {
+          nextEventSource.close()
+          return
         }
-        if (data.assistantMessageEvent?.type === "text_delta") {
-          const delta = data.assistantMessageEvent.delta
-          setMessages((prev) => {
-            const next = [...resolveMessages(prev, initialMessagesRef.current)]
-            const last = next[next.length - 1]
-            if (last?.role === "assistant") {
-              next[next.length - 1] = { ...last, content: last.content + delta }
-            }
-            return next
+        es = nextEventSource
+
+        es.addEventListener("message_start", () => {
+          if (!active) return
+          setMessages((prev) => [
+            ...resolveMessages(prev, initialMessagesRef.current),
+            { role: "assistant", content: "" },
+          ])
+        })
+
+        es.addEventListener("message_update", (e: MessageEvent) => {
+          if (!active) return
+          const data = JSON.parse(e.data) as {
+            assistantMessageEvent?: { type: string; delta: string }
+          }
+          if (data.assistantMessageEvent?.type === "text_delta") {
+            const delta = data.assistantMessageEvent.delta
+            setMessages((prev) => {
+              const next = [
+                ...resolveMessages(prev, initialMessagesRef.current),
+              ]
+              const last = next[next.length - 1]
+              if (last?.role === "assistant") {
+                next[next.length - 1] = {
+                  ...last,
+                  content: last.content + delta,
+                }
+              }
+              return next
+            })
+          }
+        })
+
+        es.addEventListener("tool_execution_start", (e: MessageEvent) => {
+          if (!active) return
+          const data = JSON.parse(e.data) as {
+            toolCallId: string
+            toolName: string
+            args: unknown
+          }
+          setMessages((prev) =>
+            upsertToolMessage(
+              resolveMessages(prev, initialMessagesRef.current),
+              data.toolCallId,
+              (existing) => ({
+                role: "tool",
+                toolCallId: data.toolCallId,
+                toolName: data.toolName,
+                args: data.args,
+                status: "running",
+                result: existing?.result,
+              })
+            )
+          )
+        })
+
+        es.addEventListener("tool_execution_update", (e: MessageEvent) => {
+          if (!active) return
+          const data = JSON.parse(e.data) as {
+            toolCallId: string
+            toolName: string
+            args: unknown
+            partialResult: unknown
+          }
+          setMessages((prev) =>
+            upsertToolMessage(
+              resolveMessages(prev, initialMessagesRef.current),
+              data.toolCallId,
+              (existing) => ({
+                role: "tool",
+                toolCallId: data.toolCallId,
+                toolName: data.toolName || existing?.toolName || "tool",
+                args: data.args ?? existing?.args ?? {},
+                status: "running",
+                result: data.partialResult,
+              })
+            )
+          )
+        })
+
+        es.addEventListener("tool_execution_end", (e: MessageEvent) => {
+          if (!active) return
+          const data = JSON.parse(e.data) as {
+            toolCallId: string
+            toolName: string
+            result: unknown
+            isError: boolean
+          }
+          setMessages((prev) =>
+            upsertToolMessage(
+              resolveMessages(prev, initialMessagesRef.current),
+              data.toolCallId,
+              (existing) => ({
+                role: "tool",
+                toolCallId: data.toolCallId,
+                toolName: data.toolName || existing?.toolName || "tool",
+                args: existing?.args ?? {},
+                status: data.isError ? "error" : "done",
+                result: data.result,
+              })
+            )
+          )
+        })
+
+        es.addEventListener("agent_end", (e: MessageEvent) => {
+          if (!active) return
+          const data = JSON.parse(e.data) as { messages?: AgentEndMessage[] }
+          setMessages((prev) =>
+            finalizeRunningTools(
+              resolveMessages(prev, initialMessagesRef.current),
+              data.messages ?? []
+            )
+          )
+          setIsLoading(false)
+          void queryClient.invalidateQueries({
+            queryKey: messagesQueryKey(sessionId),
           })
+        })
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          console.error("[session-events]", err)
         }
       })
-
-      es.addEventListener("tool_execution_start", (e: MessageEvent) => {
-        if (!active) return
-        const data = JSON.parse(e.data) as {
-          toolCallId: string
-          toolName: string
-          args: unknown
-        }
-        setMessages((prev) =>
-          upsertToolMessage(
-            resolveMessages(prev, initialMessagesRef.current),
-            data.toolCallId,
-            (existing) => ({
-              role: "tool",
-              toolCallId: data.toolCallId,
-              toolName: data.toolName,
-              args: data.args,
-              status: "running",
-              result: existing?.result,
-            })
-          )
-        )
-      })
-
-      es.addEventListener("tool_execution_update", (e: MessageEvent) => {
-        if (!active) return
-        const data = JSON.parse(e.data) as {
-          toolCallId: string
-          toolName: string
-          args: unknown
-          partialResult: unknown
-        }
-        setMessages((prev) =>
-          upsertToolMessage(
-            resolveMessages(prev, initialMessagesRef.current),
-            data.toolCallId,
-            (existing) => ({
-              role: "tool",
-              toolCallId: data.toolCallId,
-              toolName: data.toolName || existing?.toolName || "tool",
-              args: data.args ?? existing?.args ?? {},
-              status: "running",
-              result: data.partialResult,
-            })
-          )
-        )
-      })
-
-      es.addEventListener("tool_execution_end", (e: MessageEvent) => {
-        if (!active) return
-        const data = JSON.parse(e.data) as {
-          toolCallId: string
-          toolName: string
-          result: unknown
-          isError: boolean
-        }
-        setMessages((prev) =>
-          upsertToolMessage(
-            resolveMessages(prev, initialMessagesRef.current),
-            data.toolCallId,
-            (existing) => ({
-              role: "tool",
-              toolCallId: data.toolCallId,
-              toolName: data.toolName || existing?.toolName || "tool",
-              args: existing?.args ?? {},
-              status: data.isError ? "error" : "done",
-              result: data.result,
-            })
-          )
-        )
-      })
-
-      es.addEventListener("agent_end", (e: MessageEvent) => {
-        if (!active) return
-        const data = JSON.parse(e.data) as { messages?: AgentEndMessage[] }
-        setMessages((prev) =>
-          finalizeRunningTools(
-            resolveMessages(prev, initialMessagesRef.current),
-            data.messages ?? []
-          )
-        )
-        setIsLoading(false)
-      })
-    })
 
     return () => {
       active = false
       es?.close()
     }
-  }, [sessionId])
+  }, [openSessionEventSource, queryClient, sessionId])
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
   // During streaming, smooth scrolling is called on every delta and the browser
@@ -370,13 +393,15 @@ export const ChatView = memo(function ChatView({
   )
 
   const handleStop = useCallback(() => {
-    abortSession(sessionId).catch((err: unknown) => {
-      console.error("[abort]", err)
+    abortSessionMutation.mutate(undefined, {
+      onError: (err: unknown) => {
+        console.error("[abort]", err)
+      },
     })
     setIsLoading(false)
     setIsStopped(true)
     localStorage.setItem(stoppedKey, "1")
-  }, [sessionId, stoppedKey])
+  }, [abortSessionMutation, stoppedKey])
 
   const handleSend = useCallback(
     (

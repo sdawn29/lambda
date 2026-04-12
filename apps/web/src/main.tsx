@@ -5,16 +5,16 @@ import {
   createHashHistory,
   createRouter,
 } from "@tanstack/react-router"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClientProvider } from "@tanstack/react-query"
 
 import "./index.css"
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen"
 import { ThemeProvider } from "./shared/components/theme-provider"
+import { queryClient } from "./shared/lib/query-client"
 
 const router = createRouter({ routeTree, history: createHashHistory() })
-const queryClient = new QueryClient()
 
 // Register the router instance for type safety
 declare module "@tanstack/react-router" {

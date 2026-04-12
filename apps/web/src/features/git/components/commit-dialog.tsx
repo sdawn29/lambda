@@ -16,9 +16,12 @@ import { cn } from "@/shared/lib/utils"
 import { COMMIT_PROMPT_STORAGE_KEY } from "@/shared/lib/storage-keys"
 import { useGitStatus } from "../queries"
 import { useGitFileDiff } from "../queries"
-import { useGitCommit, useGitPush } from "../mutations"
+import {
+  useGenerateCommitMessage,
+  useGitCommit,
+  useGitPush,
+} from "../mutations"
 import { useBranch } from "../queries"
-import { gitGenerateCommitMessage } from "../api"
 
 interface CommitDialogProps {
   sessionId: string | undefined
@@ -175,12 +178,14 @@ function AutoTextarea({
 export function CommitDialog({ sessionId }: CommitDialogProps) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState("")
-  const [generating, setGenerating] = useState(false)
   const navigate = useNavigate()
 
   const { data: statusRaw, isLoading: loading } = useGitStatus(sessionId ?? "")
   const { data: branchData } = useBranch(sessionId ?? "")
   const commitMutation = useGitCommit(sessionId ?? "")
+  const generateCommitMessageMutation = useGenerateCommitMessage(
+    sessionId ?? ""
+  )
   const pushMutation = useGitPush(sessionId ?? "")
 
   const branch = branchData?.branch ?? null
@@ -245,16 +250,15 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
   }
 
   async function handleGenerate() {
-    if (!sessionId || generating) return
-    setGenerating(true)
+    if (!sessionId || generateCommitMessageMutation.isPending) return
     try {
-      const promptTemplate = localStorage.getItem(COMMIT_PROMPT_STORAGE_KEY) ?? undefined
-      const generated = await gitGenerateCommitMessage(sessionId, promptTemplate)
+      const promptTemplate =
+        localStorage.getItem(COMMIT_PROMPT_STORAGE_KEY) ?? undefined
+      const generated =
+        await generateCommitMessageMutation.mutateAsync(promptTemplate)
       setMessage(generated)
     } catch {
       // silently ignore — user still has the text field
-    } finally {
-      setGenerating(false)
     }
   }
 
@@ -264,9 +268,15 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
   }
 
   const committing = commitMutation.isPending
+  const generating = generateCommitMessageMutation.isPending
   const pushing = pushMutation.isPending
   const canCommit =
-    !committing && !pushing && !generating && !!message.trim() && staged.length > 0 && !loading
+    !committing &&
+    !pushing &&
+    !generating &&
+    !!message.trim() &&
+    staged.length > 0 &&
+    !loading
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

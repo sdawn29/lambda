@@ -1,7 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
 import { fetchProviders, fetchOAuthProviders } from "./api"
 
-export const providersQueryKey = ["providers"] as const
+const settingsRootKey = ["settings"] as const
+
+export const settingsKeys = {
+  all: settingsRootKey,
+  providers: [...settingsRootKey, "providers"] as const,
+  oauthProviders: [...settingsRootKey, "oauth-providers"] as const,
+}
+
+export const providersQueryKey = settingsKeys.providers
 
 export function useProviders() {
   return useQuery({
@@ -11,7 +19,7 @@ export function useProviders() {
   })
 }
 
-export const oauthProvidersQueryKey = ["oauth-providers"] as const
+export const oauthProvidersQueryKey = settingsKeys.oauthProviders
 
 export function useOAuthProviders() {
   return useQuery({

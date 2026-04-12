@@ -1,4 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  type QueryClient,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query"
 import {
   gitCommit,
   gitStage,
@@ -11,8 +15,10 @@ import {
   gitStashDrop,
   gitRevertFile,
   gitPush,
+  gitGenerateCommitMessage,
 } from "./api"
 import {
+  gitKeys,
   gitStatusKey,
   gitStashListKey,
   branchKey,
@@ -24,6 +30,23 @@ import {
   createBranch,
   initializeGitRepository,
 } from "@/features/chat/api"
+import { workspaceFilesQueryKey } from "@/features/chat/queries"
+
+async function invalidateGitSession(
+  queryClient: QueryClient,
+  sessionId: string
+) {
+  await queryClient.invalidateQueries({ queryKey: gitKeys.session(sessionId) })
+}
+
+async function invalidateWorkspaceFiles(
+  queryClient: QueryClient,
+  sessionId: string
+) {
+  await queryClient.invalidateQueries({
+    queryKey: workspaceFilesQueryKey(sessionId),
+  })
+}
 
 // ── Commit ────────────────────────────────────────────────────────────────────
 
@@ -31,9 +54,17 @@ export function useGitCommit(sessionId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (message: string) => gitCommit(sessionId, message),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: gitStatusKey(sessionId) })
+    onSuccess: async () => {
+      await invalidateGitSession(queryClient, sessionId)
+      await invalidateWorkspaceFiles(queryClient, sessionId)
     },
+  })
+}
+
+export function useGenerateCommitMessage(sessionId: string) {
+  return useMutation({
+    mutationFn: (promptTemplate?: string) =>
+      gitGenerateCommitMessage(sessionId, promptTemplate),
   })
 }
 
@@ -41,8 +72,7 @@ export function useGitCommit(sessionId: string) {
 
 export function useGitStage(sessionId: string) {
   const queryClient = useQueryClient()
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: gitStatusKey(sessionId) })
+  const invalidate = () => invalidateGitSession(queryClient, sessionId)
   return {
     stage: useMutation({
       mutationFn: (filePath: string) => gitStage(sessionId, filePath),
@@ -57,8 +87,7 @@ export function useGitStage(sessionId: string) {
 
 export function useGitStageAll(sessionId: string) {
   const queryClient = useQueryClient()
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: gitStatusKey(sessionId) })
+  const invalidate = () => invalidateGitSession(queryClient, sessionId)
   return {
     stageAll: useMutation({
       mutationFn: () => gitStageAll(sessionId),
@@ -76,27 +105,26 @@ export function useGitStageAll(sessionId: string) {
 export function useGitStashMutations(sessionId: string) {
   const queryClient = useQueryClient()
 
-  const invalidateStatus = () =>
-    queryClient.invalidateQueries({ queryKey: gitStatusKey(sessionId) })
+  const invalidateStatus = () => invalidateGitSession(queryClient, sessionId)
   const invalidateList = () =>
     queryClient.invalidateQueries({ queryKey: gitStashListKey(sessionId) })
-  const invalidateBoth = () => {
-    invalidateStatus()
-    invalidateList()
+  const invalidateWorkingTree = async () => {
+    await invalidateStatus()
+    await invalidateWorkspaceFiles(queryClient, sessionId)
   }
 
   return {
     stash: useMutation({
       mutationFn: (message?: string) => gitStash(sessionId, message),
-      onSuccess: invalidateBoth,
+      onSuccess: invalidateWorkingTree,
     }),
     pop: useMutation({
       mutationFn: (ref: string) => gitStashPop(sessionId, ref),
-      onSuccess: invalidateBoth,
+      onSuccess: invalidateWorkingTree,
     }),
     apply: useMutation({
       mutationFn: (ref: string) => gitStashApply(sessionId, ref),
-      onSuccess: invalidateStatus,
+      onSuccess: invalidateWorkingTree,
     }),
     drop: useMutation({
       mutationFn: (ref: string) => gitStashDrop(sessionId, ref),
@@ -112,8 +140,10 @@ export function useGitRevertFile(sessionId: string) {
   return useMutation({
     mutationFn: ({ filePath, raw }: { filePath: string; raw: string }) =>
       gitRevertFile(sessionId, filePath, raw),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: gitStatusKey(sessionId) }),
+    onSuccess: async () => {
+      await invalidateGitSession(queryClient, sessionId)
+      await invalidateWorkspaceFiles(queryClient, sessionId)
+    },
   })
 }
 
@@ -131,8 +161,9 @@ export function useCheckoutBranch(sessionId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (branch: string) => checkoutBranch(sessionId, branch),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: branchKey(sessionId) })
+    onSuccess: async () => {
+      await invalidateGitSession(queryClient, sessionId)
+      await invalidateWorkspaceFiles(queryClient, sessionId)
     },
   })
 }

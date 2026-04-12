@@ -21,6 +21,7 @@ import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
+import { useOpenExternal } from "@/features/electron"
 import {
   Dialog,
   DialogContent,
@@ -63,15 +64,14 @@ import {
   useOAuthProviders,
   oauthProvidersQueryKey,
 } from "../queries"
-import { useUpdateProviders } from "../mutations"
 import {
-  startOAuthLogin,
-  openOAuthEventSource,
-  respondToOAuthPrompt,
-  abortOAuthLogin,
-  oauthLogout,
-  type OAuthSseEvent,
-} from "../api"
+  useAbortOAuthLogin,
+  useOAuthLogout,
+  useOpenOAuthEventSource,
+  useRespondToOAuthPrompt,
+  useStartOAuthLogin,
+  useUpdateProviders,
+} from "../mutations"
 
 type Theme = "light" | "dark" | "system"
 
@@ -300,6 +300,13 @@ type LoginState =
   | { status: "done"; providerId: string }
   | { status: "error"; providerId: string; message: string }
 
+type OAuthSseEvent =
+  | { type: "auth_url"; url: string; instructions?: string }
+  | { type: "prompt"; promptId: string; message: string; placeholder?: string }
+  | { type: "progress"; message: string }
+  | { type: "done" }
+  | { type: "error"; message: string }
+
 function SuccessBadge({ children }: { children: string }) {
   return (
     <Badge variant="secondary">
@@ -312,6 +319,12 @@ function SuccessBadge({ children }: { children: string }) {
 function SubscriptionsCard() {
   const queryClient = useQueryClient()
   const { data: providers, isLoading } = useOAuthProviders()
+  const openExternalMutation = useOpenExternal()
+  const startOAuthLoginMutation = useStartOAuthLogin()
+  const openOAuthEventSourceMutation = useOpenOAuthEventSource()
+  const respondToOAuthPromptMutation = useRespondToOAuthPrompt()
+  const abortOAuthLoginMutation = useAbortOAuthLogin()
+  const oauthLogoutMutation = useOAuthLogout()
   const [loginState, setLoginState] = useState<LoginState>({ status: "idle" })
   const [promptValue, setPromptValue] = useState("")
   const esRef = useRef<EventSource | null>(null)
@@ -323,13 +336,24 @@ function SubscriptionsCard() {
     }
   }
 
+  async function handleOpenExternal(url: string) {
+    try {
+      const opened = await openExternalMutation.mutateAsync(url)
+      if (!opened) {
+        window.open(url, "_blank")
+      }
+    } catch {
+      window.open(url, "_blank")
+    }
+  }
+
   async function handleLogin(providerId: string) {
     closeEventSource()
     setLoginState({ status: "connecting", providerId })
 
     let loginId: string
     try {
-      loginId = await startOAuthLogin(providerId)
+      loginId = await startOAuthLoginMutation.mutateAsync(providerId)
     } catch (err) {
       setLoginState({
         status: "error",
@@ -339,7 +363,19 @@ function SubscriptionsCard() {
       return
     }
 
-    const es = await openOAuthEventSource(loginId)
+    let es: EventSource
+    try {
+      es = await openOAuthEventSourceMutation.mutateAsync(loginId)
+    } catch (err) {
+      setLoginState({
+        status: "error",
+        providerId,
+        message: err instanceof Error ? err.message : String(err),
+      })
+      return
+    }
+
+    let completed = false
     esRef.current = es
 
     es.addEventListener("auth_url", (e) => {
@@ -353,12 +389,7 @@ function SubscriptionsCard() {
         url: event.url,
         instructions: event.instructions,
       })
-      // Open in browser via Electron
-      if (window.electronAPI?.openExternal) {
-        window.electronAPI.openExternal(event.url)
-      } else {
-        window.open(event.url, "_blank")
-      }
+      void handleOpenExternal(event.url)
     })
 
     es.addEventListener("prompt", (e) => {
@@ -377,6 +408,7 @@ function SubscriptionsCard() {
     })
 
     es.addEventListener("done", () => {
+      completed = true
       closeEventSource()
       setLoginState({ status: "done", providerId })
       queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
@@ -387,12 +419,13 @@ function SubscriptionsCard() {
       if (e instanceof MessageEvent) {
         // SSE message with event: error — auth flow error from server
         const event = JSON.parse(e.data) as OAuthSseEvent & { type: "error" }
+        completed = true
         closeEventSource()
         setLoginState({ status: "error", providerId, message: event.message })
       } else {
         // EventSource connection error
         closeEventSource()
-        if (loginState.status !== "done") {
+        if (!completed) {
           setLoginState({
             status: "error",
             providerId,
@@ -405,10 +438,22 @@ function SubscriptionsCard() {
 
   async function handlePromptSubmit() {
     if (loginState.status !== "waiting_prompt") return
-    const { loginId, promptId } = loginState
+    const { loginId, promptId, providerId } = loginState
     setLoginState((s) => ({ ...s, status: "connecting" }) as LoginState)
-    await respondToOAuthPrompt(loginId, promptId, promptValue)
-    setPromptValue("")
+    try {
+      await respondToOAuthPromptMutation.mutateAsync({
+        loginId,
+        promptId,
+        value: promptValue,
+      })
+      setPromptValue("")
+    } catch (err) {
+      setLoginState({
+        status: "error",
+        providerId,
+        message: err instanceof Error ? err.message : String(err),
+      })
+    }
   }
 
   async function handleAbort() {
@@ -419,7 +464,7 @@ function SubscriptionsCard() {
       loginState.status === "connecting"
     ) {
       try {
-        await abortOAuthLogin(
+        await abortOAuthLoginMutation.mutateAsync(
           (loginState as { loginId?: string }).loginId ?? ""
         )
       } catch {
@@ -431,8 +476,7 @@ function SubscriptionsCard() {
 
   async function handleLogout(providerId: string) {
     try {
-      await oauthLogout(providerId)
-      queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
+      await oauthLogoutMutation.mutateAsync(providerId)
     } catch {
       // Ignore logout failures and keep the current provider state visible.
     }
@@ -541,13 +585,7 @@ function SubscriptionsCard() {
                               size="sm"
                               className="h-auto justify-start px-0"
                               onClick={() => {
-                                if (window.electronAPI?.openExternal) {
-                                  window.electronAPI.openExternal(
-                                    loginState.url
-                                  )
-                                } else {
-                                  window.open(loginState.url, "_blank")
-                                }
+                                void handleOpenExternal(loginState.url)
                               }}
                             >
                               <ExternalLink data-icon="inline-start" />

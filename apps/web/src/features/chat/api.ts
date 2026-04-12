@@ -1,4 +1,4 @@
-import { apiFetch } from "@/shared/lib/client"
+import { apiFetch, getServerUrl } from "@/shared/lib/client"
 import type { StoredMessageDto } from "./types"
 
 // ── Session ───────────────────────────────────────────────────────────────────
@@ -34,6 +34,11 @@ export function deleteSession(id: string): Promise<void> {
 
 export function abortSession(id: string): Promise<void> {
   return apiFetch<void>(`/session/${id}/abort`, { method: "POST" })
+}
+
+export async function openSessionEventSource(id: string): Promise<EventSource> {
+  const base = await getServerUrl()
+  return new EventSource(`${base}/session/${id}/events`)
 }
 
 export function sendPrompt(

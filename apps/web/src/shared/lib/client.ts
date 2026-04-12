@@ -1,3 +1,7 @@
+import { electronServerPortQueryOptions } from "@/features/electron"
+
+import { queryClient } from "./query-client"
+
 let resolvedServerUrl: string | null = null
 
 export async function getServerUrl(): Promise<string> {
@@ -8,8 +12,10 @@ export async function getServerUrl(): Promise<string> {
     return resolvedServerUrl
   }
 
-  if (typeof window !== "undefined" && window.electronAPI?.getServerPort) {
-    const port = await window.electronAPI.getServerPort()
+  const port = await queryClient.ensureQueryData(
+    electronServerPortQueryOptions()
+  )
+  if (port !== null) {
     resolvedServerUrl = `http://localhost:${port}`
     return resolvedServerUrl
   }
@@ -29,7 +35,7 @@ export function apiUrl(path: string): string {
 
 export async function apiFetch<T>(
   path: string,
-  init?: RequestInit,
+  init?: RequestInit
 ): Promise<T> {
   const base = await getServerUrl()
   const res = await fetch(`${base}${path}`, init)

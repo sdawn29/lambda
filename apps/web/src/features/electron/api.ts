@@ -1,0 +1,82 @@
+export type SelectFolderOptions = Parameters<
+  NonNullable<Window["electronAPI"]>["selectFolder"]
+>[0]
+
+export type OpenWithApp = Awaited<
+  ReturnType<NonNullable<Window["electronAPI"]>["listOpenWithApps"]>
+>[number]
+
+function getElectronAPI() {
+  if (typeof window === "undefined") {
+    return undefined
+  }
+
+  return window.electronAPI
+}
+
+export function getElectronPlatform(): string | null {
+  return getElectronAPI()?.platform ?? null
+}
+
+export async function selectFolder(
+  options?: SelectFolderOptions
+): Promise<string | null> {
+  return (await getElectronAPI()?.selectFolder(options)) ?? null
+}
+
+export async function getServerPort(): Promise<number | null> {
+  return (await getElectronAPI()?.getServerPort()) ?? null
+}
+
+export async function openPath(path: string): Promise<boolean> {
+  const electronAPI = getElectronAPI()
+  if (!electronAPI?.openPath) {
+    return false
+  }
+
+  await electronAPI.openPath(path)
+  return true
+}
+
+export async function listOpenWithApps(): Promise<OpenWithApp[]> {
+  return (await getElectronAPI()?.listOpenWithApps()) ?? []
+}
+
+export async function getOpenWithAppIcon(
+  appId: string
+): Promise<string | null> {
+  return (await getElectronAPI()?.getOpenWithAppIcon(appId)) ?? null
+}
+
+export async function openWorkspaceWithApp(
+  workspacePath: string,
+  appId?: string
+): Promise<boolean> {
+  const electronAPI = getElectronAPI()
+  if (!electronAPI?.openWorkspaceWithApp) {
+    return false
+  }
+
+  await electronAPI.openWorkspaceWithApp(workspacePath, appId)
+  return true
+}
+
+export async function openExternal(url: string): Promise<boolean> {
+  const electronAPI = getElectronAPI()
+  if (!electronAPI?.openExternal) {
+    return false
+  }
+
+  await electronAPI.openExternal(url)
+  return true
+}
+
+export async function getFullscreen(): Promise<boolean> {
+  return (await getElectronAPI()?.getFullscreen()) ?? false
+}
+
+export function subscribeToFullscreen(
+  callback: (isFullscreen: boolean) => void
+): () => void {
+  return getElectronAPI()?.onFullscreenChange(callback) ?? (() => {})
+}

@@ -1,13 +1,7 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react"
+import { createContext, useCallback, useContext, type ReactNode } from "react"
 import { useNavigate } from "@tanstack/react-router"
 
+import { useSelectFolder } from "@/features/electron"
 import { useWorkspaces } from "./queries"
 import {
   useCreateWorkspace as useCreateWorkspaceMutation,
@@ -36,15 +30,7 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { data: workspacesData, isLoading } = useWorkspaces()
-  const [optimisticWorkspaces, setOptimisticWorkspaces] = useState<
-    Workspace[] | null
-  >(null)
-
-  const workspaces = useMemo(
-    () => optimisticWorkspaces ?? workspacesData ?? [],
-    [optimisticWorkspaces, workspacesData]
-  )
+  const { data: workspaces = [], isLoading } = useWorkspaces()
 
   const createWorkspaceMutation = useCreateWorkspaceMutation()
   const deleteWorkspaceMutation = useDeleteWorkspaceMutation()
@@ -55,76 +41,46 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const createWorkspace = useCallback(
     async (name: string, path: string): Promise<Workspace> => {
-      const { workspace, existing } = await createWorkspaceMutation.mutateAsync(
-        { name, path }
-      )
-      if (!existing) {
-        setOptimisticWorkspaces((prev) => [...(prev ?? workspaces), workspace])
-      }
+      const { workspace } = await createWorkspaceMutation.mutateAsync({
+        name,
+        path,
+      })
       return workspace
     },
-    [createWorkspaceMutation, workspaces]
+    [createWorkspaceMutation]
   )
 
   const deleteWorkspace = useCallback(
     async (workspace: Workspace): Promise<void> => {
-      await deleteWorkspaceMutation.mutateAsync(workspace.id)
-      setOptimisticWorkspaces((prev) =>
-        (prev ?? workspaces).filter((w) => w.id !== workspace.id)
-      )
+      await deleteWorkspaceMutation.mutateAsync(workspace)
     },
-    [deleteWorkspaceMutation, workspaces]
+    [deleteWorkspaceMutation]
   )
 
   const createThread = useCallback(
     async (workspaceId: string): Promise<Thread> => {
       const { thread } = await createThreadMutation.mutateAsync(workspaceId)
-      setOptimisticWorkspaces((prev) =>
-        (prev ?? workspaces).map((w) =>
-          w.id === workspaceId ? { ...w, threads: [...w.threads, thread] } : w
-        )
-      )
       return thread
     },
-    [createThreadMutation, workspaces]
+    [createThreadMutation]
   )
 
   const deleteThread = useCallback(
     async (workspaceId: string, threadId: string): Promise<void> => {
-      await deleteThreadMutation.mutateAsync(threadId)
-      setOptimisticWorkspaces((prev) =>
-        (prev ?? workspaces).map((w) =>
-          w.id !== workspaceId
-            ? w
-            : { ...w, threads: w.threads.filter((t) => t.id !== threadId) }
-        )
-      )
+      await deleteThreadMutation.mutateAsync({ workspaceId, threadId })
     },
-    [deleteThreadMutation, workspaces]
+    [deleteThreadMutation]
   )
 
   const setThreadTitle = useCallback(
     (workspaceId: string, threadId: string, title: string) => {
-      setOptimisticWorkspaces((prev) =>
-        (prev ?? workspaces).map((w) =>
-          w.id !== workspaceId
-            ? w
-            : {
-                ...w,
-                threads: w.threads.map((t) =>
-                  t.id === threadId ? { ...t, title } : t
-                ),
-              }
-        )
-      )
-      updateTitleMutation.mutate({ threadId, title })
+      updateTitleMutation.mutate({ workspaceId, threadId, title })
     },
-    [updateTitleMutation, workspaces]
+    [updateTitleMutation]
   )
 
   const resetAll = useCallback(async (): Promise<void> => {
     await resetAllMutation.mutateAsync()
-    setOptimisticWorkspaces([])
   }, [resetAllMutation])
 
   return (
@@ -156,9 +112,10 @@ export function useWorkspace() {
 export function useCreateWorkspaceAction() {
   const { createWorkspace } = useWorkspace()
   const navigate = useNavigate()
+  const selectFolderMutation = useSelectFolder()
 
   return useCallback(async () => {
-    const folderPath = await window.electronAPI?.selectFolder({
+    const folderPath = await selectFolderMutation.mutateAsync({
       canCreateFolder: true,
     })
     if (!folderPath) return
@@ -172,5 +129,5 @@ export function useCreateWorkspaceAction() {
         params: { threadId: firstThread.id },
       })
     }
-  }, [createWorkspace, navigate])
+  }, [createWorkspace, navigate, selectFolderMutation])
 }
