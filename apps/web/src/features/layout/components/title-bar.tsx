@@ -61,7 +61,7 @@ export function TitleBar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const isSettings = pathname === "/settings"
-  const { open } = useSidebar()
+  const { isMobile, state } = useSidebar()
   const { workspaces, setThreadTitle, deleteThread } = useWorkspace()
   const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminal()
   const { isOpen: diffOpen, toggle: toggleDiff } = useDiffPanel()
@@ -158,6 +158,12 @@ export function TitleBar() {
     return () => observer.disconnect()
   }, [])
 
+  const titleOffsetWidth = isMobile
+    ? navWidth
+    : state === "expanded"
+      ? "var(--sidebar-width)"
+      : `${navWidth}px`
+
   return (
     <div
       className="sticky top-0 z-20 flex h-12 shrink-0 items-center bg-transparent"
@@ -213,7 +219,7 @@ export function TitleBar() {
       <div
         className="shrink-0 transition-[width] duration-200 ease-linear"
         style={{
-          width: open ? "var(--sidebar-width)" : "0px",
+          width: titleOffsetWidth,
           minWidth: navWidth,
         }}
       />
