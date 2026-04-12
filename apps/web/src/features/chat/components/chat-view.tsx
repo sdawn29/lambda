@@ -177,7 +177,7 @@ function AssistantMessageBlock({
   if (!hasThinking && !hasContent) return null
 
   return (
-    <div className="group flex animate-in flex-col gap-1.5 duration-200 fade-in-0 slide-in-from-bottom-1">
+    <div className="group flex animate-in flex-col gap-2 duration-300 fade-in-0 slide-in-from-bottom-1">
       {hasThinking && <ThinkingBlock thinking={message.thinking} />}
 
       {hasContent && (

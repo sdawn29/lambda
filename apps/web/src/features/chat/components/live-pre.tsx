@@ -10,7 +10,7 @@ export function LivePre({ text, live }: { text: string; live: boolean }) {
   return (
     <pre
       ref={ref}
-      className="max-h-64 overflow-auto break-all whitespace-pre-wrap text-muted-foreground"
+      className="max-h-64 overflow-auto break-all whitespace-pre-wrap text-muted-foreground/75"
     >
       {text}
     </pre>

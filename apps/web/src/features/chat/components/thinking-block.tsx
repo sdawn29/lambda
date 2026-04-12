@@ -40,18 +40,20 @@ export const ThinkingBlock = memo(function ThinkingBlock({
   }
 
   return (
-    <div className="w-full self-start text-xs text-muted-foreground">
+    <div className="w-full self-start text-xs text-muted-foreground/70">
       <button
         type="button"
-        className="flex w-full items-center gap-1.5 py-0.5 text-left transition-colors hover:text-foreground"
+        className="flex w-full items-center gap-1.5 py-0.5 text-left text-muted-foreground/70 transition-colors hover:text-foreground/80"
         onClick={toggle}
       >
         <span className="flex size-4 shrink-0 items-center justify-center">
           <BrainIcon className="h-3.5 w-3.5 text-muted-foreground" />
         </span>
-        <span className="shrink-0 font-medium text-foreground">Thinking</span>
+        <span className="shrink-0 font-medium text-foreground/80">
+          Thinking
+        </span>
         {summary && (
-          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate text-muted-foreground/70">
             {summary}
           </span>
         )}
@@ -64,8 +66,8 @@ export const ThinkingBlock = memo(function ThinkingBlock({
       </button>
 
       {expanded && (
-        <div className="mt-1 ml-2 animate-in border-l pl-5 duration-300 fade-in-0 slide-in-from-top-1">
-          <div className="prose prose-sm max-w-none text-muted-foreground dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <div className="mt-1 ml-2 animate-in border-l pl-5 text-muted-foreground/75 duration-300 fade-in-0 slide-in-from-top-1">
+          <div className="prose prose-sm max-w-none text-muted-foreground/75 dark:prose-invert prose-headings:text-foreground/80 dark:prose-headings:text-foreground/80 prose-p:text-muted-foreground/75 prose-strong:text-foreground/80 dark:prose-strong:text-foreground/80 prose-li:text-muted-foreground/75 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={markdownComponents}
