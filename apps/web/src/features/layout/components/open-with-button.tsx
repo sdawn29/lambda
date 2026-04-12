@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { Check, ChevronDown, ExternalLink, Loader2 } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
+import { Button } from "@/shared/ui/button"
+import { ButtonGroup } from "@/shared/ui/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -244,17 +246,21 @@ export function OpenWithButton({ workspacePath }: { workspacePath?: string }) {
     : null
 
   return (
-    <div className="flex items-center overflow-hidden rounded-md border border-border bg-input/30 text-foreground shadow-xs">
-      <button
-        className="inline-flex h-7 max-w-44 items-center gap-1.5 px-2 transition-colors hover:bg-input/50 disabled:pointer-events-none disabled:opacity-50"
+    <ButtonGroup aria-label="Open workspace in app">
+      <Button
+        className="max-w-44 min-w-0 justify-start overflow-hidden"
         disabled={disabled}
         onClick={() => {
           void openWorkspace()
         }}
         type="button"
+        variant="outline"
       >
         {isOpening || isLoadingApps ? (
-          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+          <Loader2
+            className="animate-spin text-muted-foreground"
+            data-icon="inline-start"
+          />
         ) : (
           <AppIcon
             appName={selectedAppName}
@@ -262,18 +268,25 @@ export function OpenWithButton({ workspacePath }: { workspacePath?: string }) {
           />
         )}
         <span className="truncate text-xs">{selectedAppName}</span>
-        <ExternalLink className="size-3 text-muted-foreground" />
-      </button>
+        <ExternalLink
+          className="text-muted-foreground"
+          data-icon="inline-end"
+        />
+      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex h-7 items-center border-l border-border px-1.5 text-muted-foreground transition-colors hover:bg-input/50 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+          aria-label="Choose app"
           disabled={disabled}
+          render={
+            <Button size="icon" variant="outline">
+              <ChevronDown className="text-muted-foreground" />
+            </Button>
+          }
         >
-          <ChevronDown className="size-3.5" />
           <span className="sr-only">Choose editor</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align="end" className="w-max! min-w-0!">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Open workspace in</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -291,9 +304,7 @@ export function OpenWithButton({ workspacePath }: { workspacePath?: string }) {
                     iconsByAppId[editorApp.id] ?? editorApp.iconDataUrl
                   }
                 />
-                <span className="min-w-0 flex-1 truncate">
-                  {editorApp.name}
-                </span>
+                <span className="whitespace-nowrap">{editorApp.name}</span>
                 <Check
                   className={cn(
                     "ml-auto size-3.5 text-foreground/70",
@@ -307,6 +318,6 @@ export function OpenWithButton({ workspacePath }: { workspacePath?: string }) {
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </ButtonGroup>
   )
 }

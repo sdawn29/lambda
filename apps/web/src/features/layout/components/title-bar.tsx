@@ -132,6 +132,8 @@ export function TitleBar() {
 
   const navRef = useRef<HTMLDivElement>(null)
   const [navWidth, setNavWidth] = useState(0)
+  const rightControlsRef = useRef<HTMLDivElement>(null)
+  const [rightControlsWidth, setRightControlsWidth] = useState(0)
   useEffect(() => {
     if (!navRef.current) return
     // Seed with current value immediately
@@ -142,6 +144,17 @@ export function TitleBar() {
       if (size) setNavWidth(size.inlineSize)
     })
     observer.observe(navRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!rightControlsRef.current) return
+    setRightControlsWidth(rightControlsRef.current.offsetWidth)
+    const observer = new ResizeObserver((entries) => {
+      const size = entries[0]?.borderBoxSize?.[0]
+      if (size) setRightControlsWidth(size.inlineSize)
+    })
+    observer.observe(rightControlsRef.current)
     return () => observer.disconnect()
   }, [])
 
@@ -208,13 +221,16 @@ export function TitleBar() {
       {/* Thread title — left edge follows the sidebar (or nav controls in fullscreen) */}
       {activeThread && (
         <div
-          className="group/title flex min-w-0 flex-1 items-center gap-1 pr-6 pl-2"
+          className="group/title flex min-w-0 flex-1 items-center gap-1 px-2"
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          <>
+          <div
+            className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+            style={{ minWidth: "min(12rem, 100%)" }}
+          >
             {activeWorkspace && (
               <>
-                <span className="shrink-0 truncate text-sm text-muted-foreground/60">
+                <span className="max-w-40 min-w-0 shrink truncate text-sm text-muted-foreground/60">
                   {activeWorkspace.name}
                 </span>
                 <span className="shrink-0 text-sm text-muted-foreground/40">
@@ -233,14 +249,14 @@ export function TitleBar() {
                   if (e.key === "Enter") commitRename()
                   if (e.key === "Escape") setIsRenaming(false)
                 }}
-                className="min-w-0 flex-1 truncate bg-transparent text-sm font-medium outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
               />
             ) : (
-              <span className="truncate text-sm font-medium">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
                 {activeThread.title}
               </span>
             )}
-          </>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 hover:bg-accent hover:text-foreground focus:opacity-100 data-popup-open:opacity-100">
               <MoreHorizontal className="size-3.5" />
@@ -264,8 +280,14 @@ export function TitleBar() {
         </div>
       )}
 
+      <div
+        className="shrink-0"
+        style={{ width: rightControlsWidth, minWidth: rightControlsWidth }}
+      />
+
       {/* Right controls */}
       <div
+        ref={rightControlsRef}
         className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
