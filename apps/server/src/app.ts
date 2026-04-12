@@ -17,6 +17,7 @@ import {
 } from "@lambda/pi-sdk";
 import {
   getCurrentBranch,
+  initGitRepo,
   listBranches,
   checkoutBranch,
   createBranch,
@@ -116,7 +117,12 @@ app.get("/workspaces", (c) => {
 
 app.post("/workspace", async (c) => {
   const body = await c.req
-    .json<{ name?: string; path?: string; provider?: string; model?: string }>()
+    .json<{
+      name?: string;
+      path?: string;
+      provider?: string;
+      model?: string;
+    }>()
     .catch(
       (): {
         name?: string;
@@ -428,6 +434,25 @@ app.post("/session/:id/branch", async (c) => {
   }
 });
 
+app.post("/session/:id/git/init", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  try {
+    await initGitRepo(cwd);
+    const branch = await getCurrentBranch(cwd);
+    const branches = await listBranches(cwd);
+    return c.json({ branch, branches });
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    const lines = raw.split("\n").filter(Boolean);
+    const message =
+      lines.find((l) => l.startsWith("error:") || l.startsWith("fatal:")) ??
+      lines[0] ??
+      "Repository initialization failed";
+    return c.json({ error: message }, 500);
+  }
+});
+
 app.get("/session/:id/messages", (c) => {
   const id = c.req.param("id");
   const threadId = store.getThreadId(id);
@@ -568,8 +593,16 @@ app.post("/session/:id/git/generate-commit-message", async (c) => {
     .json<{ promptTemplate?: string }>()
     .catch((): { promptTemplate?: string } => ({}));
   const diff = await gitStagedDiff(cwd);
-  if (!diff.trim()) return c.json({ error: "No staged changes to generate a message for" }, 400);
-  const message = await generateCommitMessage(diff, { cwd }, body.promptTemplate);
+  if (!diff.trim())
+    return c.json(
+      { error: "No staged changes to generate a message for" },
+      400,
+    );
+  const message = await generateCommitMessage(
+    diff,
+    { cwd },
+    body.promptTemplate,
+  );
   return c.json({ message });
 });
 

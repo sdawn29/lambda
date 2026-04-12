@@ -1,8 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+type SelectFolderOptions = {
+  canCreateFolder?: boolean;
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   platform: process.platform,
-  selectFolder: () => ipcRenderer.invoke("select-folder"),
+  selectFolder: (options?: SelectFolderOptions) =>
+    ipcRenderer.invoke("select-folder", options),
   getServerPort: () => ipcRenderer.invoke("get-server-port"),
   openPath: (path: string) => ipcRenderer.invoke("open-path", path),
   openExternal: (url: string) => ipcRenderer.invoke("open-external", url),

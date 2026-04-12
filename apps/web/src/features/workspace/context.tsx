@@ -17,7 +17,7 @@ import {
   useUpdateThreadTitle,
   useResetAll as useResetAllMutation,
 } from "./mutations"
-import type { WorkspaceDto, ThreadDto } from "./api"
+import { type WorkspaceDto, type ThreadDto } from "./api"
 
 export type Workspace = WorkspaceDto
 export type Thread = ThreadDto
@@ -156,9 +156,13 @@ export function useWorkspace() {
 export function useCreateWorkspaceAction() {
   const { createWorkspace } = useWorkspace()
   const navigate = useNavigate()
+
   return useCallback(async () => {
-    const folderPath = await window.electronAPI?.selectFolder()
+    const folderPath = await window.electronAPI?.selectFolder({
+      canCreateFolder: true,
+    })
     if (!folderPath) return
+
     const folderName = folderPath.split(/[/\\]/).pop() || folderPath
     const workspace = await createWorkspace(folderName, folderPath)
     const firstThread = workspace.threads[0]

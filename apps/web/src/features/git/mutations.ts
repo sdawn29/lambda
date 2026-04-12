@@ -12,8 +12,18 @@ import {
   gitRevertFile,
   gitPush,
 } from "./api"
-import { gitStatusKey, gitStashListKey, branchKey, branchesKey } from "./queries"
-import { checkoutBranch, createBranch } from "@/features/chat/api"
+import {
+  gitStatusKey,
+  gitStashListKey,
+  branchKey,
+  branchesKey,
+  gitDiffStatKey,
+} from "./queries"
+import {
+  checkoutBranch,
+  createBranch,
+  initializeGitRepository,
+} from "@/features/chat/api"
 
 // ── Commit ────────────────────────────────────────────────────────────────────
 
@@ -134,6 +144,19 @@ export function useCreateBranch(sessionId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: branchKey(sessionId) })
       queryClient.invalidateQueries({ queryKey: branchesKey(sessionId) })
+    },
+  })
+}
+
+export function useInitializeGitRepository(sessionId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => initializeGitRepository(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: branchKey(sessionId) })
+      queryClient.invalidateQueries({ queryKey: branchesKey(sessionId) })
+      queryClient.invalidateQueries({ queryKey: gitStatusKey(sessionId) })
+      queryClient.invalidateQueries({ queryKey: gitDiffStatKey(sessionId) })
     },
   })
 }

@@ -1,5 +1,12 @@
 import { apiFetch, getServerUrl } from "@/shared/lib/client"
 
+export interface CreateWorkspaceBody {
+  name: string
+  path: string
+  provider?: string
+  model?: string
+}
+
 export interface ThreadDto {
   id: string
   workspaceId: string
@@ -20,12 +27,9 @@ export function listWorkspaces(): Promise<{ workspaces: WorkspaceDto[] }> {
   return apiFetch<{ workspaces: WorkspaceDto[] }>("/workspaces")
 }
 
-export async function createWorkspace(body: {
-  name: string
-  path: string
-  provider?: string
-  model?: string
-}): Promise<{ workspace: WorkspaceDto; existing?: true }> {
+export async function createWorkspace(
+  body: CreateWorkspaceBody
+): Promise<{ workspace: WorkspaceDto; existing?: true }> {
   const base = await getServerUrl()
   const res = await fetch(`${base}/workspace`, {
     method: "POST",
@@ -47,7 +51,9 @@ export function deleteWorkspace(id: string): Promise<void> {
   return apiFetch<void>(`/workspace/${id}`, { method: "DELETE" })
 }
 
-export function createThread(workspaceId: string): Promise<{ thread: ThreadDto }> {
+export function createThread(
+  workspaceId: string
+): Promise<{ thread: ThreadDto }> {
   return apiFetch<{ thread: ThreadDto }>(`/workspace/${workspaceId}/thread`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59,7 +65,10 @@ export function deleteThread(threadId: string): Promise<void> {
   return apiFetch<void>(`/thread/${threadId}`, { method: "DELETE" })
 }
 
-export function updateThreadTitle(threadId: string, title: string): Promise<void> {
+export function updateThreadTitle(
+  threadId: string,
+  title: string
+): Promise<void> {
   return apiFetch<void>(`/thread/${threadId}/title`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

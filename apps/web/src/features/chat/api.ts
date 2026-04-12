@@ -56,8 +56,12 @@ export function sendPrompt(
 
 // ── Messages ──────────────────────────────────────────────────────────────────
 
-export function listMessages(sessionId: string): Promise<{ messages: StoredMessageDto[] }> {
-  return apiFetch<{ messages: StoredMessageDto[] }>(`/session/${sessionId}/messages`)
+export function listMessages(
+  sessionId: string
+): Promise<{ messages: StoredMessageDto[] }> {
+  return apiFetch<{ messages: StoredMessageDto[] }>(
+    `/session/${sessionId}/messages`
+  )
 }
 
 // ── Title ─────────────────────────────────────────────────────────────────────
@@ -81,6 +85,11 @@ export interface BranchResponse {
 }
 
 export interface BranchesResponse {
+  branches: string[]
+}
+
+export interface InitializeGitRepositoryResponse {
+  branch: string | null
   branches: string[]
 }
 
@@ -112,6 +121,17 @@ export function createBranch(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ branch }),
   })
+}
+
+export function initializeGitRepository(
+  sessionId: string
+): Promise<InitializeGitRepositoryResponse> {
+  return apiFetch<InitializeGitRepositoryResponse>(
+    `/session/${sessionId}/git/init`,
+    {
+      method: "POST",
+    }
+  )
 }
 
 // ── Models ────────────────────────────────────────────────────────────────────

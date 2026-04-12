@@ -5,4 +5,8 @@ export { BranchSelector } from "./components/branch-selector"
 export { DiffView, detectLanguage } from "./components/diff-view"
 export type { DiffMode } from "./components/diff-view"
 export { useGitDiffStat, useBranch, useBranches, gitStatusKey } from "./queries"
-export { useCheckoutBranch, useCreateBranch } from "./mutations"
+export {
+  useCheckoutBranch,
+  useCreateBranch,
+  useInitializeGitRepository,
+} from "./mutations"

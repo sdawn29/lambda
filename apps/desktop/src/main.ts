@@ -16,6 +16,10 @@ let serverProcess: ChildProcess | null = null;
 let serverPort = 3001;
 let preloadPathPromise: Promise<string> | null = null;
 
+type SelectFolderOptions = {
+  canCreateFolder?: boolean;
+};
+
 async function spawnServer(): Promise<number> {
   return new Promise((resolve, reject) => {
     const [executable, args] = isDev
@@ -163,13 +167,22 @@ app.whenReady().then(async () => {
     return win?.isFullScreen() ?? false;
   });
 
-  ipcMain.handle("select-folder", async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    const result = await dialog.showOpenDialog(win!, {
-      properties: ["openDirectory"],
-    });
-    return result.canceled ? null : result.filePaths[0];
-  });
+  ipcMain.handle(
+    "select-folder",
+    async (event, options?: SelectFolderOptions) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const properties: Array<"openDirectory" | "createDirectory"> = [
+        "openDirectory",
+      ];
+      if (process.platform === "darwin" && options?.canCreateFolder) {
+        properties.push("createDirectory");
+      }
+      const result = await dialog.showOpenDialog(win!, {
+        properties,
+      });
+      return result.canceled ? null : result.filePaths[0];
+    },
+  );
 
   ipcMain.handle("get-server-port", () => serverPort);
 

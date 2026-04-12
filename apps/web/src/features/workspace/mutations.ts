@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   createWorkspace as apiCreateWorkspace,
+  type CreateWorkspaceBody,
   deleteWorkspace as apiDeleteWorkspace,
   createThread as apiCreateThread,
   deleteThread as apiDeleteThread,
@@ -8,13 +9,16 @@ import {
   resetAllData,
 } from "./api"
 import { workspacesQueryKey } from "./queries"
-import { createSession, deleteSession, type CreateSessionBody } from "@/features/chat/api"
+import {
+  createSession,
+  deleteSession,
+  type CreateSessionBody,
+} from "@/features/chat/api"
 
 export function useCreateWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ name, path }: { name: string; path: string }) =>
-      apiCreateWorkspace({ name, path }),
+    mutationFn: (body: CreateWorkspaceBody) => apiCreateWorkspace(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
     },

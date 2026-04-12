@@ -18,24 +18,34 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/shared/ui/popover"
-import { useCreateBranch } from "../mutations"
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover"
+import { useCreateBranch, useInitializeGitRepository } from "../mutations"
 
 interface BranchSelectorProps {
   branch: string | null
   branches: string[]
   onBranchSelect?: (branch: string) => void
+  onGitError?: (message: string) => void
   sessionId?: string
+}
+
+function parseGitError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  const stripped = message.replace(/^API \d+:\s*/, "")
+
+  try {
+    const parsed = JSON.parse(stripped) as { error?: string }
+    return parsed.error ?? stripped
+  } catch {
+    return stripped
+  }
 }
 
 export function BranchSelector({
   branch,
   branches,
   onBranchSelect,
+  onGitError,
   sessionId,
 }: BranchSelectorProps) {
   const [open, setOpen] = React.useState(false)
@@ -43,6 +53,8 @@ export function BranchSelector({
   const [newBranch, setNewBranch] = React.useState("")
 
   const createBranch = useCreateBranch(sessionId ?? "")
+  const initializeRepository = useInitializeGitRepository(sessionId ?? "")
+  const hasRepository = branch !== null || branches.length > 0
 
   function handleCreate() {
     if (!newBranch.trim() || !sessionId) return
@@ -51,6 +63,21 @@ export function BranchSelector({
         onBranchSelect?.(data.branch ?? newBranch.trim())
         setDialogOpen(false)
         setNewBranch("")
+      },
+      onError: (error) => {
+        onGitError?.(parseGitError(error))
+      },
+    })
+  }
+
+  function handleInitializeRepository() {
+    if (!sessionId) return
+    initializeRepository.mutate(undefined, {
+      onSuccess: () => {
+        setOpen(false)
+      },
+      onError: (error) => {
+        onGitError?.(parseGitError(error))
       },
     })
   }
@@ -62,7 +89,9 @@ export function BranchSelector({
           render={
             <Button variant="ghost" size="sm" aria-expanded={open}>
               <GitBranchIcon data-icon="inline-start" />
-              <span className="max-w-32 truncate">{branch ?? "no branch"}</span>
+              <span className="max-w-32 truncate">
+                {branch ?? (hasRepository ? "no branch" : "no repository")}
+              </span>
               <ChevronsUpDownIcon
                 data-icon="inline-end"
                 className="opacity-50"
@@ -99,15 +128,27 @@ export function BranchSelector({
                 <>
                   <CommandSeparator />
                   <CommandGroup>
-                    <CommandItem
-                      onSelect={() => {
-                        setOpen(false)
-                        setDialogOpen(true)
-                      }}
-                    >
-                      <PlusIcon />
-                      Create new branch
-                    </CommandItem>
+                    {hasRepository ? (
+                      <CommandItem
+                        onSelect={() => {
+                          setOpen(false)
+                          setDialogOpen(true)
+                        }}
+                      >
+                        <PlusIcon />
+                        Create new branch
+                      </CommandItem>
+                    ) : (
+                      <CommandItem
+                        disabled={initializeRepository.isPending}
+                        onSelect={handleInitializeRepository}
+                      >
+                        <PlusIcon />
+                        {initializeRepository.isPending
+                          ? "Initializing repository…"
+                          : "Initialize repository"}
+                      </CommandItem>
+                    )}
                   </CommandGroup>
                 </>
               )}

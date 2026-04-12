@@ -7,10 +7,18 @@ export async function getCurrentBranch(cwd: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(
       "git",
-      ["rev-parse", "--abbrev-ref", "HEAD"],
+      ["branch", "--show-current"],
       { cwd, timeout: 3000 },
     );
-    return stdout.trim() || null;
+    const branch = stdout.trim();
+    if (branch) return branch;
+
+    const symbolicRef = await execFileAsync(
+      "git",
+      ["symbolic-ref", "--quiet", "--short", "HEAD"],
+      { cwd, timeout: 3000 },
+    );
+    return symbolicRef.stdout.trim() || null;
   } catch {
     return null;
   }
@@ -34,6 +42,10 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
   return root !== null;
 }
 
+export async function initGitRepo(cwd: string): Promise<void> {
+  await execFileAsync("git", ["init"], { cwd, timeout: 10000 });
+}
+
 export async function listBranches(cwd: string): Promise<string[]> {
   try {
     const { stdout } = await execFileAsync(
@@ -41,10 +53,14 @@ export async function listBranches(cwd: string): Promise<string[]> {
       ["branch", "--format=%(refname:short)"],
       { cwd, timeout: 3000 },
     );
-    return stdout
+    const branches = stdout
       .split("\n")
       .map((b) => b.trim())
       .filter(Boolean);
+    if (branches.length > 0) return branches;
+
+    const currentBranch = await getCurrentBranch(cwd);
+    return currentBranch ? [currentBranch] : [];
   } catch {
     return [];
   }
@@ -245,11 +261,10 @@ export async function gitPush(cwd: string): Promise<void> {
 /** Returns the full staged diff (`git diff --cached`). */
 export async function gitStagedDiff(cwd: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["diff", "--cached"],
-      { cwd, timeout: 10000 },
-    );
+    const { stdout } = await execFileAsync("git", ["diff", "--cached"], {
+      cwd,
+      timeout: 10000,
+    });
     return stdout;
   } catch {
     return "";

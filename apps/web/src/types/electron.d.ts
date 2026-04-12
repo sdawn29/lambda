@@ -1,6 +1,10 @@
+interface SelectFolderOptions {
+  canCreateFolder?: boolean
+}
+
 interface ElectronAPI {
   platform: string
-  selectFolder: () => Promise<string | null>
+  selectFolder: (options?: SelectFolderOptions) => Promise<string | null>
   getServerPort: () => Promise<number>
   openPath: (path: string) => Promise<void>
   openExternal: (url: string) => Promise<void>

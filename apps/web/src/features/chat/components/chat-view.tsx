@@ -214,6 +214,10 @@ export const ChatView = memo(function ChatView({
     [threadId]
   )
 
+  const handleGitError = useCallback((message: string) => {
+    setGitError(message)
+  }, [])
+
   const handleBranchSelect = useCallback(
     (selectedBranch: string) => {
       checkoutBranchMutation.mutate(selectedBranch, {
@@ -222,14 +226,14 @@ export const ChatView = memo(function ChatView({
           const stripped = msg.replace(/^API \d+:\s*/, "")
           try {
             const parsed = JSON.parse(stripped) as { error?: string }
-            setGitError(parsed.error ?? stripped)
+            handleGitError(parsed.error ?? stripped)
           } catch {
-            setGitError(stripped)
+            handleGitError(stripped)
           }
         },
       })
     },
-    [checkoutBranchMutation]
+    [checkoutBranchMutation, handleGitError]
   )
 
   const handleStop = useCallback(() => {
@@ -353,7 +357,10 @@ export const ChatView = memo(function ChatView({
                   key={key}
                   className="group flex animate-in flex-col items-end gap-1.5 self-end duration-200 fade-in-0 slide-in-from-bottom-2"
                 >
-                  <div className="rounded-xl bg-muted px-4 py-2 text-sm" data-selectable>
+                  <div
+                    className="rounded-xl bg-muted px-4 py-2 text-sm"
+                    data-selectable
+                  >
                     <UserMessageContent content={msg.content} />
                   </div>
                   <CopyButton text={msg.content} />
@@ -399,6 +406,7 @@ export const ChatView = memo(function ChatView({
             branch={branch}
             branches={branches}
             onBranchSelect={handleBranchSelect}
+            onBranchError={handleGitError}
             sessionId={sessionId}
             selectedModelId={selectedModelId}
             onModelChange={handleModelChange}
