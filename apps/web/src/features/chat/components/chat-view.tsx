@@ -32,7 +32,14 @@ import { markdownComponents } from "./markdown-components"
 import { CopyButton } from "@/shared/components/copy-button"
 import { UserMessageContent } from "./user-message"
 import { ThinkingIndicator } from "./thinking-indicator"
-import type { Message, TextMessage, ToolMessage } from "../types"
+import { ThinkingBlock } from "./thinking-block"
+import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
+import {
+  createAssistantMessage,
+  type AssistantMessage,
+  type Message,
+  type ToolMessage,
+} from "../types"
 
 type AgentEndMessage =
   | {
@@ -136,6 +143,58 @@ function resolveMessages(
   return prev ?? initialMessages
 }
 
+function assistantCopyText(
+  message: AssistantMessage,
+  includeThinking: boolean
+): string {
+  const sections: string[] = []
+
+  if (includeThinking && message.thinking.trim()) {
+    sections.push(
+      message.content.trim()
+        ? `Thinking\n${message.thinking.trim()}`
+        : message.thinking.trim()
+    )
+  }
+
+  if (message.content.trim()) {
+    sections.push(message.content.trim())
+  }
+
+  return sections.join("\n\n")
+}
+
+function AssistantMessageBlock({
+  message,
+  showThinking,
+}: {
+  message: AssistantMessage
+  showThinking: boolean
+}) {
+  const hasThinking = showThinking && message.thinking.trim().length > 0
+  const hasContent = message.content.length > 0
+
+  if (!hasThinking && !hasContent) return null
+
+  return (
+    <div className="group flex animate-in flex-col gap-1.5 duration-200 fade-in-0 slide-in-from-bottom-1">
+      {hasThinking && <ThinkingBlock thinking={message.thinking} />}
+
+      {hasContent && (
+        <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {message.content}
+          </Markdown>
+        </div>
+      )}
+
+      <div>
+        <CopyButton text={assistantCopyText(message, showThinking)} />
+      </div>
+    </div>
+  )
+}
+
 interface ChatViewProps {
   sessionId: string
   workspaceName: string
@@ -149,6 +208,7 @@ export const ChatView = memo(function ChatView({
   threadId,
 }: ChatViewProps) {
   const queryClient = useQueryClient()
+  const showThinkingSetting = useShowThinkingSetting()
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const stoppedKey = `lambda-code:stopped:${threadId}`
@@ -203,35 +263,57 @@ export const ChatView = memo(function ChatView({
         }
         es = nextEventSource
 
-        es.addEventListener("message_start", () => {
+        es.addEventListener("message_start", (e: MessageEvent) => {
           if (!active) return
+          const data = JSON.parse(e.data) as { message?: { role?: string } }
+          if (data.message?.role !== "assistant") return
           setMessages((prev) => [
             ...resolveMessages(prev, initialMessagesRef.current),
-            { role: "assistant", content: "" },
+            createAssistantMessage(),
           ])
         })
 
         es.addEventListener("message_update", (e: MessageEvent) => {
           if (!active) return
           const data = JSON.parse(e.data) as {
-            assistantMessageEvent?: { type: string; delta: string }
+            assistantMessageEvent?: { type: string; delta?: string }
           }
-          if (data.assistantMessageEvent?.type === "text_delta") {
-            const delta = data.assistantMessageEvent.delta
-            setMessages((prev) => {
-              const next = [
-                ...resolveMessages(prev, initialMessagesRef.current),
-              ]
-              const last = next[next.length - 1]
-              if (last?.role === "assistant") {
-                next[next.length - 1] = {
-                  ...last,
-                  content: last.content + delta,
-                }
-              }
+          const assistantEvent = data.assistantMessageEvent
+          if (
+            !assistantEvent ||
+            typeof assistantEvent.delta !== "string" ||
+            (assistantEvent.type !== "text_delta" &&
+              assistantEvent.type !== "thinking_delta")
+          ) {
+            return
+          }
+
+          setMessages((prev) => {
+            const next = [...resolveMessages(prev, initialMessagesRef.current)]
+            const last = next[next.length - 1]
+
+            if (last?.role !== "assistant") {
+              next.push(
+                assistantEvent.type === "thinking_delta"
+                  ? createAssistantMessage({ thinking: assistantEvent.delta })
+                  : createAssistantMessage({ content: assistantEvent.delta })
+              )
               return next
-            })
-          }
+            }
+
+            next[next.length - 1] =
+              assistantEvent.type === "thinking_delta"
+                ? {
+                    ...last,
+                    thinking: last.thinking + assistantEvent.delta,
+                  }
+                : {
+                    ...last,
+                    content: last.content + assistantEvent.delta,
+                  }
+
+            return next
+          })
         })
 
         es.addEventListener("tool_execution_start", (e: MessageEvent) => {
@@ -441,14 +523,6 @@ export const ChatView = memo(function ChatView({
     ]
   )
 
-  const lastMsg = visibleMessages[visibleMessages.length - 1]
-  const showThinking =
-    isLoading &&
-    !(
-      lastMsg?.role === "assistant" &&
-      (lastMsg as TextMessage).content.length > 0
-    )
-
   return (
     <>
       <AlertDialog
@@ -531,27 +605,15 @@ export const ChatView = memo(function ChatView({
                 </div>
               )
             }
-            if (!msg.content) return null
             return (
-              <div
+              <AssistantMessageBlock
                 key={key}
-                className="group flex animate-in flex-col gap-1.5 duration-200 fade-in-0 slide-in-from-bottom-1"
-              >
-                <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                  <Markdown
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {msg.content}
-                  </Markdown>
-                </div>
-                <div>
-                  <CopyButton text={msg.content} />
-                </div>
-              </div>
+                message={msg}
+                showThinking={showThinkingSetting}
+              />
             )
           })}
-          {showThinking && <ThinkingIndicator />}
+          {isLoading && <ThinkingIndicator className="py-0.5" />}
           {isStopped && !isLoading && (
             <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
               <StopCircleIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />

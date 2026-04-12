@@ -1,2 +1,7 @@
 export { ChatView } from "./components/chat-view"
-export type { Message, TextMessage, ToolMessage } from "./types"
+export type {
+  AssistantMessage,
+  Message,
+  TextMessage,
+  ToolMessage,
+} from "./types"

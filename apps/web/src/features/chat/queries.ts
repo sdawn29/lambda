@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
 import { listMessages, fetchModels, listWorkspaceFiles } from "./api"
-import type { StoredMessageDto, Message } from "./types"
+import {
+  createAssistantMessage,
+  parseAssistantMessageContent,
+  type StoredMessageDto,
+  type Message,
+} from "./types"
 
 export type { WorkspaceEntry } from "./api"
 
@@ -38,7 +43,10 @@ function storedToMessage(m: StoredMessageDto): Message {
       status: data.status,
     }
   }
-  return { role: m.role as "user" | "assistant", content: m.content }
+  if (m.role === "assistant") {
+    return createAssistantMessage(parseAssistantMessageContent(m.content))
+  }
+  return { role: "user", content: m.content }
 }
 
 export const messagesQueryKey = (sessionId: string) =>

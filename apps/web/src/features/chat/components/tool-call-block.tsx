@@ -247,7 +247,7 @@ export const ToolCallBlock = memo(function ToolCallBlock({
 
       {/* Body */}
       {expanded && (
-        <div className="mt-1 ml-5 animate-in duration-150 fade-in-0 slide-in-from-top-1">
+        <div className="mt-1 animate-in pl-5 duration-150 fade-in-0 slide-in-from-top-1">
           {/* Edit: show pre-computed diff from SDK */}
           {isEdit && diff !== null && (
             <DiffView

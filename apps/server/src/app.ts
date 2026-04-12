@@ -472,6 +472,17 @@ app.get("/session/:id/events", async (c) => {
     const generator = entry.handle.events();
     const toolMeta = new Map<string, { toolName: string; args: unknown }>();
 
+    type MessageStartEvent = {
+      message?: { role?: string };
+    };
+
+    type AssistantMessageDeltaEvent = {
+      assistantMessageEvent?:
+        | { type: "text_delta"; delta: string }
+        | { type: "thinking_delta"; delta: string }
+        | { type: string; delta?: string };
+    };
+
     stream.onAbort(async () => {
       messageBuffer.flush(id);
       await generator.return(undefined);
@@ -480,13 +491,22 @@ app.get("/session/:id/events", async (c) => {
     for await (const event of generator) {
       // ── Persistence side-effects ───────────────────────────────────────────
       if (event.type === "message_start") {
-        messageBuffer.startAssistant(id, threadId);
+        const e = event as MessageStartEvent;
+        if (e.message?.role === "assistant") {
+          messageBuffer.startAssistant(id, threadId);
+        }
       } else if (event.type === "message_update") {
-        const e = event as {
-          assistantMessageEvent?: { type: string; delta: string };
-        };
-        if (e.assistantMessageEvent?.type === "text_delta") {
-          messageBuffer.appendDelta(id, e.assistantMessageEvent.delta);
+        const e = event as AssistantMessageDeltaEvent;
+        if (
+          e.assistantMessageEvent?.type === "text_delta" &&
+          typeof e.assistantMessageEvent.delta === "string"
+        ) {
+          messageBuffer.appendTextDelta(id, e.assistantMessageEvent.delta);
+        } else if (
+          e.assistantMessageEvent?.type === "thinking_delta" &&
+          typeof e.assistantMessageEvent.delta === "string"
+        ) {
+          messageBuffer.appendThinkingDelta(id, e.assistantMessageEvent.delta);
         }
       } else if (event.type === "tool_execution_start") {
         const e = event as {

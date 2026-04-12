@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 
+import { cn } from "@/shared/lib/utils"
+
 const PHRASES = [
   "Thinking...",
   "Sketching the plan...",
@@ -10,12 +12,13 @@ const PHRASES = [
 
 const PHRASE_INTERVAL_MS = 2200
 
-export function ThinkingIndicator() {
+export function ThinkingIndicator({ className }: { className?: string }) {
   const [phraseIndex, setPhraseIndex] = useState(0)
 
   useEffect(() => {
-    const prefersReducedMotion =
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches
 
     if (prefersReducedMotion) return
 
@@ -30,13 +33,16 @@ export function ThinkingIndicator() {
 
   return (
     <div
-      className="flex animate-in items-center self-start py-1 duration-200 fade-in-0"
+      className={cn(
+        "flex animate-in items-center self-start py-1 duration-200 fade-in-0",
+        className
+      )}
       aria-live="polite"
       aria-label={phrase}
     >
       <span
         key={phrase}
-        className="animate-thinking-shimmer bg-gradient-to-r from-muted-foreground/40 via-foreground to-muted-foreground/40 bg-[length:200%_100%] bg-clip-text text-sm font-medium text-transparent"
+        className="animate-thinking-shimmer bg-linear-to-r from-muted-foreground/40 via-foreground to-muted-foreground/40 bg-size-[200%_100%] bg-clip-text text-sm font-medium text-transparent"
       >
         {phrase}
       </span>

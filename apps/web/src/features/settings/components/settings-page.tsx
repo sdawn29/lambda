@@ -21,6 +21,7 @@ import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
+import { Toggle } from "@/shared/ui/toggle"
 import { useOpenExternal } from "@/features/electron"
 import {
   Dialog,
@@ -56,6 +57,10 @@ import {
 } from "@/shared/ui/select"
 import { Separator } from "@/shared/ui/separator"
 import { Textarea } from "@/shared/ui/textarea"
+import {
+  setShowThinkingSetting,
+  useShowThinkingSetting,
+} from "@/shared/lib/thinking-visibility"
 import { useWorkspace } from "@/features/workspace"
 import { COMMIT_PROMPT_STORAGE_KEY } from "@/shared/lib/storage-keys"
 import { useTheme } from "@/shared/components/theme-provider"
@@ -178,6 +183,14 @@ export function SettingsPage() {
             </Card>
           </section>
 
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title="Chat"
+              description="Control how assistant responses are displayed."
+            />
+            <ChatPreferencesCard />
+          </section>
+
           {/* Subscriptions (OAuth) */}
           <section className="flex flex-col gap-3">
             <SectionHeader
@@ -274,6 +287,42 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// ── Subscriptions (OAuth) card ─────────────────────────────────────────────────
+
+function ChatPreferencesCard() {
+  const showThinking = useShowThinkingSetting()
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldTitle>Show model thinking</FieldTitle>
+            <FieldDescription>
+              Display streamed reasoning blocks in chat when the selected model
+              emits thinking deltas.
+            </FieldDescription>
+          </FieldContent>
+          <Toggle
+            pressed={showThinking}
+            onPressedChange={setShowThinkingSetting}
+            variant="outline"
+            aria-label="Show model thinking"
+            className="min-w-24 justify-center"
+          >
+            {showThinking ? (
+              <Eye data-icon="inline-start" />
+            ) : (
+              <EyeOff data-icon="inline-start" />
+            )}
+            {showThinking ? "Visible" : "Hidden"}
+          </Toggle>
+        </Field>
+      </CardContent>
+    </Card>
   )
 }
 
