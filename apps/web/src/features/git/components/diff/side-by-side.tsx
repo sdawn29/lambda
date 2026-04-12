@@ -58,6 +58,7 @@ function SideBySideCell({
   const isSkipped = line.kind === "skipped"
   const isAdded = line.kind === "added"
   const isRemoved = line.kind === "removed"
+  const isNeutral = line.kind === "context" || isSkipped
   const tokens = getLineTokens(line, diffIndex, map)
 
   return (
@@ -70,11 +71,13 @@ function SideBySideCell({
     >
       <span
         className={cn(
-          "w-8 shrink-0 border-r pr-2 text-right text-xs select-none",
+          "sticky left-0 z-10 w-8 shrink-0 border-r pr-2 text-right text-xs select-none",
           isAdded && "border-green-500/20 text-green-400/50",
           isRemoved && "border-red-500/20 text-red-400/50",
-          (line.kind === "context" || isSkipped) &&
-            "border-border/40 text-muted-foreground/40"
+          isNeutral && "border-border/40 text-muted-foreground/40",
+          isAdded && "bg-green-50 dark:bg-green-950",
+          isRemoved && "bg-red-50 dark:bg-red-950",
+          isNeutral && "bg-background"
         )}
       >
         {isSkipped ? "" : line.lineNum}

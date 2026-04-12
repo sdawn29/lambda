@@ -90,13 +90,18 @@ export default function PrismCode({
       lineNumberStyle={{
         minWidth: "2.5em",
         paddingRight: "1em",
+        position: "sticky",
+        left: 0,
+        zIndex: 1,
+        backgroundColor: "var(--background)",
+        color: "var(--muted-foreground)",
         userSelect: "none",
-        opacity: 0.4,
+        fontStyle: "normal",
         fontSize,
       }}
       customStyle={{
         margin: 0,
-        padding: "0.75rem 1rem",
+        padding: "0.75rem 1rem 0.75rem 0",
         borderRadius: 0,
         fontSize,
         lineHeight: "1.6",
