@@ -81,7 +81,7 @@ function SideBySideCell({
       </span>
       <span
         className={cn(
-          "pl-2 whitespace-pre",
+          "w-max shrink-0 pl-2 whitespace-pre",
           isSkipped && "text-muted-foreground/40 italic"
         )}
       >
