@@ -63,7 +63,7 @@ function SideBySideCell({
   return (
     <div
       className={cn(
-        "flex w-max min-w-full leading-5",
+        "flex min-w-full leading-5",
         isAdded && "bg-green-500/8",
         isRemoved && "bg-red-500/8"
       )}
@@ -102,14 +102,16 @@ function SideBySideColumn({
 }) {
   return (
     <div className="min-w-0 overflow-x-auto">
-      {entries.map((entry, index) => (
-        <SideBySideCell
-          key={index}
-          entry={entry}
-          map={map}
-          themeStyle={themeStyle}
-        />
-      ))}
+      <div className="w-max min-w-full">
+        {entries.map((entry, index) => (
+          <SideBySideCell
+            key={index}
+            entry={entry}
+            map={map}
+            themeStyle={themeStyle}
+          />
+        ))}
+      </div>
     </div>
   )
 }

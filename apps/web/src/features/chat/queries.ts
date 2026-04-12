@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query"
 import { listMessages, fetchModels, listWorkspaceFiles } from "./api"
 import type { StoredMessageDto, Message } from "./types"
 
+export type { WorkspaceEntry } from "./api"
+
 const chatRootKey = ["chat"] as const
 const chatSessionKey = (sessionId: string) =>
   [...chatRootKey, "session", sessionId] as const

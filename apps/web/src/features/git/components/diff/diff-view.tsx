@@ -66,8 +66,9 @@ export function DiffView({
             : "overflow-auto"
         )}
       >
-        {mode === "inline"
-          ? lines.map((line, i) => (
+        {mode === "inline" ? (
+          <div className="w-max min-w-full">
+            {lines.map((line, i) => (
               <DiffRow
                 key={i}
                 line={line}
@@ -75,14 +76,17 @@ export function DiffView({
                 map={highlightMap}
                 themeStyle={themeStyle}
               />
-            ))
-          : sideBySideRows && (
-              <SideBySideView
-                rows={sideBySideRows}
-                map={highlightMap}
-                themeStyle={themeStyle}
-              />
-            )}
+            ))}
+          </div>
+        ) : (
+          sideBySideRows && (
+            <SideBySideView
+              rows={sideBySideRows}
+              map={highlightMap}
+              themeStyle={themeStyle}
+            />
+          )
+        )}
       </div>
 
       {(added > 0 || removed > 0) && (

@@ -15,7 +15,7 @@ export function DiffRow({ line, diffIndex, map, themeStyle }: DiffRowProps) {
   return (
     <div
       className={cn(
-        "flex leading-5",
+        "flex min-w-full leading-5",
         line.kind === "added" && "bg-green-500/8 hover:bg-green-500/12",
         line.kind === "removed" && "bg-red-500/8 hover:bg-red-500/12"
       )}
@@ -25,7 +25,8 @@ export function DiffRow({ line, diffIndex, map, themeStyle }: DiffRowProps) {
           "w-4 shrink-0 text-center select-none",
           line.kind === "added" && "text-green-500",
           line.kind === "removed" && "text-red-500",
-          (line.kind === "context" || line.kind === "skipped") && "text-muted-foreground/30"
+          (line.kind === "context" || line.kind === "skipped") &&
+            "text-muted-foreground/30"
         )}
       >
         {line.kind === "added" ? "+" : line.kind === "removed" ? "−" : ""}
@@ -45,7 +46,7 @@ export function DiffRow({ line, diffIndex, map, themeStyle }: DiffRowProps) {
 
       <span
         className={cn(
-          "flex-1 pl-3 whitespace-pre",
+          "w-max shrink-0 pl-3 whitespace-pre",
           line.kind === "skipped" && "text-muted-foreground/40 italic"
         )}
       >
