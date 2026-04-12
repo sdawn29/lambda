@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
 import { X, GripHorizontal } from "lucide-react"
 import { Button } from "@/shared/ui/button"
+import { useTheme } from "@/shared/components/theme-provider"
 import { useTerminal } from "../context"
 import "@xterm/xterm/css/xterm.css"
 
@@ -18,6 +19,54 @@ const MIN_HEIGHT = 120
 const DEFAULT_HEIGHT = 260
 const MIN_CONTENT_HEIGHT = 200
 
+const DARK_TERMINAL_THEME = {
+  background: "#101010",
+  foreground: "#c8c8c8",
+  cursor: "#1e6ef4",
+  cursorAccent: "#101010",
+  selectionBackground: "#1e6ef428",
+  black: "#171717",
+  red: "#c86858",
+  green: "#7a9a5a",
+  yellow: "#c8a848",
+  blue: "#1e6ef4",
+  magenta: "#a898c8",
+  cyan: "#4d8cf6",
+  white: "#c8c8c8",
+  brightBlack: "#686868",
+  brightRed: "#d87868",
+  brightGreen: "#90b070",
+  brightYellow: "#d8b858",
+  brightBlue: "#7ca9ff",
+  brightMagenta: "#c0b0d8",
+  brightCyan: "#9bc3ff",
+  brightWhite: "#d8d8d8",
+}
+
+const LIGHT_TERMINAL_THEME = {
+  background: "#f5f5f0",
+  foreground: "#1a1a1a",
+  cursor: "#1e6ef4",
+  cursorAccent: "#f5f5f0",
+  selectionBackground: "#1e6ef428",
+  black: "#1a1a1a",
+  red: "#b84838",
+  green: "#6a8a4a",
+  yellow: "#b89838",
+  blue: "#1e6ef4",
+  magenta: "#8878a8",
+  cyan: "#5a7a92",
+  white: "#d8d8d4",
+  brightBlack: "#6a6a6a",
+  brightRed: "#c86858",
+  brightGreen: "#7a9a5a",
+  brightYellow: "#c8a848",
+  brightBlue: "#4d8cf6",
+  brightMagenta: "#a898c8",
+  brightCyan: "#7898b0",
+  brightWhite: "#ffffff",
+}
+
 interface TerminalPanelProps {
   cwd: string
 }
@@ -26,6 +75,7 @@ export const TerminalPanel = memo(function TerminalPanel({
   cwd,
 }: TerminalPanelProps) {
   const { close } = useTerminal()
+  const { resolvedTheme } = useTheme()
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -33,6 +83,8 @@ export const TerminalPanel = memo(function TerminalPanel({
   const panelRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(DEFAULT_HEIGHT)
   const dragStartRef = useRef<{ y: number; h: number } | null>(null)
+  const terminalTheme =
+    resolvedTheme === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME
 
   // Initialize xterm + WebSocket once
   useEffect(() => {
@@ -44,28 +96,9 @@ export const TerminalPanel = memo(function TerminalPanel({
       fontSize: 13,
       fontFamily:
         '"JetBrains Mono", "Menlo", "Monaco", "Courier New", monospace',
-      theme: {
-        background: "#101010",
-        foreground: "#c8c8c8",
-        cursor: "#1e6ef4",
-        selectionBackground: "#1e6ef428",
-        black: "#171717",
-        red: "#c86858",
-        green: "#7a9a5a",
-        yellow: "#c8a848",
-        blue: "#1e6ef4",
-        magenta: "#a898c8",
-        cyan: "#4d8cf6",
-        white: "#c8c8c8",
-        brightBlack: "#686868",
-        brightRed: "#d87868",
-        brightGreen: "#90b070",
-        brightYellow: "#d8b858",
-        brightBlue: "#7ca9ff",
-        brightMagenta: "#c0b0d8",
-        brightCyan: "#9bc3ff",
-        brightWhite: "#d8d8d8",
-      },
+      theme: document.documentElement.classList.contains("dark")
+        ? DARK_TERMINAL_THEME
+        : LIGHT_TERMINAL_THEME,
     })
 
     const fitAddon = new FitAddon()
@@ -122,8 +155,14 @@ export const TerminalPanel = memo(function TerminalPanel({
       fitAddonRef.current = null
       wsRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cwd])
+
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+
+    term.options.theme = terminalTheme
+  }, [terminalTheme])
 
   // Re-fit when height changes
   useEffect(() => {
@@ -182,17 +221,19 @@ export const TerminalPanel = memo(function TerminalPanel({
     >
       {/* Drag handle / header */}
       <div
-        className="flex h-8 shrink-0 cursor-row-resize items-center justify-between border-b border-zinc-800 px-3 select-none"
+        className="flex h-8 shrink-0 cursor-row-resize items-center justify-between border-b px-3 select-none"
         onMouseDown={onDragStart}
       >
         <div className="flex items-center gap-2">
-          <GripHorizontal className="h-3 w-3 text-zinc-600" />
-          <span className="font-mono text-xs text-zinc-500">terminal</span>
+          <GripHorizontal className="h-3 w-3 text-muted-foreground" />
+          <span className="font-mono text-xs text-muted-foreground">
+            terminal
+          </span>
         </div>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="h-5 w-5 text-zinc-500 hover:text-zinc-300"
+          className="h-5 w-5 text-muted-foreground hover:text-foreground"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={close}
         >
