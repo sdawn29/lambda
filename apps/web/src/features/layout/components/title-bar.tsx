@@ -22,11 +22,7 @@ import {
 } from "@tanstack/react-router"
 import { Button } from "@/shared/ui/button"
 import { SidebarTrigger, useSidebar } from "@/shared/ui/sidebar"
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/shared/ui/tooltip"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +38,9 @@ import { useGitDiffStat } from "@/features/git/queries"
 
 const isMac =
   typeof window !== "undefined" && window.electronAPI?.platform === "darwin"
+
+const activeTitleBarButtonClassName =
+  "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
 
 function useIsFullscreen() {
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -280,9 +279,10 @@ export function TitleBar() {
                   variant="outline"
                   size="default"
                   onClick={toggleDiff}
+                  aria-pressed={diffOpen}
                   data-active={diffOpen}
                   disabled={!activeWorkspace?.path}
-                  className="gap-1 px-1.5 transition-[background-color,color] duration-150 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                  className={`gap-1 px-1.5 ${activeTitleBarButtonClassName}`}
                 >
                   <GitCompare className="size-3.5 shrink-0" />
                   {diffStat &&
@@ -311,8 +311,9 @@ export function TitleBar() {
                   variant="outline"
                   size="icon"
                   onClick={toggleTerminal}
+                  aria-pressed={terminalOpen}
                   data-active={terminalOpen}
-                  className="transition-[background-color,color] duration-150 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                  className={activeTitleBarButtonClassName}
                 >
                   <TerminalSquare />
                   <span className="sr-only">Toggle terminal</span>
