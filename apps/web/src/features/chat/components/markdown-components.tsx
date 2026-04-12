@@ -4,6 +4,8 @@ import type { Components } from "react-markdown"
 import { useTheme } from "@/shared/components/theme-provider"
 import { Check, Copy } from "lucide-react"
 
+import { Button } from "@/shared/ui/button"
+
 const PrismCode = lazy(() => import("./prism-code"))
 
 function CopyButton({ code }: { code: string }) {
@@ -17,13 +19,16 @@ function CopyButton({ code }: { code: string }) {
   }
 
   return (
-    <button
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
       onClick={handleCopy}
-      className="absolute top-2 right-2 rounded-md border border-border bg-background p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100"
       aria-label="Copy code"
     >
-      {copied ? <Check size={13} /> : <Copy size={13} />}
-    </button>
+      {copied ? <Check /> : <Copy />}
+    </Button>
   )
 }
 

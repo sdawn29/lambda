@@ -1,10 +1,23 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useRef } from "react"
 import {
-  Sun, Moon, Monitor, Trash2, AlertTriangle, Eye, EyeOff, Check, Save,
-  LogIn, LogOut, Loader2, ExternalLink, RotateCcw,
+  Sun,
+  Moon,
+  Monitor,
+  Trash2,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Check,
+  Save,
+  LogIn,
+  LogOut,
+  Loader2,
+  ExternalLink,
+  RotateCcw,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 
+import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
@@ -17,16 +30,47 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/shared/ui/dialog"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@/shared/ui/field"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/shared/ui/input-group"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select"
 import { Separator } from "@/shared/ui/separator"
+import { Textarea } from "@/shared/ui/textarea"
 import { useWorkspace } from "@/features/workspace"
 import { COMMIT_PROMPT_STORAGE_KEY } from "@/shared/lib/storage-keys"
 import { useTheme } from "@/shared/components/theme-provider"
-import { cn } from "@/shared/lib/utils"
-import { useProviders, useOAuthProviders, oauthProvidersQueryKey } from "../queries"
+import {
+  useProviders,
+  useOAuthProviders,
+  oauthProvidersQueryKey,
+} from "../queries"
 import { useUpdateProviders } from "../mutations"
 import {
-  startOAuthLogin, openOAuthEventSource, respondToOAuthPrompt,
-  abortOAuthLogin, oauthLogout, type OAuthSseEvent,
+  startOAuthLogin,
+  openOAuthEventSource,
+  respondToOAuthPrompt,
+  abortOAuthLogin,
+  oauthLogout,
+  type OAuthSseEvent,
 } from "../api"
 
 type Theme = "light" | "dark" | "system"
@@ -37,31 +81,34 @@ const THEMES: { value: Theme; label: string; icon: React.ElementType }[] = [
   { value: "system", label: "System", icon: Monitor },
 ]
 
-const API_KEY_PROVIDERS: { id: string; label: string; placeholder: string }[] = [
-  { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-..." },
-  { id: "openai", label: "OpenAI", placeholder: "sk-..." },
-  { id: "google", label: "Google Gemini", placeholder: "AIza..." },
-  { id: "mistral", label: "Mistral", placeholder: "..." },
-  { id: "groq", label: "Groq", placeholder: "gsk_..." },
-  { id: "cerebras", label: "Cerebras", placeholder: "..." },
-  { id: "xai", label: "xAI", placeholder: "xai-..." },
-  { id: "openrouter", label: "OpenRouter", placeholder: "sk-or-..." },
-  { id: "vercel-ai-gateway", label: "Vercel AI Gateway", placeholder: "..." },
-  { id: "huggingface", label: "Hugging Face", placeholder: "hf_..." },
-  { id: "kimi-coding", label: "Kimi For Coding", placeholder: "..." },
-  { id: "minimax", label: "MiniMax", placeholder: "..." },
-  { id: "minimax-cn", label: "MiniMax (China)", placeholder: "..." },
-  { id: "zai", label: "ZAI", placeholder: "..." },
-  { id: "opencode", label: "OpenCode Zen", placeholder: "..." },
-  { id: "opencode-go", label: "OpenCode Go", placeholder: "..." },
-  { id: "azure-openai-responses", label: "Azure OpenAI", placeholder: "..." },
-]
+const API_KEY_PROVIDERS: { id: string; label: string; placeholder: string }[] =
+  [
+    { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-..." },
+    { id: "openai", label: "OpenAI", placeholder: "sk-..." },
+    { id: "google", label: "Google Gemini", placeholder: "AIza..." },
+    { id: "mistral", label: "Mistral", placeholder: "..." },
+    { id: "groq", label: "Groq", placeholder: "gsk_..." },
+    { id: "cerebras", label: "Cerebras", placeholder: "..." },
+    { id: "xai", label: "xAI", placeholder: "xai-..." },
+    { id: "openrouter", label: "OpenRouter", placeholder: "sk-or-..." },
+    { id: "vercel-ai-gateway", label: "Vercel AI Gateway", placeholder: "..." },
+    { id: "huggingface", label: "Hugging Face", placeholder: "hf_..." },
+    { id: "kimi-coding", label: "Kimi For Coding", placeholder: "..." },
+    { id: "minimax", label: "MiniMax", placeholder: "..." },
+    { id: "minimax-cn", label: "MiniMax (China)", placeholder: "..." },
+    { id: "zai", label: "ZAI", placeholder: "..." },
+    { id: "opencode", label: "OpenCode Zen", placeholder: "..." },
+    { id: "opencode-go", label: "OpenCode Go", placeholder: "..." },
+    { id: "azure-openai-responses", label: "Azure OpenAI", placeholder: "..." },
+  ]
 
 export function SettingsPage() {
   const { resetAll } = useWorkspace()
   const { theme, setTheme } = useTheme()
   const [showConfirm, setShowConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const activeTheme = THEMES.find(({ value }) => value === theme) ?? THEMES[0]
+  const ActiveThemeIcon = activeTheme.icon
 
   async function handleReset() {
     setResetting(true)
@@ -75,7 +122,7 @@ export function SettingsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-2xl px-6 pb-12 pt-8">
+      <div className="mx-auto w-full max-w-2xl px-6 pt-8 pb-12">
         <div className="mb-8">
           <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -83,50 +130,56 @@ export function SettingsPage() {
           </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="flex flex-col gap-8">
           {/* Appearance */}
-          <section className="space-y-3">
+          <section className="flex flex-col gap-3">
             <SectionHeader
               title="Appearance"
               description="Choose how the application looks."
             />
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-6">
-                  <div>
-                    <p className="text-sm font-medium">Theme</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Theme</FieldTitle>
+                    <FieldDescription>
                       Press{" "}
                       <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
                         D
                       </kbd>{" "}
                       to toggle quickly.
-                    </p>
-                  </div>
-                  <div className="flex gap-1 rounded-lg border border-border p-1">
-                    {THEMES.map(({ value, label, icon: Icon }) => (
-                      <button
-                        key={value}
-                        onClick={() => setTheme(value)}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                          theme === value
-                            ? "bg-foreground text-background shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    </FieldDescription>
+                  </FieldContent>
+                  <Select
+                    value={theme}
+                    onValueChange={(value) => {
+                      if (typeof value === "string") {
+                        setTheme(value as Theme)
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="min-w-32" aria-label="Theme">
+                      <ActiveThemeIcon data-icon="inline-start" />
+                      <SelectValue placeholder="Theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {THEMES.map(({ value, label, icon: Icon }) => (
+                          <SelectItem key={value} value={value}>
+                            <Icon />
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
               </CardContent>
             </Card>
           </section>
 
           {/* Subscriptions (OAuth) */}
-          <section className="space-y-3">
+          <section className="flex flex-col gap-3">
             <SectionHeader
               title="Subscriptions"
               description="Sign in with your existing subscriptions (Claude Pro, GitHub Copilot, etc.). Credentials stored in auth.json."
@@ -135,7 +188,7 @@ export function SettingsPage() {
           </section>
 
           {/* API Keys */}
-          <section className="space-y-3">
+          <section className="flex flex-col gap-3">
             <SectionHeader
               title="API Keys"
               description="Configure API keys for each provider. Stored in ~/.pi/agent/auth.json."
@@ -144,7 +197,7 @@ export function SettingsPage() {
           </section>
 
           {/* AI Commit Messages */}
-          <section className="space-y-3" id="commit-prompt">
+          <section className="flex flex-col gap-3" id="commit-prompt">
             <SectionHeader
               title="AI Commit Messages"
               description="Customize the prompt used to generate commit messages. Use {diff} where the staged diff should be inserted."
@@ -153,7 +206,7 @@ export function SettingsPage() {
           </section>
 
           {/* Data */}
-          <section className="space-y-3">
+          <section className="flex flex-col gap-3">
             <SectionHeader
               title="Data"
               description="Manage your locally stored application data."
@@ -167,7 +220,8 @@ export function SettingsPage() {
                       <div>
                         <p className="text-sm font-medium">Delete all data</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          Permanently removes all workspaces, threads, and messages. This cannot be undone.
+                          Permanently removes all workspaces, threads, and
+                          messages. This cannot be undone.
                         </p>
                       </div>
                     </div>
@@ -186,24 +240,10 @@ export function SettingsPage() {
             </Card>
           </section>
 
-          {/* About */}
-          <section className="space-y-3">
-            <SectionHeader
-              title="About"
-              description="Application information."
-            />
-            <Card>
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  <Row label="Version" value="0.0.1" />
-                  <Separator />
-                  <Row label="Runtime" value="Electron + React 19" />
-                  <Separator />
-                  <Row label="Data location" value="Local storage" />
-                </div>
-              </CardContent>
-            </Card>
-          </section>
+          <footer className="flex items-center gap-2 pt-2">
+            λ<span className="font-mono text-xs">Code</span>
+            <Badge variant="outline">Alpha</Badge>
+          </footer>
         </div>
       </div>
 
@@ -212,14 +252,22 @@ export function SettingsPage() {
           <DialogHeader>
             <DialogTitle>Delete all data?</DialogTitle>
             <DialogDescription>
-              This will permanently delete all workspaces, threads, and messages. This action cannot be undone.
+              This will permanently delete all workspaces, threads, and
+              messages. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={resetting}>
+            <DialogClose
+              render={<Button variant="outline" />}
+              disabled={resetting}
+            >
               Cancel
             </DialogClose>
-            <Button variant="destructive" onClick={handleReset} disabled={resetting}>
+            <Button
+              variant="destructive"
+              onClick={handleReset}
+              disabled={resetting}
+            >
               {resetting ? "Deleting…" : "Delete all"}
             </Button>
           </DialogFooter>
@@ -234,10 +282,32 @@ export function SettingsPage() {
 type LoginState =
   | { status: "idle" }
   | { status: "connecting"; providerId: string }
-  | { status: "waiting_auth"; providerId: string; loginId: string; url: string; instructions?: string }
-  | { status: "waiting_prompt"; providerId: string; loginId: string; promptId: string; message: string; placeholder?: string }
+  | {
+      status: "waiting_auth"
+      providerId: string
+      loginId: string
+      url: string
+      instructions?: string
+    }
+  | {
+      status: "waiting_prompt"
+      providerId: string
+      loginId: string
+      promptId: string
+      message: string
+      placeholder?: string
+    }
   | { status: "done"; providerId: string }
   | { status: "error"; providerId: string; message: string }
+
+function SuccessBadge({ children }: { children: string }) {
+  return (
+    <Badge variant="secondary">
+      <Check data-icon="inline-start" />
+      {children}
+    </Badge>
+  )
+}
 
 function SubscriptionsCard() {
   const queryClient = useQueryClient()
@@ -261,7 +331,11 @@ function SubscriptionsCard() {
     try {
       loginId = await startOAuthLogin(providerId)
     } catch (err) {
-      setLoginState({ status: "error", providerId, message: err instanceof Error ? err.message : String(err) })
+      setLoginState({
+        status: "error",
+        providerId,
+        message: err instanceof Error ? err.message : String(err),
+      })
       return
     }
 
@@ -269,17 +343,37 @@ function SubscriptionsCard() {
     esRef.current = es
 
     es.addEventListener("auth_url", (e) => {
-      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & { type: "auth_url" }
-      setLoginState({ status: "waiting_auth", providerId, loginId, url: event.url, instructions: event.instructions })
+      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & {
+        type: "auth_url"
+      }
+      setLoginState({
+        status: "waiting_auth",
+        providerId,
+        loginId,
+        url: event.url,
+        instructions: event.instructions,
+      })
       // Open in browser via Electron
-      window.electronAPI?.openExternal(event.url)
-        ?? window.open(event.url, "_blank")
+      if (window.electronAPI?.openExternal) {
+        window.electronAPI.openExternal(event.url)
+      } else {
+        window.open(event.url, "_blank")
+      }
     })
 
     es.addEventListener("prompt", (e) => {
-      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & { type: "prompt" }
+      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & {
+        type: "prompt"
+      }
       setPromptValue("")
-      setLoginState({ status: "waiting_prompt", providerId, loginId, promptId: event.promptId, message: event.message, placeholder: event.placeholder })
+      setLoginState({
+        status: "waiting_prompt",
+        providerId,
+        loginId,
+        promptId: event.promptId,
+        message: event.message,
+        placeholder: event.placeholder,
+      })
     })
 
     es.addEventListener("done", () => {
@@ -299,7 +393,11 @@ function SubscriptionsCard() {
         // EventSource connection error
         closeEventSource()
         if (loginState.status !== "done") {
-          setLoginState({ status: "error", providerId, message: "Connection lost" })
+          setLoginState({
+            status: "error",
+            providerId,
+            message: "Connection lost",
+          })
         }
       }
     })
@@ -308,15 +406,25 @@ function SubscriptionsCard() {
   async function handlePromptSubmit() {
     if (loginState.status !== "waiting_prompt") return
     const { loginId, promptId } = loginState
-    setLoginState((s) => ({ ...s, status: "connecting" } as LoginState))
+    setLoginState((s) => ({ ...s, status: "connecting" }) as LoginState)
     await respondToOAuthPrompt(loginId, promptId, promptValue)
     setPromptValue("")
   }
 
   async function handleAbort() {
     closeEventSource()
-    if (loginState.status === "waiting_auth" || loginState.status === "waiting_prompt" || loginState.status === "connecting") {
-      try { await abortOAuthLogin((loginState as { loginId?: string }).loginId ?? "") } catch {}
+    if (
+      loginState.status === "waiting_auth" ||
+      loginState.status === "waiting_prompt" ||
+      loginState.status === "connecting"
+    ) {
+      try {
+        await abortOAuthLogin(
+          (loginState as { loginId?: string }).loginId ?? ""
+        )
+      } catch {
+        // Ignore abort failures when the login flow has already ended.
+      }
     }
     setLoginState({ status: "idle" })
   }
@@ -325,47 +433,45 @@ function SubscriptionsCard() {
     try {
       await oauthLogout(providerId)
       queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
-    } catch {}
+    } catch {
+      // Ignore logout failures and keep the current provider state visible.
+    }
   }
 
   const activeProviderId =
-    loginState.status !== "idle" ? (loginState as { providerId: string }).providerId : null
+    loginState.status !== "idle"
+      ? (loginState as { providerId: string }).providerId
+      : null
 
   return (
     <>
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="flex flex-col gap-3 p-4">
           {isLoading ? (
             <p className="text-xs text-muted-foreground">Loading…</p>
           ) : !providers?.length ? (
-            <p className="text-xs text-muted-foreground">No OAuth providers available.</p>
+            <p className="text-xs text-muted-foreground">
+              No OAuth providers available.
+            </p>
           ) : (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {providers.map((p, i) => {
                 const isActive = activeProviderId === p.id
-                const isPending = isActive && (loginState.status === "connecting")
+                const isPending = isActive && loginState.status === "connecting"
                 const isDone = isActive && loginState.status === "done"
+                const showSignedIn = (p.loggedIn && !isActive) || isDone
 
                 return (
-                  <div key={p.id}>
-                    {i > 0 && <Separator className="mb-3" />}
+                  <div key={p.id} className="flex flex-col gap-2">
+                    {i > 0 && <Separator />}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{p.name}</p>
-                        {p.loggedIn && !isActive && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-                            <Check className="h-2.5 w-2.5" />
-                            Signed in
-                          </span>
-                        )}
-                        {isDone && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-                            <Check className="h-2.5 w-2.5" />
-                            Signed in
-                          </span>
-                        )}
+                        {showSignedIn && <SuccessBadge>Signed in</SuccessBadge>}
                         {isActive && loginState.status === "error" && (
-                          <span className="text-[10px] text-destructive">{loginState.message}</span>
+                          <span className="text-[10px] text-destructive">
+                            {loginState.message}
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
@@ -376,24 +482,39 @@ function SubscriptionsCard() {
                             className="h-7 text-xs"
                             onClick={() => handleLogout(p.id)}
                           >
-                            <LogOut className="mr-1.5 h-3 w-3" />
+                            <LogOut data-icon="inline-start" />
                             Sign out
                           </Button>
-                        ) : isActive && loginState.status !== "idle" && loginState.status !== "done" && loginState.status !== "error" ? (
-                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAbort}>
+                        ) : isActive &&
+                          loginState.status !== "idle" &&
+                          loginState.status !== "done" &&
+                          loginState.status !== "error" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={handleAbort}
+                          >
                             Cancel
                           </Button>
                         ) : (
                           <Button
                             size="sm"
                             className="h-7 text-xs"
-                            disabled={isPending || (activeProviderId !== null && activeProviderId !== p.id)}
+                            disabled={
+                              isPending ||
+                              (activeProviderId !== null &&
+                                activeProviderId !== p.id)
+                            }
                             onClick={() => handleLogin(p.id)}
                           >
                             {isPending ? (
-                              <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                              <Loader2
+                                data-icon="inline-start"
+                                className="animate-spin"
+                              />
                             ) : (
-                              <LogIn className="mr-1.5 h-3 w-3" />
+                              <LogIn data-icon="inline-start" />
                             )}
                             {isPending ? "Connecting…" : "Sign in"}
                           </Button>
@@ -407,20 +528,31 @@ function SubscriptionsCard() {
                         <div className="flex items-start gap-2">
                           <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium">Browser opened for authentication</p>
+                            <p className="text-xs font-medium">
+                              Browser opened for authentication
+                            </p>
                             {loginState.instructions && (
-                              <p className="mt-0.5 text-xs text-muted-foreground">{loginState.instructions}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {loginState.instructions}
+                              </p>
                             )}
-                            <button
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto justify-start px-0"
                               onClick={() => {
-                                window.electronAPI?.openExternal(loginState.url)
-                                  ?? window.open(loginState.url, "_blank")
+                                if (window.electronAPI?.openExternal) {
+                                  window.electronAPI.openExternal(
+                                    loginState.url
+                                  )
+                                } else {
+                                  window.open(loginState.url, "_blank")
+                                }
                               }}
-                              className="mt-1 flex items-center gap-1 text-[11px] text-primary hover:underline"
                             >
-                              <ExternalLink className="h-3 w-3" />
+                              <ExternalLink data-icon="inline-start" />
                               Open again
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -429,17 +561,28 @@ function SubscriptionsCard() {
                     {/* Prompt input state */}
                     {isActive && loginState.status === "waiting_prompt" && (
                       <div className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                        <p className="mb-2 text-xs font-medium">{loginState.message}</p>
+                        <p className="mb-2 text-xs font-medium">
+                          {loginState.message}
+                        </p>
                         <div className="flex gap-2">
                           <Input
                             autoFocus
                             value={promptValue}
                             onChange={(e) => setPromptValue(e.target.value)}
-                            placeholder={loginState.placeholder ?? "Enter code…"}
-                            className="h-7 text-xs font-mono"
-                            onKeyDown={(e) => { if (e.key === "Enter") handlePromptSubmit() }}
+                            placeholder={
+                              loginState.placeholder ?? "Enter code…"
+                            }
+                            className="h-7 font-mono text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handlePromptSubmit()
+                            }}
                           />
-                          <Button size="sm" className="h-7 shrink-0 text-xs" onClick={handlePromptSubmit} disabled={!promptValue.trim()}>
+                          <Button
+                            size="sm"
+                            className="h-7 shrink-0 text-xs"
+                            onClick={handlePromptSubmit}
+                            disabled={!promptValue.trim()}
+                          >
                             Submit
                           </Button>
                         </div>
@@ -467,17 +610,16 @@ interface ConfigureKeyDialogProps {
   isSaving: boolean
 }
 
-function ConfigureKeyDialog({ provider, savedKey, open, onOpenChange, onSave, isSaving }: ConfigureKeyDialogProps) {
+function ConfigureKeyDialog({
+  provider,
+  savedKey,
+  open,
+  onOpenChange,
+  onSave,
+  isSaving,
+}: ConfigureKeyDialogProps) {
   const [value, setValue] = useState(savedKey)
   const [visible, setVisible] = useState(false)
-
-  // Sync when dialog opens
-  useEffect(() => {
-    if (open) {
-      setValue(savedKey)
-      setVisible(false)
-    }
-  }, [open, savedKey])
 
   function handleSave() {
     onSave(provider.id, value)
@@ -494,33 +636,43 @@ function ConfigureKeyDialog({ provider, savedKey, open, onOpenChange, onSave, is
           <DialogTitle>Configure {provider.label}</DialogTitle>
           <DialogDescription>
             Enter your API key for {provider.label}. It will be saved to{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">~/.pi/agent/auth.json</code>.
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+              ~/.pi/agent/auth.json
+            </code>
+            .
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-1">
-          <div className="relative">
-            <Input
-              autoFocus
-              type={visible ? "text" : "password"}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={provider.placeholder}
-              className="pr-9 font-mono text-sm"
-              autoComplete="off"
-              spellCheck={false}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSave() }}
-            />
-            <button
-              type="button"
-              onClick={() => setVisible((v) => !v)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              tabIndex={-1}
-            >
-              {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
+        <FieldGroup className="py-1">
+          <Field>
+            <FieldLabel htmlFor={`${provider.id}-api-key`}>API key</FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                id={`${provider.id}-api-key`}
+                autoFocus
+                type={visible ? "text" : "password"}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={provider.placeholder}
+                className="font-mono text-sm"
+                autoComplete="off"
+                spellCheck={false}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSave()
+                }}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  onClick={() => setVisible((current) => !current)}
+                  aria-label={visible ? "Hide API key" : "Show API key"}
+                >
+                  {visible ? <EyeOff /> : <Eye />}
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+        </FieldGroup>
 
         <DialogFooter>
           {savedKey && (
@@ -533,14 +685,26 @@ function ConfigureKeyDialog({ provider, savedKey, open, onOpenChange, onSave, is
               Remove key
             </Button>
           )}
-          <DialogClose render={<Button variant="outline" />} disabled={isSaving}>
+          <DialogClose
+            render={<Button variant="outline" />}
+            disabled={isSaving}
+          >
             Cancel
           </DialogClose>
-          <Button onClick={handleSave} disabled={isSaving || value === savedKey}>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || value === savedKey}
+          >
             {isSaving ? (
-              <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Saving…</>
+              <>
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+                Saving…
+              </>
             ) : (
-              <><Save className="mr-1.5 h-3.5 w-3.5" />Save</>
+              <>
+                <Save data-icon="inline-start" />
+                Save
+              </>
             )}
           </Button>
         </DialogFooter>
@@ -557,7 +721,7 @@ function ApiKeysCard() {
   function handleSave(id: string, key: string) {
     saveProviders(
       { ...(savedKeys ?? {}), [id]: key },
-      { onSuccess: () => setOpenFor(null) },
+      { onSuccess: () => setOpenFor(null) }
     )
   }
 
@@ -567,19 +731,17 @@ function ApiKeysCard() {
         {isLoading ? (
           <p className="text-xs text-muted-foreground">Loading…</p>
         ) : (
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             {API_KEY_PROVIDERS.map(({ id, label, placeholder }) => {
-              const hasKey = !!(savedKeys?.[id])
+              const hasKey = !!savedKeys?.[id]
               return (
-                <div key={id} className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50">
+                <div
+                  key={id}
+                  className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50"
+                >
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{label}</p>
-                    {hasKey && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-                        <Check className="h-2.5 w-2.5" />
-                        Configured
-                      </span>
-                    )}
+                    {hasKey && <SuccessBadge>Configured</SuccessBadge>}
                   </div>
                   <Button
                     variant="outline"
@@ -595,7 +757,9 @@ function ApiKeysCard() {
                       provider={{ id, label, placeholder }}
                       savedKey={savedKeys?.[id] ?? ""}
                       open={true}
-                      onOpenChange={(open) => { if (!open) setOpenFor(null) }}
+                      onOpenChange={(open) => {
+                        if (!open) setOpenFor(null)
+                      }}
                       onSave={handleSave}
                       isSaving={isPending}
                     />
@@ -612,12 +776,12 @@ function ApiKeysCard() {
 
 // ── Commit prompt card ─────────────────────────────────────────────────────────
 
-const DEFAULT_COMMIT_PROMPT =
-  `Generate a git commit message for the following staged diff. Follow the conventional commits format (e.g. "feat: ...", "fix: ...", "refactor: ..."). Use an imperative verb. Be concise — the subject line should be under 72 characters. If needed, add a blank line followed by a short body. Reply with ONLY the commit message, no extra explanation.\n\n{diff}`
+const DEFAULT_COMMIT_PROMPT = `Generate a git commit message for the following staged diff. Follow the conventional commits format (e.g. "feat: ...", "fix: ...", "refactor: ..."). Use an imperative verb. Be concise — the subject line should be under 72 characters. If needed, add a blank line followed by a short body. Reply with ONLY the commit message, no extra explanation.\n\n{diff}`
 
 function CommitPromptCard() {
   const [value, setValue] = useState(
-    () => localStorage.getItem(COMMIT_PROMPT_STORAGE_KEY) ?? DEFAULT_COMMIT_PROMPT
+    () =>
+      localStorage.getItem(COMMIT_PROMPT_STORAGE_KEY) ?? DEFAULT_COMMIT_PROMPT
   )
   const [saved, setSaved] = useState(false)
 
@@ -642,40 +806,63 @@ function CommitPromptCard() {
 
   return (
     <Card>
-      <CardContent className="p-4 space-y-3">
-        <textarea
-          value={value}
-          onChange={(e) => { setValue(e.target.value); setSaved(false) }}
-          rows={6}
-          className="w-full resize-y rounded-md border border-border bg-muted/30 px-3 py-2 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
-          spellCheck={false}
-        />
-        {!hasDiffPlaceholder && (
-          <p className="text-xs text-destructive">
-            Prompt must contain <code className="rounded bg-muted px-1 py-0.5">{"{diff}"}</code> — it will be replaced with the staged diff.
-          </p>
-        )}
+      <CardContent className="flex flex-col gap-3 p-4">
+        <FieldGroup>
+          <Field data-invalid={!hasDiffPlaceholder || undefined}>
+            <FieldLabel htmlFor="commit-message-prompt">Prompt</FieldLabel>
+            <FieldDescription>
+              Use{" "}
+              <code className="rounded bg-muted px-1 py-0.5">{"{diff}"}</code>{" "}
+              where the staged diff should be inserted.
+            </FieldDescription>
+            <Textarea
+              id="commit-message-prompt"
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value)
+                setSaved(false)
+              }}
+              rows={6}
+              className="min-h-32 resize-y font-mono text-xs"
+              spellCheck={false}
+              aria-invalid={!hasDiffPlaceholder || undefined}
+            />
+            {!hasDiffPlaceholder && (
+              <FieldError>
+                Prompt must contain{" "}
+                <code className="rounded bg-muted px-1 py-0.5">{"{diff}"}</code>{" "}
+                — it will be replaced with the staged diff.
+              </FieldError>
+            )}
+          </Field>
+        </FieldGroup>
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+            className="px-2"
             disabled={isDefault}
             onClick={handleReset}
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw data-icon="inline-start" />
             Reset to default
           </Button>
           <Button
             size="sm"
-            className="h-7 px-3 text-xs"
+            className="px-3"
             disabled={!hasDiffPlaceholder || saved}
             onClick={handleSave}
           >
             {saved ? (
-              <><Check className="mr-1.5 h-3 w-3" />Saved</>
+              <>
+                <Check data-icon="inline-start" />
+                Saved
+              </>
             ) : (
-              <><Save className="mr-1.5 h-3 w-3" />Save</>
+              <>
+                <Save data-icon="inline-start" />
+                Save
+              </>
             )}
           </Button>
         </div>
@@ -684,20 +871,17 @@ function CommitPromptCard() {
   )
 }
 
-function SectionHeader({ title, description }: { title: string; description: string }) {
+function SectionHeader({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
   return (
-    <div>
+    <div className="flex flex-col gap-0.5">
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-    </div>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xs font-medium">{value}</span>
+      <p className="text-xs text-muted-foreground">{description}</p>
     </div>
   )
 }

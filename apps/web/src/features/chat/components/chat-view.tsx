@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, memo } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react"
 import { StopCircleIcon } from "lucide-react"
 
 import Markdown from "react-markdown"
@@ -14,6 +14,7 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
 } from "@/shared/ui/alert-dialog"
+import { Button } from "@/shared/ui/button"
 import { getServerUrl } from "@/shared/lib/client"
 import { useWorkspace } from "@/features/workspace"
 import { useMessages } from "../queries"
@@ -125,6 +126,13 @@ function finalizeRunningTools(
   })
 }
 
+function resolveMessages(
+  prev: Message[] | null,
+  initialMessages: Message[]
+): Message[] {
+  return prev ?? initialMessages
+}
+
 interface ChatViewProps {
   sessionId: string
   workspaceName: string
@@ -137,7 +145,7 @@ export const ChatView = memo(function ChatView({
   workspaceId,
   threadId,
 }: ChatViewProps) {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const stoppedKey = `lambda-code:stopped:${threadId}`
   const [isStopped, setIsStopped] = useState(
@@ -151,7 +159,7 @@ export const ChatView = memo(function ChatView({
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(true)
   const hasTitledRef = useRef(false)
-  const seededRef = useRef(false)
+  const initialMessagesRef = useRef<Message[]>([])
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
 
   const { setThreadTitle } = useWorkspace()
@@ -169,13 +177,11 @@ export const ChatView = memo(function ChatView({
   const generateTitleMutation = useGenerateTitle()
   const sendPromptMutation = useSendPrompt(sessionId)
 
-  // ── Seed messages from query (once, on first load) ────────────────────────────
+  // ── Track the latest persisted messages for local optimistic updates ──────────
   useEffect(() => {
-    if (messagesData && !seededRef.current) {
-      seededRef.current = true
-      setMessages(messagesData)
-      hasTitledRef.current = messagesData.length > 0
-    }
+    if (!messagesData) return
+    initialMessagesRef.current = messagesData
+    hasTitledRef.current = messagesData.length > 0
   }, [messagesData])
 
   // ── SSE event stream ──────────────────────────────────────────────────────────
@@ -189,7 +195,10 @@ export const ChatView = memo(function ChatView({
 
       es.addEventListener("message_start", () => {
         if (!active) return
-        setMessages((prev) => [...prev, { role: "assistant", content: "" }])
+        setMessages((prev) => [
+          ...resolveMessages(prev, initialMessagesRef.current),
+          { role: "assistant", content: "" },
+        ])
       })
 
       es.addEventListener("message_update", (e: MessageEvent) => {
@@ -200,7 +209,7 @@ export const ChatView = memo(function ChatView({
         if (data.assistantMessageEvent?.type === "text_delta") {
           const delta = data.assistantMessageEvent.delta
           setMessages((prev) => {
-            const next = [...prev]
+            const next = [...resolveMessages(prev, initialMessagesRef.current)]
             const last = next[next.length - 1]
             if (last?.role === "assistant") {
               next[next.length - 1] = { ...last, content: last.content + delta }
@@ -218,14 +227,18 @@ export const ChatView = memo(function ChatView({
           args: unknown
         }
         setMessages((prev) =>
-          upsertToolMessage(prev, data.toolCallId, (existing) => ({
-            role: "tool",
-            toolCallId: data.toolCallId,
-            toolName: data.toolName,
-            args: data.args,
-            status: "running",
-            result: existing?.result,
-          }))
+          upsertToolMessage(
+            resolveMessages(prev, initialMessagesRef.current),
+            data.toolCallId,
+            (existing) => ({
+              role: "tool",
+              toolCallId: data.toolCallId,
+              toolName: data.toolName,
+              args: data.args,
+              status: "running",
+              result: existing?.result,
+            })
+          )
         )
       })
 
@@ -238,14 +251,18 @@ export const ChatView = memo(function ChatView({
           partialResult: unknown
         }
         setMessages((prev) =>
-          upsertToolMessage(prev, data.toolCallId, (existing) => ({
-            role: "tool",
-            toolCallId: data.toolCallId,
-            toolName: data.toolName || existing?.toolName || "tool",
-            args: data.args ?? existing?.args ?? {},
-            status: "running",
-            result: data.partialResult,
-          }))
+          upsertToolMessage(
+            resolveMessages(prev, initialMessagesRef.current),
+            data.toolCallId,
+            (existing) => ({
+              role: "tool",
+              toolCallId: data.toolCallId,
+              toolName: data.toolName || existing?.toolName || "tool",
+              args: data.args ?? existing?.args ?? {},
+              status: "running",
+              result: data.partialResult,
+            })
+          )
         )
       })
 
@@ -258,21 +275,30 @@ export const ChatView = memo(function ChatView({
           isError: boolean
         }
         setMessages((prev) =>
-          upsertToolMessage(prev, data.toolCallId, (existing) => ({
-            role: "tool",
-            toolCallId: data.toolCallId,
-            toolName: data.toolName || existing?.toolName || "tool",
-            args: existing?.args ?? {},
-            status: data.isError ? "error" : "done",
-            result: data.result,
-          }))
+          upsertToolMessage(
+            resolveMessages(prev, initialMessagesRef.current),
+            data.toolCallId,
+            (existing) => ({
+              role: "tool",
+              toolCallId: data.toolCallId,
+              toolName: data.toolName || existing?.toolName || "tool",
+              args: existing?.args ?? {},
+              status: data.isError ? "error" : "done",
+              result: data.result,
+            })
+          )
         )
       })
 
       es.addEventListener("agent_end", (e: MessageEvent) => {
         if (!active) return
         const data = JSON.parse(e.data) as { messages?: AgentEndMessage[] }
-        setMessages((prev) => finalizeRunningTools(prev, data.messages ?? []))
+        setMessages((prev) =>
+          finalizeRunningTools(
+            resolveMessages(prev, initialMessagesRef.current),
+            data.messages ?? []
+          )
+        )
         setIsLoading(false)
       })
     })
@@ -290,6 +316,11 @@ export const ChatView = memo(function ChatView({
   // which can flip pinnedRef to false and stop further scrolls entirely.
   // Fix: use instant scrollTop assignment while loading so every update reliably
   // lands at the bottom; only use smooth scroll once the stream is stable.
+  const visibleMessages = useMemo(
+    () => messages ?? messagesData ?? [],
+    [messages, messagesData]
+  )
+
   useEffect(() => {
     if (!pinnedRef.current) return
     const el = scrollContainerRef.current
@@ -299,7 +330,7 @@ export const ChatView = memo(function ChatView({
     } else {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }
-  }, [messages, isLoading])
+  }, [visibleMessages, isLoading])
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current
@@ -364,7 +395,10 @@ export const ChatView = memo(function ChatView({
       pinnedRef.current = true
       setIsStopped(false)
       localStorage.removeItem(stoppedKey)
-      setMessages((prev) => [...prev, { role: "user", content: text }])
+      setMessages((prev) => [
+        ...resolveMessages(prev, initialMessagesRef.current),
+        { role: "user", content: text },
+      ])
       setIsLoading(true)
       const model = modelId && provider ? { provider, modelId } : undefined
       sendPromptMutation.mutate(
@@ -382,7 +416,7 @@ export const ChatView = memo(function ChatView({
     ]
   )
 
-  const lastMsg = messages[messages.length - 1]
+  const lastMsg = visibleMessages[visibleMessages.length - 1]
   const showThinking =
     isLoading &&
     !(
@@ -417,7 +451,7 @@ export const ChatView = memo(function ChatView({
           onScroll={handleScroll}
           className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {messages.length === 0 && !isLoading && (
+          {visibleMessages.length === 0 && !isLoading && (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center select-none">
               <span className="text-6xl font-light text-muted-foreground/20">
                 λ
@@ -436,18 +470,21 @@ export const ChatView = memo(function ChatView({
                   "Find and fix bugs in my code",
                   "Write tests for my functions",
                 ].map((prompt) => (
-                  <button
+                  <Button
                     key={prompt}
+                    type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => chatTextboxRef.current?.setValue(prompt)}
-                    className="rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="h-auto"
                   >
                     {prompt}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
           )}
-          {messages.map((msg, i) => {
+          {visibleMessages.map((msg, i) => {
             const key =
               msg.role === "tool" ? msg.toolCallId : `${msg.role}-${i}`
             if (msg.role === "tool") {

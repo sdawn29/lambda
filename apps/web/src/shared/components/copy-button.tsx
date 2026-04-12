@@ -1,24 +1,24 @@
 import { useState } from "react"
 import { CheckIcon, CopyIcon } from "lucide-react"
 
+import { Button } from "@/shared/ui/button"
+
 export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       aria-label="Copy message"
       onClick={() => {
         navigator.clipboard.writeText(text)
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
-      className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-foreground/8 hover:text-foreground"
+      className="opacity-0 group-hover:opacity-100"
     >
-      {copied ? (
-        <CheckIcon className="size-3.5 text-green-500" />
-      ) : (
-        <CopyIcon className="size-3.5" />
-      )}
-    </button>
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </Button>
   )
 }
