@@ -13,7 +13,11 @@ import { Button } from "@/shared/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/shared/ui/dialog"
 import { DiffView } from "./diff-view"
 import { cn } from "@/shared/lib/utils"
-import { COMMIT_PROMPT_STORAGE_KEY } from "@/shared/lib/storage-keys"
+import {
+  COMMIT_PROMPT_LEGACY_STORAGE_KEYS,
+  COMMIT_PROMPT_STORAGE_KEY,
+  readStorageValue,
+} from "@/shared/lib/storage-keys"
 import { useGitStatus } from "../queries"
 import { useGitFileDiff } from "../queries"
 import {
@@ -253,7 +257,10 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
     if (!sessionId || generateCommitMessageMutation.isPending) return
     try {
       const promptTemplate =
-        localStorage.getItem(COMMIT_PROMPT_STORAGE_KEY) ?? undefined
+        readStorageValue(
+          COMMIT_PROMPT_STORAGE_KEY,
+          COMMIT_PROMPT_LEGACY_STORAGE_KEYS
+        ) ?? undefined
       const generated =
         await generateCommitMessageMutation.mutateAsync(promptTemplate)
       setMessage(generated)

@@ -1,12 +1,26 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import * as schema from "./schema.js";
 
+const APP_DATA_DIR_NAME = ".lamda-code";
+const LEGACY_APP_DATA_DIR_NAME = ".lambda-code";
+
 function resolveDbPath(): string {
-  const dir = join(homedir(), ".lambda-code");
+  const homeDir = homedir();
+  const dir = join(homeDir, APP_DATA_DIR_NAME);
+  const legacyDir = join(homeDir, LEGACY_APP_DATA_DIR_NAME);
+
+  if (!existsSync(dir) && existsSync(legacyDir)) {
+    try {
+      renameSync(legacyDir, dir);
+    } catch {
+      return join(legacyDir, "db.sqlite");
+    }
+  }
+
   mkdirSync(dir, { recursive: true });
   return join(dir, "db.sqlite");
 }

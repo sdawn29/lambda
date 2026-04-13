@@ -19,8 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
+import {
+  OPEN_WITH_LEGACY_STORAGE_KEYS,
+  OPEN_WITH_STORAGE_KEY,
+  readStorageValue,
+  writeStorageValue,
+} from "@/shared/lib/storage-keys"
 
-const OPEN_WITH_STORAGE_KEY = "lambda:open-with:v1"
 type StoredSelections = {
   version: 1
   workspaceSelections: Record<string, string>
@@ -30,7 +35,10 @@ function readStoredSelections(): Record<string, string> {
   if (typeof window === "undefined") return {}
 
   try {
-    const raw = localStorage.getItem(OPEN_WITH_STORAGE_KEY)
+    const raw = readStorageValue(
+      OPEN_WITH_STORAGE_KEY,
+      OPEN_WITH_LEGACY_STORAGE_KEYS
+    )
     if (!raw) return {}
 
     const parsed = JSON.parse(raw) as Partial<StoredSelections>
@@ -55,12 +63,13 @@ function readStoredSelections(): Record<string, string> {
 function writeStoredSelections(selections: Record<string, string>) {
   if (typeof window === "undefined") return
 
-  localStorage.setItem(
+  writeStorageValue(
     OPEN_WITH_STORAGE_KEY,
     JSON.stringify({
       version: 1,
       workspaceSelections: selections,
-    } satisfies StoredSelections)
+    } satisfies StoredSelections),
+    OPEN_WITH_LEGACY_STORAGE_KEYS
   )
 }
 

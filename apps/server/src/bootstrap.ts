@@ -1,5 +1,5 @@
-import { createManagedSession, openManagedSession } from "@lambda/pi-sdk";
-import { listWorkspacesWithThreads } from "@lambda/db";
+import { createManagedSession, openManagedSession } from "@lamda/pi-sdk";
+import { listWorkspacesWithThreads } from "@lamda/db";
 import { store } from "./store.js";
 
 /**

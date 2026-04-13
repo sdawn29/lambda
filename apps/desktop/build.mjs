@@ -48,7 +48,7 @@ await rebuild({
   onlyModules: ["better-sqlite3", "node-pty", "@silvia-odwyer/photon-node"],
 });
 
-await run("npm", ["run", "build", "-w", "@lambda/server"]);
+await run("npm", ["run", "build", "-w", "@lamda/server"]);
 
 await build({
   entryPoints: [path.join(__dirname, "src/main.ts")],

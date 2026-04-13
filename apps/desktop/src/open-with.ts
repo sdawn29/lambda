@@ -177,7 +177,7 @@ async function convertIcnsToDataUrl(iconPath: string): Promise<string | null> {
   let tempDir: string | null = null;
 
   try {
-    tempDir = await mkdtemp(path.join(tmpdir(), "lambda-open-with-"));
+    tempDir = await mkdtemp(path.join(tmpdir(), "lamda-open-with-"));
     const outputPath = path.join(tempDir, "icon.png");
 
     await execFileAsync("sips", [

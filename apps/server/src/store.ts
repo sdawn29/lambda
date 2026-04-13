@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ManagedSessionHandle } from "@lambda/pi-sdk";
+import type { ManagedSessionHandle } from "@lamda/pi-sdk";
 
 interface StoredSession {
   handle: ManagedSessionHandle;
@@ -35,7 +35,9 @@ class SessionStore {
     return this.sessions.get(id)?.threadId;
   }
 
-  getByThreadId(threadId: string): { sessionId: string; handle: ManagedSessionHandle } | undefined {
+  getByThreadId(
+    threadId: string,
+  ): { sessionId: string; handle: ManagedSessionHandle } | undefined {
     const sessionId = this.threadIndex.get(threadId);
     if (!sessionId) return undefined;
     const entry = this.sessions.get(sessionId);

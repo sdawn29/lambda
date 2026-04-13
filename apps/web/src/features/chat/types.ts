@@ -1,7 +1,12 @@
-const ASSISTANT_MESSAGE_CONTENT_KIND = "lambda:assistant-message/v1"
+const ASSISTANT_MESSAGE_CONTENT_KIND = "lamda:assistant-message/v1"
+const LEGACY_ASSISTANT_MESSAGE_CONTENT_KIND = "lambda:assistant-message/v1"
+
+type StoredAssistantMessageContentKind =
+  | typeof ASSISTANT_MESSAGE_CONTENT_KIND
+  | typeof LEGACY_ASSISTANT_MESSAGE_CONTENT_KIND
 
 interface StoredAssistantMessageContent {
-  type: typeof ASSISTANT_MESSAGE_CONTENT_KIND
+  type: StoredAssistantMessageContentKind
   content: string
   thinking?: string
 }
@@ -13,7 +18,8 @@ function isStoredAssistantMessageContent(
 
   const candidate = value as Record<string, unknown>
   return (
-    candidate.type === ASSISTANT_MESSAGE_CONTENT_KIND &&
+    (candidate.type === ASSISTANT_MESSAGE_CONTENT_KIND ||
+      candidate.type === LEGACY_ASSISTANT_MESSAGE_CONTENT_KIND) &&
     typeof candidate.content === "string" &&
     (candidate.thinking === undefined || typeof candidate.thinking === "string")
   )

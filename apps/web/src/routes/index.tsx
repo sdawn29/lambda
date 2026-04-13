@@ -2,8 +2,11 @@ import { createFileRoute, Navigate } from "@tanstack/react-router"
 
 import { WorkspaceEmptyState } from "@/features/workspace"
 import { useWorkspace } from "@/features/workspace"
-
-const LS_THREAD_KEY = "lambda-code:activeThreadId"
+import {
+  ACTIVE_THREAD_LEGACY_STORAGE_KEYS,
+  ACTIVE_THREAD_STORAGE_KEY,
+  readStorageValue,
+} from "@/shared/lib/storage-keys"
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -17,7 +20,10 @@ function Index() {
   if (workspaces.length === 0) return <WorkspaceEmptyState />
 
   const allThreads = workspaces.flatMap((w) => w.threads)
-  const savedThId = localStorage.getItem(LS_THREAD_KEY)
+  const savedThId = readStorageValue(
+    ACTIVE_THREAD_STORAGE_KEY,
+    ACTIVE_THREAD_LEGACY_STORAGE_KEYS
+  )
   const thread = allThreads.find((t) => t.id === savedThId) ?? allThreads[0]
 
   if (thread) {

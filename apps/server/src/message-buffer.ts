@@ -1,6 +1,6 @@
-import { insertMessage } from "@lambda/db";
+import { insertMessage } from "@lamda/db";
 
-const ASSISTANT_MESSAGE_CONTENT_KIND = "lambda:assistant-message/v1";
+const ASSISTANT_MESSAGE_CONTENT_KIND = "lamda:assistant-message/v1";
 
 interface BufferEntry {
   threadId: string;

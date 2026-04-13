@@ -4,13 +4,13 @@
 
 ## Purpose
 
-Wrapper around `@mariozechner/pi-coding-agent` that provides managed session lifecycle, model discovery, auth resolution, and SSE-compatible event streaming for the Lambda server.
+Wrapper around `@mariozechner/pi-coding-agent` that provides managed session lifecycle, model discovery, auth resolution, and SSE-compatible event streaming for the lamda server.
 
 ## Quick Reference
 
-| Action    | Command                                  |
-| --------- | ---------------------------------------- |
-| Typecheck | `npm run check-types -w @lambda/pi-sdk` |
+| Action    | Command                                |
+| --------- | -------------------------------------- |
+| Typecheck | `npm run check-types -w @lamda/pi-sdk` |
 
 ## Architecture
 

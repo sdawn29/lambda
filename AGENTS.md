@@ -1,4 +1,4 @@
-# AGENTS.md — lambda (root)
+# AGENTS.md — lamda (root)
 
 > Auto-generated context for coding agents. Last updated: 2026-04-07
 
@@ -34,7 +34,7 @@ Monorepo for an Electron desktop app wrapping a React web UI, backed by a Hono s
 ## Architecture
 
 ```
-lambda/
+lamda/
 ├── apps/
 │   ├── web/          — React UI layer (Vite + TanStack Router)
 │   ├── desktop/      — Electron shell wrapping the web app
@@ -52,7 +52,7 @@ lambda/
 - **Turborepo** pipeline defined in `turbo.json` — tasks: `build`, `dev`, `lint`, `check-types`
 - **TypeScript strict mode** across all packages
 - **ESM** (`"type": "module"`) in all packages
-- Internal packages use `@lambda/*` naming convention
+- Internal packages use `@lamda/*` naming convention
 
 ## Environment Variables
 

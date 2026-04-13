@@ -113,7 +113,7 @@ async function buildPreload(): Promise<string> {
     format: "cjs",
     platform: "node",
   });
-  const out = path.join(tmpdir(), "lambda-preload.js");
+  const out = path.join(tmpdir(), "lamda-preload.js");
   writeFileSync(out, code);
   return out;
 }

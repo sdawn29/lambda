@@ -1,5 +1,5 @@
 {
-  "name": "lambda",
+  "name": "lamda",
   "private": true,
   "scripts": {
     "build": "turbo run build",

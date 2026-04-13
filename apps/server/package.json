@@ -1,5 +1,5 @@
 {
-  "name": "@lambda/server",
+  "name": "@lamda/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "postinstall": "node -e \"const{existsSync,chmodSync}=require('fs'),p=require.resolve('node-pty/prebuilds/darwin-arm64/spawn-helper');if(existsSync(p))chmodSync(p,'755');\""
   },
   "dependencies": {
-    "@lambda/db": "*",
-    "@lambda/git": "*",
-    "@lambda/pi-sdk": "*",
+    "@lamda/db": "*",
+    "@lamda/git": "*",
+    "@lamda/pi-sdk": "*",
     "@hono/node-server": "^1.13.0",
     "@types/ws": "^8.18.1",
     "hono": "^4.7.0",

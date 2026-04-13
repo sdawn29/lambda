@@ -8,15 +8,15 @@ Drizzle ORM + SQLite database layer — provides schema definitions, database cl
 
 ## Quick Reference
 
-| Action    | Command                              |
-| --------- | ------------------------------------ |
-| Typecheck | `npm run check-types -w @lambda/db` |
+| Action    | Command                            |
+| --------- | ---------------------------------- |
+| Typecheck | `npm run check-types -w @lamda/db` |
 
 ## Architecture
 
 Single-file database client (`client.ts`) that:
 
-1. Creates SQLite database at `~/.lambda-code/db.sqlite`
+1. Creates SQLite database at `~/.lamda-code/db.sqlite`
 2. Enables WAL journal mode and foreign keys
 3. Runs `CREATE TABLE IF NOT EXISTS` migrations inline
 4. Exports a Drizzle ORM instance
@@ -54,7 +54,7 @@ All IDs are UUIDs. Timestamps are Unix epoch integers. Foreign keys cascade on d
 
 ## Gotchas
 
-- **Database path is hardcoded** to `~/.lambda-code/db.sqlite` — not configurable via env var
+- **Database path is hardcoded** to `~/.lamda-code/db.sqlite` — not configurable via env var
 - **No migration system** — adding a new column requires manually updating the `CREATE TABLE` statement in `client.ts` and considering backward compatibility
 - **Synchronous by design** — all DB operations block the event loop; acceptable for a single-user desktop app but would need refactoring for server use
 - **No connection pooling** — single SQLite connection; fine for desktop but not for concurrent access

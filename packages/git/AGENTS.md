@@ -8,9 +8,9 @@ Git operations utility — provides async functions for detecting git repositori
 
 ## Quick Reference
 
-| Action    | Command                               |
-| --------- | ------------------------------------- |
-| Typecheck | `npm run check-types -w @lambda/git` |
+| Action    | Command                             |
+| --------- | ----------------------------------- |
+| Typecheck | `npm run check-types -w @lamda/git` |
 
 ## Architecture
 

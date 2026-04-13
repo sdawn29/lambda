@@ -14,7 +14,7 @@ import {
   generateThreadTitle,
   generateCommitMessage,
   type SdkConfig,
-} from "@lambda/pi-sdk";
+} from "@lamda/pi-sdk";
 import {
   getCurrentBranch,
   initGitRepo,
@@ -37,7 +37,7 @@ import {
   gitDiffStat,
   gitRevertFile,
   gitStagedDiff,
-} from "@lambda/git";
+} from "@lamda/git";
 import {
   listWorkspacesWithThreads,
   getWorkspace,
@@ -52,7 +52,7 @@ import {
   updateThreadSessionFile,
   listMessages,
   insertMessage,
-} from "@lambda/db";
+} from "@lamda/db";
 import { store } from "./store.js";
 import { SESSION_SSE_RETRY_MS, sessionEvents } from "./session-events.js";
 

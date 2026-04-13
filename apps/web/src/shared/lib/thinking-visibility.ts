@@ -1,20 +1,38 @@
 import { useSyncExternalStore } from "react"
 
-import { SHOW_THINKING_STORAGE_KEY } from "./storage-keys"
+import {
+  SHOW_THINKING_CHANGED_EVENT,
+  SHOW_THINKING_LEGACY_STORAGE_KEYS,
+  SHOW_THINKING_STORAGE_KEY,
+  readStorageValue,
+  removeStorageValue,
+  writeStorageValue,
+} from "./storage-keys"
 
-const SHOW_THINKING_CHANGED_EVENT = "lambda:show-thinking-changed"
 const DEFAULT_SHOW_THINKING = true
 
 export function getShowThinkingSetting(): boolean {
   if (typeof window === "undefined") return DEFAULT_SHOW_THINKING
-  return localStorage.getItem(SHOW_THINKING_STORAGE_KEY) !== "0"
+  return (
+    readStorageValue(
+      SHOW_THINKING_STORAGE_KEY,
+      SHOW_THINKING_LEGACY_STORAGE_KEYS
+    ) !== "0"
+  )
 }
 
 export function setShowThinkingSetting(nextValue: boolean) {
   if (nextValue) {
-    localStorage.removeItem(SHOW_THINKING_STORAGE_KEY)
+    removeStorageValue(
+      SHOW_THINKING_STORAGE_KEY,
+      SHOW_THINKING_LEGACY_STORAGE_KEYS
+    )
   } else {
-    localStorage.setItem(SHOW_THINKING_STORAGE_KEY, "0")
+    writeStorageValue(
+      SHOW_THINKING_STORAGE_KEY,
+      "0",
+      SHOW_THINKING_LEGACY_STORAGE_KEYS
+    )
   }
 
   window.dispatchEvent(new Event(SHOW_THINKING_CHANGED_EVENT))
@@ -23,7 +41,15 @@ export function setShowThinkingSetting(nextValue: boolean) {
 function subscribe(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {
     if (event.storageArea !== localStorage) return
-    if (event.key !== SHOW_THINKING_STORAGE_KEY) return
+    if (event.key === null) return
+    if (
+      event.key !== SHOW_THINKING_STORAGE_KEY &&
+      !SHOW_THINKING_LEGACY_STORAGE_KEYS.some(
+        (legacyKey) => legacyKey === event.key
+      )
+    ) {
+      return
+    }
     onStoreChange()
   }
 

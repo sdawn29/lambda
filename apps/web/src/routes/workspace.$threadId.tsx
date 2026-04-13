@@ -5,6 +5,11 @@ import { ChatView } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
 import { useDiffPanel } from "@/features/git"
 import { useTerminal } from "@/features/terminal"
+import {
+  ACTIVE_THREAD_LEGACY_STORAGE_KEYS,
+  ACTIVE_THREAD_STORAGE_KEY,
+  writeStorageValue,
+} from "@/shared/lib/storage-keys"
 
 const DiffPanel = lazy(() =>
   import("@/features/git").then((module) => ({
@@ -17,8 +22,6 @@ const TerminalPanel = lazy(() =>
     default: module.TerminalPanel,
   }))
 )
-
-const LS_THREAD_KEY = "lambda-code:activeThreadId"
 
 export const Route = createFileRoute("/workspace/$threadId")({
   component: WorkspaceThreadRoute,
@@ -33,7 +36,11 @@ function WorkspaceThreadRoute() {
 
   // Persist last-visited thread for index redirect
   useEffect(() => {
-    localStorage.setItem(LS_THREAD_KEY, threadId)
+    writeStorageValue(
+      ACTIVE_THREAD_STORAGE_KEY,
+      threadId,
+      ACTIVE_THREAD_LEGACY_STORAGE_KEYS
+    )
   }, [threadId])
 
   let foundWorkspace = null

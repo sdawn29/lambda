@@ -8,12 +8,12 @@ Hono API server that manages Pi coding agent sessions, handles workspace/thread 
 
 ## Quick Reference
 
-| Action    | Command                                  |
-| --------- | ---------------------------------------- |
-| Dev       | `npm run dev -w @lambda/server`         |
-| Build     | `npm run build -w @lambda/server`       |
-| Start     | `npm run start -w @lambda/server`       |
-| Typecheck | `npm run check-types -w @lambda/server` |
+| Action    | Command                                |
+| --------- | -------------------------------------- |
+| Dev       | `npm run dev -w @lamda/server`         |
+| Build     | `npm run build -w @lamda/server`       |
+| Start     | `npm run start -w @lamda/server`       |
+| Typecheck | `npm run check-types -w @lamda/server` |
 
 ## Architecture
 
@@ -68,9 +68,9 @@ Hono server (default port 3001) with three layers:
 
 - `hono` — Web framework
 - `@hono/node-server` — Node.js adapter for Hono
-- `@lambda/pi-sdk` — Pi coding agent session management
-- `@lambda/db` — Database queries for persistence
-- `@lambda/git` — Git operations (branch detection)
+- `@lamda/pi-sdk` — Pi coding agent session management
+- `@lamda/db` — Database queries for persistence
+- `@lamda/git` — Git operations (branch detection)
 - `tsx` — TypeScript execution in development
 - `esbuild` — Production bundler
 

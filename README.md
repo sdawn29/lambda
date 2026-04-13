@@ -1,4 +1,4 @@
-# Lambda
+# lamda
 
 ## Desktop Packaging
 

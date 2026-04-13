@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "description": "Lambda Electron desktop app",
+  "description": "lamda Electron desktop app",
   "main": "dist/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -17,7 +17,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@lambda/server": "*"
+    "@lamda/server": "*"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",
@@ -33,7 +33,7 @@
     "typescript-eslint": "^8.58.0"
   },
   "build": {
-    "appId": "com.sdawn29.lambda",
+    "appId": "com.sdawn29.lamda",
     "productName": "lamda",
     "electronVersion": "41.1.1",
     "directories": {

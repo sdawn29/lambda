@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { insertMessage } from "@lambda/db";
-import type { ManagedSessionHandle, SessionEvent } from "@lambda/pi-sdk";
+import { insertMessage } from "@lamda/db";
+import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
 import { messageBuffer } from "./message-buffer.js";
 
 const MAX_RECENT_EVENTS = 512;

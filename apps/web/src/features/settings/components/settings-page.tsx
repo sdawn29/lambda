@@ -62,7 +62,13 @@ import {
   useShowThinkingSetting,
 } from "@/shared/lib/thinking-visibility"
 import { useWorkspace } from "@/features/workspace"
-import { COMMIT_PROMPT_STORAGE_KEY } from "@/shared/lib/storage-keys"
+import {
+  COMMIT_PROMPT_LEGACY_STORAGE_KEYS,
+  COMMIT_PROMPT_STORAGE_KEY,
+  readStorageValue,
+  removeStorageValue,
+  writeStorageValue,
+} from "@/shared/lib/storage-keys"
 import { useTheme } from "@/shared/components/theme-provider"
 import {
   useProviders,
@@ -870,16 +876,26 @@ const DEFAULT_COMMIT_PROMPT = `Generate a git commit message for the following s
 function CommitPromptCard() {
   const [value, setValue] = useState(
     () =>
-      localStorage.getItem(COMMIT_PROMPT_STORAGE_KEY) ?? DEFAULT_COMMIT_PROMPT
+      readStorageValue(
+        COMMIT_PROMPT_STORAGE_KEY,
+        COMMIT_PROMPT_LEGACY_STORAGE_KEYS
+      ) ?? DEFAULT_COMMIT_PROMPT
   )
   const [saved, setSaved] = useState(false)
 
   function handleSave() {
     const trimmed = value.trim()
     if (trimmed === DEFAULT_COMMIT_PROMPT) {
-      localStorage.removeItem(COMMIT_PROMPT_STORAGE_KEY)
+      removeStorageValue(
+        COMMIT_PROMPT_STORAGE_KEY,
+        COMMIT_PROMPT_LEGACY_STORAGE_KEYS
+      )
     } else {
-      localStorage.setItem(COMMIT_PROMPT_STORAGE_KEY, trimmed)
+      writeStorageValue(
+        COMMIT_PROMPT_STORAGE_KEY,
+        trimmed,
+        COMMIT_PROMPT_LEGACY_STORAGE_KEYS
+      )
     }
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
@@ -887,7 +903,10 @@ function CommitPromptCard() {
 
   function handleReset() {
     setValue(DEFAULT_COMMIT_PROMPT)
-    localStorage.removeItem(COMMIT_PROMPT_STORAGE_KEY)
+    removeStorageValue(
+      COMMIT_PROMPT_STORAGE_KEY,
+      COMMIT_PROMPT_LEGACY_STORAGE_KEYS
+    )
   }
 
   const isDefault = value.trim() === DEFAULT_COMMIT_PROMPT
