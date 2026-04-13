@@ -1,171 +1,167 @@
 # lamda
 
-## Desktop Packaging
+`lamda` is a local-first desktop coding workspace for running Pi agent sessions against real repositories on your machine. It combines an Electron shell, a React UI, and a local Hono server so you can chat with the agent, inspect git changes, switch branches, and use a terminal without bouncing between separate tools.
 
-Build an optimized Apple Silicon macOS desktop app with:
+> Status: early open-source release. The app is functional, but the surface area is still evolving and there is no automated test suite yet.
+
+## What it does
+
+- Opens local folders as workspaces and lets you create multiple conversation threads per workspace
+- Streams Pi agent responses with inline tool execution updates
+- Lets you inspect git status, review diffs, stage and unstage files, commit changes, and manage stashes
+- Exposes branch switching directly in the chat workflow
+- Includes an embedded terminal next to chat and diff views
+- Persists workspace metadata, thread history, and messages locally in SQLite
+
+## Why this project exists
+
+Most coding-agent workflows still force you to stitch together several tools: a chat UI, a terminal, git, and your editor. `lamda` tries to close that gap with a focused desktop app built around local repositories and real development workflows.
+
+The goal is not to hide the underlying tools. It is to keep the important ones in one place and make the agent easier to use against an actual codebase.
+
+## Architecture
+
+```text
+Electron desktop app
+  -> React web UI
+  -> Local Hono API server
+  -> SQLite persistence via Drizzle
+  -> Pi coding agent sessions
+```
+
+### Main pieces
+
+- `apps/desktop`: Electron shell that starts the local server process and exposes native APIs such as folder selection
+- `apps/web`: React 19 + Vite UI with chat, workspace management, diff panel, and terminal panel
+- `apps/server`: Hono server that manages sessions, streaming events, git operations, and thread persistence
+- `packages/db`: SQLite + Drizzle persistence layer
+- `packages/git`: git CLI helpers for branch and repository operations
+- `packages/pi-sdk`: wrapper around `@mariozechner/pi-coding-agent`
+
+## Tech stack
+
+- Electron 41
+- React 19
+- Vite
+- TanStack Router and TanStack React Query
+- Tailwind CSS 4
+- shadcn/ui on top of Base UI
+- Hono
+- Drizzle ORM + better-sqlite3
+- `@mariozechner/pi-coding-agent`
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18+
+- npm 11+
+- Git installed and available on `PATH`
+- macOS on Apple Silicon if you want to build the packaged desktop app
+
+### Install dependencies
+
+```sh
+npm install
+```
+
+### Run the full development stack
+
+```sh
+npm run dev
+```
+
+This is the simplest way to work on the project. Turborepo runs the workspace development processes in parallel.
+
+### Build everything
+
+```sh
+npm run build
+```
+
+### Build the packaged desktop app
 
 ```sh
 npm run build -w desktop
 ```
 
-This produces signed-ready `arm64` artifacts in `apps/desktop/release/` and bundles the production web app plus the embedded server for Electron.
+This builds the web app, bundles the server, rebuilds Electron native dependencies, and writes macOS `arm64` artifacts to `apps/desktop/release/`.
 
-# Turborepo starter
+## Useful commands
 
-This Turborepo starter is maintained by the Turborepo core team.
+### Root commands
 
-## Using this example
+| Command               | Purpose                                   |
+| --------------------- | ----------------------------------------- |
+| `npm run dev`         | Start the full development stack          |
+| `npm run build`       | Build all apps and packages               |
+| `npm run lint`        | Run lint tasks where they are defined     |
+| `npm run check-types` | Run TypeScript checks across the monorepo |
+| `npm run format`      | Format TypeScript and Markdown files      |
 
-Run the following command:
+### Workspace commands
 
-```sh
-npx create-turbo@latest
+| Command                          | Purpose                       |
+| -------------------------------- | ----------------------------- |
+| `npm run dev -w web`             | Start the web UI only         |
+| `npm run build -w web`           | Build the web UI              |
+| `npm run typecheck -w web`       | Type-check the web UI         |
+| `npm run dev -w @lamda/server`   | Start the server only         |
+| `npm run build -w @lamda/server` | Build the server bundle       |
+| `npm run start -w @lamda/server` | Run the built server bundle   |
+| `npm run dev -w desktop`         | Start Electron in development |
+| `npm run check-types -w desktop` | Type-check the desktop app    |
+
+## Configuration
+
+| Variable          | Used by       | Default                 | Notes                                                                                                                   |
+| ----------------- | ------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SERVER_URL` | `apps/web`    | `http://localhost:3001` | Useful when running the web UI directly in a browser instead of through Electron                                        |
+| `PORT`            | `apps/server` | `3001`                  | Standalone server port. The Electron app starts the server on a random local port and passes it to the renderer via IPC |
+
+## Local data
+
+- App data is stored under `~/.lamda-code`
+- The SQLite database lives at `~/.lamda-code/db.sqlite`
+- Older `~/.lambda-code` data is migrated automatically if it exists
+- The repositories you open stay in their existing locations. `lamda` stores metadata and message history, not copies of your projects
+
+## Project structure
+
+```text
+.
+|- apps/
+|  |- desktop/
+|  |- server/
+|  `- web/
+|- packages/
+|  |- db/
+|  |- git/
+|  `- pi-sdk/
+|- package.json
+`- turbo.json
 ```
 
-## What's inside?
+## Contributing
 
-This Turborepo includes the following packages/apps:
+Contributions are welcome.
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Before opening a pull request, run the checks that are relevant to your change:
 
 ```sh
-cd my-turborepo
-turbo build
+npm run build
+npm run check-types
+npm run lint
 ```
 
-Without global `turbo`, use your package manager:
+There is no automated test suite yet, so manual verification notes are useful in pull requests.
 
-```sh
-cd my-turborepo
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
-```
+## Project status
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+- Packaging is currently wired for macOS `arm64`
+- The repository is under active development and internal APIs may still change
+- The desktop app is local-first, but model/provider access still depends on your Pi agent configuration
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## License
 
-```sh
-turbo build --filter=docs
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+This repository does not currently include a root `LICENSE` file. Add one before publishing the first public open-source release.
