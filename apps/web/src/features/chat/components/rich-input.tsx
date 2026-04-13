@@ -1,5 +1,10 @@
 import * as React from "react"
+import { FileTextIcon, TerminalIcon, type LucideIcon } from "lucide-react"
+import { renderToStaticMarkup } from "react-dom/server"
 import { getFileTypeColor } from "@/shared/lib/file-type-color"
+import { badgeVariants } from "@/shared/ui/badge"
+import { cn } from "@/shared/lib/utils"
+import type { SlashCommand } from "../api"
 
 const ZERO_WIDTH_SPACE_RE = /\u200B/g
 
@@ -34,6 +39,8 @@ function readRichInputValue(root: Node): string {
           text += "\n"
         } else if (el.dataset.filePath) {
           text += `@${el.dataset.filePath}`
+        } else if (el.dataset.commandName) {
+          text += `/${el.dataset.commandName}`
         } else {
           walk(el.childNodes)
         }
@@ -54,15 +61,36 @@ function hasFileExtension(p: string): boolean {
   return basename.lastIndexOf(".") > 0
 }
 
+function buildChipBase(className: string): HTMLSpanElement {
+  const chip = document.createElement("span")
+  chip.contentEditable = "false"
+  chip.className = cn(
+    badgeVariants({ variant: "outline" }),
+    "mx-0.5 h-5 gap-1 px-1.5 text-[9px] text-foreground select-none",
+    className
+  )
+  return chip
+}
+
+function buildLucideIcon(Icon: LucideIcon): SVGSVGElement {
+  const template = document.createElement("template")
+  template.innerHTML = renderToStaticMarkup(
+    <Icon aria-hidden size={12} strokeWidth={2} className="shrink-0" />
+  )
+
+  return template.content.firstElementChild as SVGSVGElement
+}
+
+function buildSlashCommandIcon(source: SlashCommand["source"]): SVGSVGElement {
+  return buildLucideIcon(source === "skill" ? TerminalIcon : FileTextIcon)
+}
+
 export function buildMentionChip(path: string): HTMLSpanElement {
   const isDir = !hasFileExtension(path)
   const basename = path.replace(/\/+$/, "").split("/").pop() ?? path
-  const chip = document.createElement("span")
-  chip.contentEditable = "false"
+  const chip = buildChipBase("border-primary/25 bg-primary/10 font-mono")
   chip.dataset.filePath = path
   chip.dataset.entryType = isDir ? "dir" : "file"
-  chip.className =
-    "inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 text-foreground text-[10px] px-1 py-px mx-0.5 select-none font-medium font-mono"
   const svgNS = "http://www.w3.org/2000/svg"
   const icon = document.createElementNS(svgNS, "svg")
   icon.setAttribute("xmlns", svgNS)
@@ -97,6 +125,34 @@ export function buildMentionChip(path: string): HTMLSpanElement {
   }
   chip.appendChild(icon)
   chip.appendChild(document.createTextNode(basename))
+  return chip
+}
+
+export function buildSlashCommandChip(cmd: SlashCommand): HTMLSpanElement {
+  const chip = buildChipBase(
+    cmd.source === "skill"
+      ? "rounded-full border-emerald-500/25 bg-emerald-500/10"
+      : "rounded-full border-sky-500/25 bg-sky-500/10"
+  )
+
+  const name = document.createElement("span")
+  name.className = "font-mono"
+  name.textContent = `/${cmd.name}`
+
+  chip.dataset.commandName = cmd.name
+  chip.dataset.commandSource = cmd.source
+  if (cmd.description) {
+    chip.dataset.commandDescription = cmd.description
+  }
+  chip.title = [
+    cmd.source === "skill" ? "Skill" : "Prompt",
+    `/${cmd.name}`,
+    cmd.description,
+  ]
+    .filter(Boolean)
+    .join("\n")
+
+  chip.append(buildSlashCommandIcon(cmd.source), name)
   return chip
 }
 
@@ -345,7 +401,8 @@ export const RichInput = React.forwardRef<
         const prev = (startContainer as Text).previousSibling
         if (
           prev instanceof HTMLElement &&
-          prev.dataset.filePath !== undefined
+          (prev.dataset.filePath !== undefined ||
+            prev.dataset.commandName !== undefined)
         ) {
           e.preventDefault()
           prev.remove()
@@ -357,7 +414,8 @@ export const RichInput = React.forwardRef<
         const prevNode = div.childNodes[startOffset - 1]
         if (
           prevNode instanceof HTMLElement &&
-          (prevNode as HTMLElement).dataset?.filePath !== undefined
+          ((prevNode as HTMLElement).dataset?.filePath !== undefined ||
+            (prevNode as HTMLElement).dataset?.commandName !== undefined)
         ) {
           e.preventDefault()
           prevNode.remove()

@@ -9,13 +9,19 @@ import { ArrowUpIcon } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
-import { useModels, useWorkspaceFiles, useSlashCommands, type WorkspaceEntry } from "../queries"
+import {
+  useModels,
+  useWorkspaceFiles,
+  useSlashCommands,
+  type WorkspaceEntry,
+} from "../queries"
 import { BranchSelector } from "@/features/git"
 import { ModelCombobox } from "./model-combobox"
 import { ThinkingCombobox, type ThinkingLevel } from "./thinking-combobox"
 import {
   RichInput,
   buildMentionChip,
+  buildSlashCommandChip,
   type RichInputHandle,
   type AtMention,
   type SlashMention,
@@ -106,7 +112,8 @@ export const ChatTextbox = memo(
     )
 
     const { data: fileData } = useWorkspaceFiles(sessionId)
-    const { data: commandsData, isLoading: commandsLoading } = useSlashCommands(sessionId)
+    const { data: commandsData, isLoading: commandsLoading } =
+      useSlashCommands(sessionId)
 
     const mentionEntries2 = React.useMemo(() => {
       if (!atMention) return []
@@ -193,11 +200,14 @@ export const ChatTextbox = memo(
       range.setEnd(textNode, startOffset + 1 + filter.length)
       range.deleteContents()
 
-      const replacement = document.createTextNode(`/${cmd.name} `)
-      range.insertNode(replacement)
+      const chip = buildSlashCommandChip(cmd)
+      range.insertNode(chip)
+
+      const space = document.createTextNode(" ")
+      chip.after(space)
 
       const newRange = document.createRange()
-      newRange.setStart(replacement, replacement.length)
+      newRange.setStart(space, 1)
       newRange.collapse(true)
       window.getSelection()?.removeAllRanges()
       window.getSelection()?.addRange(newRange)
@@ -237,7 +247,10 @@ export const ChatTextbox = memo(
         <div className="relative flex w-full flex-col rounded-2xl border border-input bg-card shadow-sm transition-all focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
           <SlashCommandDropdown
             commands={filteredCommands}
-            open={slashMention !== null && (filteredCommands.length > 0 || commandsLoading)}
+            open={
+              slashMention !== null &&
+              (filteredCommands.length > 0 || commandsLoading)
+            }
             isLoading={commandsLoading}
             selectedIndex={slashMention?.selectedIndex ?? 0}
             onSelect={handleSelectCommand}
@@ -255,7 +268,10 @@ export const ChatTextbox = memo(
               ref={richInputRef}
               placeholder={placeholder}
               mentionActive={atMention !== null && mentionEntries2.length > 0}
-              slashActive={slashMention !== null && (filteredCommands.length > 0 || commandsLoading)}
+              slashActive={
+                slashMention !== null &&
+                (filteredCommands.length > 0 || commandsLoading)
+              }
               onAtMentionChange={handleAtMentionChange}
               onSlashMentionChange={handleSlashMentionChange}
               onSend={handleSend}

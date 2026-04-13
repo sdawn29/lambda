@@ -17,7 +17,7 @@ import {
 } from "@/shared/ui/alert-dialog"
 import { Button } from "@/shared/ui/button"
 import { useWorkspace } from "@/features/workspace"
-import { messagesQueryKey, useMessages } from "../queries"
+import { messagesQueryKey, useMessages, useSlashCommands } from "../queries"
 import { useBranch } from "@/features/git/queries"
 import { useBranches } from "@/features/git/queries"
 import { useCheckoutBranch } from "@/features/git/mutations"
@@ -234,6 +234,7 @@ export const ChatView = memo(function ChatView({
 
   // ── Queries ───────────────────────────────────────────────────────────────────
   const { data: messagesData } = useMessages(sessionId)
+  const { data: commandsData } = useSlashCommands(sessionId)
   const { data: branchData } = useBranch(sessionId)
   const { data: branchesData } = useBranches(sessionId)
 
@@ -451,6 +452,11 @@ export const ChatView = memo(function ChatView({
     () => messages ?? messagesData ?? [],
     [messages, messagesData]
   )
+  const commandsByName = useMemo(
+    () =>
+      new Map((commandsData ?? []).map((command) => [command.name, command])),
+    [commandsData]
+  )
 
   useEffect(() => {
     if (!pinnedRef.current) return
@@ -626,7 +632,10 @@ export const ChatView = memo(function ChatView({
                     className="rounded-xl bg-muted px-4 py-2 text-sm"
                     data-selectable
                   >
-                    <UserMessageContent content={msg.content} />
+                    <UserMessageContent
+                      content={msg.content}
+                      commandsByName={commandsByName}
+                    />
                   </div>
                   <CopyButton text={msg.content} />
                 </div>
