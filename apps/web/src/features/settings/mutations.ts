@@ -9,6 +9,7 @@ import {
   type ProviderKeys,
 } from "./api"
 import { oauthProvidersQueryKey, providersQueryKey } from "./queries"
+import { modelsQueryKey } from "@/features/chat/queries"
 
 export function useUpdateProviders() {
   const queryClient = useQueryClient()
@@ -16,6 +17,7 @@ export function useUpdateProviders() {
     mutationFn: (providers: ProviderKeys) => updateProviders(providers),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: providersQueryKey })
+      queryClient.invalidateQueries({ queryKey: modelsQueryKey })
     },
   })
 }
@@ -58,6 +60,7 @@ export function useOAuthLogout() {
     mutationFn: (providerId: string) => oauthLogout(providerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
+      queryClient.invalidateQueries({ queryKey: modelsQueryKey })
     },
   })
 }

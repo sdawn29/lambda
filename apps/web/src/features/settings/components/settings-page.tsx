@@ -69,6 +69,7 @@ import {
   useOAuthProviders,
   oauthProvidersQueryKey,
 } from "../queries"
+import { modelsQueryKey } from "@/features/chat/queries"
 import {
   useAbortOAuthLogin,
   useOAuthLogout,
@@ -461,6 +462,7 @@ function SubscriptionsCard() {
       closeEventSource()
       setLoginState({ status: "done", providerId })
       queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
+      queryClient.invalidateQueries({ queryKey: modelsQueryKey })
       setTimeout(() => setLoginState({ status: "idle" }), 2000)
     })
 
