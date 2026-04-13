@@ -41,6 +41,9 @@ import {
   type ToolMessage,
 } from "../types"
 
+// Persists scroll positions across thread switches (survives remounts, cleared on page reload)
+const threadScrollPositions = new Map<string, number>()
+
 type AgentEndMessage =
   | {
       role: "assistant"
@@ -221,7 +224,8 @@ export const ChatView = memo(function ChatView({
   )
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const pinnedRef = useRef(true)
+  const pinnedRef = useRef(false)
+  const initialScrollDoneRef = useRef(false)
   const hasTitledRef = useRef(false)
   const initialMessagesRef = useRef<Message[]>([])
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
@@ -414,6 +418,28 @@ export const ChatView = memo(function ChatView({
     }
   }, [openSessionEventSource, queryClient, sessionId])
 
+  // ── Restore scroll position on mount ─────────────────────────────────────────
+  // Wait for messages to be available before restoring so scroll heights are correct.
+  useEffect(() => {
+    if (initialScrollDoneRef.current) return
+    if (!messagesData) return
+
+    initialScrollDoneRef.current = true
+    const saved = threadScrollPositions.get(threadId)
+
+    requestAnimationFrame(() => {
+      const el = scrollContainerRef.current
+      if (!el) return
+      if (saved !== undefined) {
+        el.scrollTop = saved
+      } else {
+        // First visit to this thread — start pinned at the bottom
+        el.scrollTop = el.scrollHeight
+        pinnedRef.current = true
+      }
+    })
+  }, [messagesData, threadId])
+
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
   // During streaming, smooth scrolling is called on every delta and the browser
   // interrupts each animation before it finishes, causing the view to lag behind
@@ -442,7 +468,8 @@ export const ChatView = memo(function ChatView({
     if (!el) return
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
     pinnedRef.current = distanceFromBottom < 80
-  }, [])
+    threadScrollPositions.set(threadId, el.scrollTop)
+  }, [threadId])
 
   const handleModelChange = useCallback(
     (id: string) => {
