@@ -89,7 +89,7 @@ export function BranchSelector({
           render={
             <Button variant="ghost" size="sm" aria-expanded={open}>
               <GitBranchIcon data-icon="inline-start" />
-              <span className="max-w-32 truncate">
+              <span>
                 {branch ?? (hasRepository ? "no branch" : "no repository")}
               </span>
               <ChevronsUpDownIcon
@@ -100,7 +100,7 @@ export function BranchSelector({
           }
         />
         <PopoverContent
-          className="w-48 p-0"
+          className="w-max min-w-48 p-0"
           side="top"
           align="start"
           sideOffset={6}
