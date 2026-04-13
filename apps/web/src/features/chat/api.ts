@@ -161,7 +161,7 @@ export function fetchModels(signal?: AbortSignal): Promise<ModelsResponse> {
 export interface SlashCommand {
   name: string
   description?: string
-  source: "skill"
+  source: "skill" | "prompt"
 }
 
 export async function fetchSlashCommands(

@@ -4,11 +4,47 @@ import {
   ModelRegistry,
   SessionManager,
 } from "@mariozechner/pi-coding-agent";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { basename, join } from "path";
 import { buildAuthStorage } from "./auth.js";
 import { sessionEventGenerator } from "./stream.js";
 import type { ManagedSessionHandle, SdkConfig } from "./types.js";
+
+interface PromptEntry { name: string; description: string }
+
+/** Read .md files from a directory and extract name + description from frontmatter. */
+function loadPromptsFromDir(dir: string): PromptEntry[] {
+  if (!existsSync(dir)) return [];
+  try {
+    return readdirSync(dir)
+      .filter((f) => f.endsWith(".md"))
+      .flatMap((f) => {
+        try {
+          const raw = readFileSync(join(dir, f), "utf-8");
+          const name = basename(f, ".md");
+          // Parse optional YAML frontmatter between --- markers
+          const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+          let description = "";
+          if (fmMatch) {
+            const descMatch = fmMatch[1].match(/^description:\s*(.+)$/m);
+            description = descMatch?.[1]?.trim() ?? "";
+          }
+          if (!description) {
+            // Fall back to first non-empty body line (truncated)
+            const body = fmMatch ? raw.slice(fmMatch[0].length) : raw;
+            const firstLine = body.split("\n").find((l) => l.trim());
+            description = firstLine ? firstLine.slice(0, 60) : "";
+          }
+          return [{ name, description }];
+        } catch {
+          return [];
+        }
+      });
+  } catch {
+    return [];
+  }
+}
 
 function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["session"], modelRegistry: ModelRegistry, cwd: string): ManagedSessionHandle {
   return {
@@ -25,22 +61,41 @@ function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["se
       return session.sessionFile;
     },
     getCommands() {
-      // Skills may live in the Pi default (~/.pi/agent/skills/) or the
-      // agents-convention alternative (~/.agents/skills/).  Pass both as
-      // explicit skillPaths so either layout is discovered.
+      // Skills and prompts may live in the Pi default (~/.pi/agent/*)
+      // or the agents-convention alternative (~/.agents/*).
+      // Pass both as explicit paths so either layout is discovered.
       const home = homedir();
+      const agentsSkillsGlobal = join(home, ".agents", "skills");
+      const agentsSkillsProject = join(cwd, ".agents", "skills");
+      const agentsPromptsGlobal = join(home, ".agents", "prompts");
+      const agentsPromptsProject = join(cwd, ".agents", "prompts");
+
       const { skills } = loadSkills({
         cwd,
-        skillPaths: [
-          join(home, ".agents", "skills"),
-          join(cwd, ".agents", "skills"),
-        ],
+        skillPaths: [agentsSkillsGlobal, agentsSkillsProject],
       });
-      return skills.map((skill) => ({
+
+      const promptDirs = [
+        join(homedir(), ".pi", "agent", "prompts"),  // Pi default
+        agentsPromptsGlobal,                          // agents convention global
+        join(cwd, ".pi", "prompts"),                  // Pi default project-local
+        agentsPromptsProject,                         // agents convention project-local
+      ];
+      const prompts = promptDirs.flatMap(loadPromptsFromDir);
+
+      const skillCommands = skills.map((skill) => ({
         name: `skill:${skill.name}`,
         description: skill.description,
         source: "skill" as const,
       }));
+
+      const promptCommands = prompts.map((prompt) => ({
+        name: prompt.name,
+        description: prompt.description,
+        source: "prompt" as const,
+      }));
+
+      return [...skillCommands, ...promptCommands];
     },
   };
 }

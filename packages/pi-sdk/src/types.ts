@@ -4,7 +4,7 @@ import type { AgentSessionEvent } from "@mariozechner/pi-coding-agent";
 export interface SlashCommand {
   name: string;
   description?: string;
-  source: "skill";
+  source: "skill" | "prompt";
 }
 
 /** SDK-agnostic model descriptor. */

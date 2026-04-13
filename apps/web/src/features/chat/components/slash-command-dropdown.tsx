@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { TerminalIcon } from "lucide-react"
+import { FileTextIcon, TerminalIcon } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
 import type { SlashCommand } from "../api"
@@ -57,12 +57,21 @@ export function SlashCommandDropdown({
               i === selectedIndex && "bg-accent text-accent-foreground"
             )}
           >
-            <TerminalIcon
-              width={12}
-              height={12}
-              className="shrink-0 text-muted-foreground"
-              aria-hidden
-            />
+            {cmd.source === "prompt" ? (
+              <FileTextIcon
+                width={12}
+                height={12}
+                className="shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+            ) : (
+              <TerminalIcon
+                width={12}
+                height={12}
+                className="shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+            )}
             <span className="flex min-w-0 items-baseline gap-2">
               <span className="shrink-0 font-mono font-medium">/{cmd.name}</span>
               {cmd.description && (

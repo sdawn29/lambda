@@ -80,12 +80,15 @@ export async function createBranch(cwd: string, branch: string): Promise<void> {
   });
 }
 
-/** Returns raw `git status --short` output. */
+/** Returns raw `git status --short` output. Uses -uall so untracked files inside
+ *  dot-folders (e.g. .claude/) are listed individually rather than as a single
+ *  directory entry, which would break diffing and staging. */
 export async function gitStatus(cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["status", "--short"], {
-    cwd,
-    timeout: 5000,
-  });
+  const { stdout } = await execFileAsync(
+    "git",
+    ["status", "--short", "-uall"],
+    { cwd, timeout: 5000 },
+  );
   return stdout;
 }
 
