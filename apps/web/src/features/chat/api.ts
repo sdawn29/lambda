@@ -173,6 +173,24 @@ export async function fetchSlashCommands(
   return data.commands
 }
 
+// ── Context usage ─────────────────────────────────────────────────────────────
+
+export interface ContextUsage {
+  tokens: number | null
+  contextWindow: number
+  percent: number | null
+}
+
+export interface ContextUsageResponse {
+  contextUsage: ContextUsage | null
+}
+
+export function fetchContextUsage(
+  sessionId: string
+): Promise<ContextUsageResponse> {
+  return apiFetch<ContextUsageResponse>(`/session/${sessionId}/context-usage`)
+}
+
 // ── Workspace files ───────────────────────────────────────────────────────────
 
 export type WorkspaceEntry = { path: string; type: "file" | "dir" }

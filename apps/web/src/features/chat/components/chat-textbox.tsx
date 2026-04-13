@@ -13,6 +13,7 @@ import {
   useModels,
   useWorkspaceFiles,
   useSlashCommands,
+  useContextUsage,
   type WorkspaceEntry,
 } from "../queries"
 import { BranchSelector } from "@/features/git"
@@ -28,6 +29,7 @@ import {
 } from "./rich-input"
 import { FileMentionDropdown } from "./file-mention-dropdown"
 import { SlashCommandDropdown } from "./slash-command-dropdown"
+import { ContextChart } from "./context-chart"
 import type { SlashCommand } from "../api"
 
 interface ChatTextboxProps {
@@ -114,6 +116,7 @@ export const ChatTextbox = memo(
     const { data: fileData } = useWorkspaceFiles(sessionId)
     const { data: commandsData, isLoading: commandsLoading } =
       useSlashCommands(sessionId)
+    const { data: contextUsage } = useContextUsage(sessionId)
 
     const mentionEntries2 = React.useMemo(() => {
       if (!atMention) return []
@@ -369,7 +372,8 @@ export const ChatTextbox = memo(
               )}
             </div>
 
-            <div className="pr-0.5">
+            <div className="flex items-center gap-1.5 pr-0.5">
+              <ContextChart contextUsage={contextUsage} />
               {isLoading ? (
                 <Tooltip>
                   <TooltipTrigger

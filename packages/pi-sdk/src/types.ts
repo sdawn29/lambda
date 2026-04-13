@@ -37,6 +37,15 @@ export type SessionEvent =
   | AgentSessionEvent
   | { type: "sdk_error"; message: string };
 
+export interface ContextUsage {
+  /** Estimated context tokens used, or null if unknown. */
+  tokens: number | null;
+  /** Total context window size. */
+  contextWindow: number;
+  /** Usage as percentage of context window, or null if tokens is unknown. */
+  percent: number | null;
+}
+
 export interface ManagedSessionHandle {
   /** Send a prompt to the agent (non-blocking — events stream via events()). */
   prompt(text: string): Promise<void>;
@@ -58,4 +67,6 @@ export interface ManagedSessionHandle {
   events(): AsyncGenerator<SessionEvent>;
   /** List available slash commands (skills) for the current workspace. */
   getCommands(): SlashCommand[];
+  /** Get current context window usage. Returns undefined if unavailable. */
+  getContextUsage(): ContextUsage | undefined;
 }

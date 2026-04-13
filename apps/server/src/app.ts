@@ -348,6 +348,14 @@ app.get("/session/:id/commands", (c) => {
   return c.json({ commands: entry.handle.getCommands() });
 });
 
+app.get("/session/:id/context-usage", (c) => {
+  const id = c.req.param("id");
+  const entry = store.get(id);
+  if (!entry) return c.json({ contextUsage: null });
+  const usage = entry.handle.getContextUsage();
+  return c.json({ contextUsage: usage ?? null });
+});
+
 app.get("/session/:id/branch", async (c) => {
   const cwd = store.getCwd(c.req.param("id"));
   if (!cwd) return c.json({ branch: null });

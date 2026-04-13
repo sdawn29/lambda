@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { listMessages, fetchModels, listWorkspaceFiles, fetchSlashCommands } from "./api"
+import { listMessages, fetchModels, listWorkspaceFiles, fetchSlashCommands, fetchContextUsage } from "./api"
 import {
   createAssistantMessage,
   parseAssistantMessageContent,
@@ -23,6 +23,8 @@ export const chatKeys = {
     [...chatSessionKey(sessionId), "workspace-files"] as const,
   commands: (sessionId: string) =>
     [...chatSessionKey(sessionId), "commands"] as const,
+  contextUsage: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "context-usage"] as const,
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────────
@@ -102,5 +104,18 @@ export function useSlashCommands(sessionId: string | undefined) {
     queryFn: () => fetchSlashCommands(sessionId!),
     enabled: !!sessionId,
     staleTime: 30_000,
+  })
+}
+
+// ── Context usage ─────────────────────────────────────────────────────────────
+
+export function useContextUsage(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: sessionId ? chatKeys.contextUsage(sessionId) : chatKeys.all,
+    queryFn: () => fetchContextUsage(sessionId!),
+    enabled: !!sessionId,
+    refetchInterval: 5_000,
+    staleTime: 0,
+    select: (data) => data.contextUsage,
   })
 }

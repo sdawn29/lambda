@@ -60,6 +60,15 @@ function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["se
     get sessionFile() {
       return session.sessionFile;
     },
+    getContextUsage() {
+      const usage = session.getContextUsage();
+      if (!usage) return undefined;
+      return {
+        tokens: usage.tokens,
+        contextWindow: usage.contextWindow,
+        percent: usage.percent,
+      };
+    },
     getCommands() {
       // Skills and prompts may live in the Pi default (~/.pi/agent/*)
       // or the agents-convention alternative (~/.agents/*).
