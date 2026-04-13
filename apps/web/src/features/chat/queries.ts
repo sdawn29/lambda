@@ -114,7 +114,7 @@ export function useContextUsage(sessionId: string | undefined) {
     queryKey: sessionId ? chatKeys.contextUsage(sessionId) : chatKeys.all,
     queryFn: () => fetchContextUsage(sessionId!),
     enabled: !!sessionId,
-    refetchInterval: 5_000,
+    refetchInterval: 1_000,
     staleTime: 0,
     select: (data) => data.contextUsage,
   })

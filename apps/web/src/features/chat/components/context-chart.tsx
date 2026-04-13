@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Loader2Icon, SparklesIcon } from "lucide-react"
 import {
   Popover,
@@ -8,6 +9,7 @@ import {
 import { Button } from "@/shared/ui/button"
 import type { ContextUsage } from "../api"
 import { compactSession } from "../api"
+import { chatKeys } from "../queries"
 
 interface ContextChartProps {
   contextUsage: ContextUsage | null | undefined
@@ -21,15 +23,23 @@ function formatTokens(n: number): string {
 }
 
 export function ContextChart({ contextUsage, sessionId }: ContextChartProps) {
+  const queryClient = useQueryClient()
   const [isCompacting, setIsCompacting] = useState(false)
   const [compactError, setCompactError] = useState<string | null>(null)
+  // Hold the last valid (non-null-tokens) snapshot so we never flash "?"
+  const lastValidRef = useRef<ContextUsage | null>(null)
 
-  if (!contextUsage) return null
+  if (contextUsage && contextUsage.tokens != null) {
+    lastValidRef.current = contextUsage
+  }
+
+  const display = lastValidRef.current ?? contextUsage
+  if (!display) return null
 
   const pct =
-    contextUsage.percent ??
-    (contextUsage.tokens != null
-      ? (contextUsage.tokens / contextUsage.contextWindow) * 100
+    display.percent ??
+    (display.tokens != null
+      ? (display.tokens / display.contextWindow) * 100
       : null)
 
   const size = 16
@@ -46,9 +56,8 @@ export function ContextChart({ contextUsage, sessionId }: ContextChartProps) {
         ? "stroke-yellow-500 dark:stroke-yellow-400"
         : "stroke-muted-foreground/40"
 
-  const usedLabel =
-    contextUsage.tokens != null ? formatTokens(contextUsage.tokens) : "?"
-  const totalLabel = formatTokens(contextUsage.contextWindow)
+  const usedLabel = display.tokens != null ? formatTokens(display.tokens) : "?"
+  const totalLabel = formatTokens(display.contextWindow)
   const pctLabel = pct != null ? `${Math.round(pct)}%` : "?"
 
   async function handleCompact() {
@@ -57,6 +66,10 @@ export function ContextChart({ contextUsage, sessionId }: ContextChartProps) {
     setCompactError(null)
     try {
       await compactSession(sessionId)
+      // Refetch so the ring updates; stale values stay visible until fresh data arrives
+      void queryClient.invalidateQueries({
+        queryKey: chatKeys.contextUsage(sessionId),
+      })
     } catch (err) {
       setCompactError(err instanceof Error ? err.message : "Compaction failed")
     } finally {
@@ -139,32 +152,29 @@ export function ContextChart({ contextUsage, sessionId }: ContextChartProps) {
           />
         </div>
 
-        <div className="mt-2 text-[10px] tabular-nums text-muted-foreground">
-          {usedLabel}/{totalLabel} tokens
-        </div>
-
-        {sessionId && (
-          <div className="mt-3 border-t border-border/50 pt-3">
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {usedLabel}/{totalLabel} tokens
+          </span>
+          {sessionId && (
             <Button
               size="sm"
-              variant="outline"
-              className="h-7 w-full gap-1.5 text-xs"
+              variant="secondary"
               onClick={handleCompact}
               disabled={isCompacting}
+              className="h-5 gap-1 px-1.5 text-[10px]"
             >
               {isCompacting ? (
-                <Loader2Icon className="h-3 w-3 animate-spin" />
+                <Loader2Icon className="h-2.5 w-2.5 animate-spin" />
               ) : (
-                <SparklesIcon className="h-3 w-3" />
+                <SparklesIcon className="h-2.5 w-2.5" />
               )}
-              {isCompacting ? "Compacting…" : "Compact context"}
+              Compact
             </Button>
-            {compactError && (
-              <p className="mt-1.5 text-[10px] text-destructive">
-                {compactError}
-              </p>
-            )}
-          </div>
+          )}
+        </div>
+        {compactError && (
+          <p className="mt-1 text-[10px] text-destructive">{compactError}</p>
         )}
       </PopoverContent>
     </Popover>

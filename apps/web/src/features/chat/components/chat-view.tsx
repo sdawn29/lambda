@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { StopCircleIcon } from "lucide-react"
+import { SparklesIcon, StopCircleIcon } from "lucide-react"
 
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -218,6 +218,7 @@ export const ChatView = memo(function ChatView({
   const [isStopped, setIsStopped] = useState(
     () => localStorage.getItem(stoppedKey) === "1"
   )
+  const [isCompacting, setIsCompacting] = useState(false)
   const [gitError, setGitError] = useState<string | null>(null)
   const [selectedModelId, setSelectedModelId] = useState<string | null>(() =>
     localStorage.getItem(`lambda-code:threadModel:${threadId}`)
@@ -405,6 +406,16 @@ export const ChatView = memo(function ChatView({
           void queryClient.invalidateQueries({
             queryKey: messagesQueryKey(sessionId),
           })
+        })
+
+        es.addEventListener("compaction_start", () => {
+          if (!active) return
+          setIsCompacting(true)
+        })
+
+        es.addEventListener("compaction_end", () => {
+          if (!active) return
+          setIsCompacting(false)
         })
       })
       .catch((err: unknown) => {
@@ -650,6 +661,12 @@ export const ChatView = memo(function ChatView({
             )
           })}
           {isLoading && <ThinkingIndicator className="py-0.5" />}
+          {isCompacting && (
+            <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
+              <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-xs">Compacting context…</span>
+            </div>
+          )}
           {isStopped && !isLoading && (
             <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
               <StopCircleIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />
