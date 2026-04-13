@@ -69,4 +69,6 @@ export interface ManagedSessionHandle {
   getCommands(): SlashCommand[];
   /** Get current context window usage. Returns undefined if unavailable. */
   getContextUsage(): ContextUsage | undefined;
+  /** Compact the context window by summarizing conversation history. */
+  compact(): Promise<void>;
 }

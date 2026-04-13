@@ -1,12 +1,17 @@
+import { useState } from "react"
+import { Loader2Icon, SparklesIcon } from "lucide-react"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui/popover"
+import { Button } from "@/shared/ui/button"
 import type { ContextUsage } from "../api"
+import { compactSession } from "../api"
 
 interface ContextChartProps {
   contextUsage: ContextUsage | null | undefined
+  sessionId?: string
 }
 
 function formatTokens(n: number): string {
@@ -15,7 +20,10 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-export function ContextChart({ contextUsage }: ContextChartProps) {
+export function ContextChart({ contextUsage, sessionId }: ContextChartProps) {
+  const [isCompacting, setIsCompacting] = useState(false)
+  const [compactError, setCompactError] = useState<string | null>(null)
+
   if (!contextUsage) return null
 
   const pct =
@@ -42,6 +50,19 @@ export function ContextChart({ contextUsage }: ContextChartProps) {
     contextUsage.tokens != null ? formatTokens(contextUsage.tokens) : "?"
   const totalLabel = formatTokens(contextUsage.contextWindow)
   const pctLabel = pct != null ? `${Math.round(pct)}%` : "?"
+
+  async function handleCompact() {
+    if (!sessionId || isCompacting) return
+    setIsCompacting(true)
+    setCompactError(null)
+    try {
+      await compactSession(sessionId)
+    } catch (err) {
+      setCompactError(err instanceof Error ? err.message : "Compaction failed")
+    } finally {
+      setIsCompacting(false)
+    }
+  }
 
   return (
     <Popover>
@@ -121,6 +142,30 @@ export function ContextChart({ contextUsage }: ContextChartProps) {
         <div className="mt-2 text-[10px] tabular-nums text-muted-foreground">
           {usedLabel}/{totalLabel} tokens
         </div>
+
+        {sessionId && (
+          <div className="mt-3 border-t border-border/50 pt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 w-full gap-1.5 text-xs"
+              onClick={handleCompact}
+              disabled={isCompacting}
+            >
+              {isCompacting ? (
+                <Loader2Icon className="h-3 w-3 animate-spin" />
+              ) : (
+                <SparklesIcon className="h-3 w-3" />
+              )}
+              {isCompacting ? "Compacting…" : "Compact context"}
+            </Button>
+            {compactError && (
+              <p className="mt-1.5 text-[10px] text-destructive">
+                {compactError}
+              </p>
+            )}
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   )

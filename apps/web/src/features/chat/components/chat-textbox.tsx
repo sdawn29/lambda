@@ -373,7 +373,7 @@ export const ChatTextbox = memo(
             </div>
 
             <div className="flex items-center gap-1.5 pr-0.5">
-              <ContextChart contextUsage={contextUsage} />
+              <ContextChart contextUsage={contextUsage} sessionId={sessionId} />
               {isLoading ? (
                 <Tooltip>
                   <TooltipTrigger

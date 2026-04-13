@@ -191,6 +191,12 @@ export function fetchContextUsage(
   return apiFetch<ContextUsageResponse>(`/session/${sessionId}/context-usage`)
 }
 
+export function compactSession(sessionId: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/session/${sessionId}/compact`, {
+    method: "POST",
+  })
+}
+
 // ── Workspace files ───────────────────────────────────────────────────────────
 
 export type WorkspaceEntry = { path: string; type: "file" | "dir" }

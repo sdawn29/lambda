@@ -69,6 +69,9 @@ function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["se
         percent: usage.percent,
       };
     },
+    async compact() {
+      await session.compact();
+    },
     getCommands() {
       // Skills and prompts may live in the Pi default (~/.pi/agent/*)
       // or the agents-convention alternative (~/.agents/*).

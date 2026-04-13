@@ -356,6 +356,19 @@ app.get("/session/:id/context-usage", (c) => {
   return c.json({ contextUsage: usage ?? null });
 });
 
+app.post("/session/:id/compact", async (c) => {
+  const id = c.req.param("id");
+  const entry = store.get(id);
+  if (!entry) return c.json({ error: "Session not found" }, 404);
+  try {
+    await entry.handle.compact();
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.json({ error: message }, 500);
+  }
+});
+
 app.get("/session/:id/branch", async (c) => {
   const cwd = store.getCwd(c.req.param("id"));
   if (!cwd) return c.json({ branch: null });
