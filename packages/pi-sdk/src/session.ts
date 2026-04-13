@@ -1,13 +1,16 @@
 import {
   createAgentSession,
+  loadSkills,
   ModelRegistry,
   SessionManager,
 } from "@mariozechner/pi-coding-agent";
+import { homedir } from "os";
+import { join } from "path";
 import { buildAuthStorage } from "./auth.js";
 import { sessionEventGenerator } from "./stream.js";
 import type { ManagedSessionHandle, SdkConfig } from "./types.js";
 
-function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["session"], modelRegistry: ModelRegistry): ManagedSessionHandle {
+function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["session"], modelRegistry: ModelRegistry, cwd: string): ManagedSessionHandle {
   return {
     prompt: (text) => session.prompt(text),
     abort: () => session.abort(),
@@ -20,6 +23,24 @@ function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["se
     setThinkingLevel: (level) => session.setThinkingLevel(level),
     get sessionFile() {
       return session.sessionFile;
+    },
+    getCommands() {
+      // Skills may live in the Pi default (~/.pi/agent/skills/) or the
+      // agents-convention alternative (~/.agents/skills/).  Pass both as
+      // explicit skillPaths so either layout is discovered.
+      const home = homedir();
+      const { skills } = loadSkills({
+        cwd,
+        skillPaths: [
+          join(home, ".agents", "skills"),
+          join(cwd, ".agents", "skills"),
+        ],
+      });
+      return skills.map((skill) => ({
+        name: `skill:${skill.name}`,
+        description: skill.description,
+        source: "skill" as const,
+      }));
     },
   };
 }
@@ -49,7 +70,7 @@ export async function createManagedSession(
     thinkingLevel: config.thinkingLevel,
   });
 
-  return buildHandle(session, modelRegistry);
+  return buildHandle(session, modelRegistry, cwd);
 }
 
 /**
@@ -72,5 +93,5 @@ export async function openManagedSession(
     cwd,
   });
 
-  return buildHandle(session, modelRegistry);
+  return buildHandle(session, modelRegistry, cwd);
 }

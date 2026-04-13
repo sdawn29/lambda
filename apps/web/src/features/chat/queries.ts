@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { listMessages, fetchModels, listWorkspaceFiles } from "./api"
+import { listMessages, fetchModels, listWorkspaceFiles, fetchSlashCommands } from "./api"
 import {
   createAssistantMessage,
   parseAssistantMessageContent,
@@ -21,6 +21,8 @@ export const chatKeys = {
   models: [...chatRootKey, "models"] as const,
   workspaceFiles: (sessionId: string) =>
     [...chatSessionKey(sessionId), "workspace-files"] as const,
+  commands: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "commands"] as const,
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────────
@@ -89,5 +91,16 @@ export function useWorkspaceFiles(sessionId: string | undefined) {
     enabled: !!sessionId,
     staleTime: 30_000,
     select: (data) => data,
+  })
+}
+
+// ── Slash commands ────────────────────────────────────────────────────────────
+
+export function useSlashCommands(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: sessionId ? chatKeys.commands(sessionId) : chatKeys.all,
+    queryFn: () => fetchSlashCommands(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 30_000,
   })
 }

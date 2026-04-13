@@ -16,6 +16,12 @@ export interface AtMention {
   startOffset: number
 }
 
+export interface SlashMention {
+  filter: string
+  textNode: Text
+  startOffset: number
+}
+
 function readRichInputValue(root: Node): string {
   let text = ""
   const walk = (nodes: NodeListOf<ChildNode>) => {
@@ -99,9 +105,12 @@ export const RichInput = React.forwardRef<
   {
     placeholder: string
     mentionActive: boolean
+    slashActive: boolean
     onAtMentionChange: (mention: AtMention | null) => void
+    onSlashMentionChange: (mention: SlashMention | null) => void
     onSend: () => void
     onMentionEnter: () => void
+    onSlashEnter: () => void
     onArrowUp: () => void
     onArrowDown: () => void
     onEscape: () => void
@@ -111,9 +120,12 @@ export const RichInput = React.forwardRef<
   {
     placeholder,
     mentionActive,
+    slashActive,
     onAtMentionChange,
+    onSlashMentionChange,
     onSend,
     onMentionEnter,
+    onSlashEnter,
     onArrowUp,
     onArrowDown,
     onEscape,
@@ -226,8 +238,72 @@ export const RichInput = React.forwardRef<
     })
   }
 
+  function detectSlashCommand() {
+    const div = divRef.current
+    if (!div) {
+      onSlashMentionChange(null)
+      return
+    }
+    const sel = window.getSelection()
+    if (!sel || !sel.rangeCount) {
+      onSlashMentionChange(null)
+      return
+    }
+    const range = sel.getRangeAt(0)
+    if (!range.collapsed) {
+      onSlashMentionChange(null)
+      return
+    }
+    const { startContainer, startOffset } = range
+    if (
+      startContainer.nodeType !== Node.TEXT_NODE ||
+      !div.contains(startContainer)
+    ) {
+      onSlashMentionChange(null)
+      return
+    }
+    const text = startContainer.textContent ?? ""
+    const beforeCaret = text.slice(0, startOffset)
+    const lastSlash = beforeCaret.lastIndexOf("/")
+    if (lastSlash === -1) {
+      onSlashMentionChange(null)
+      return
+    }
+    const between = beforeCaret.slice(lastSlash + 1)
+    if (/\s/.test(between)) {
+      onSlashMentionChange(null)
+      return
+    }
+    onSlashMentionChange({
+      filter: between,
+      textNode: startContainer as Text,
+      startOffset: lastSlash,
+    })
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (mentionActive) {
+    if (slashActive) {
+      if (e.key === "ArrowUp") {
+        e.preventDefault()
+        onArrowUp()
+        return
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        onArrowDown()
+        return
+      }
+      if (e.key === "Escape") {
+        e.preventDefault()
+        onEscape()
+        return
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault()
+        onSlashEnter()
+        return
+      }
+    } else if (mentionActive) {
       if (e.key === "ArrowUp") {
         e.preventDefault()
         onArrowUp()
@@ -294,6 +370,7 @@ export const RichInput = React.forwardRef<
 
   function handleInput() {
     detectAtMention()
+    detectSlashCommand()
     syncEmptyState()
     onInput()
   }

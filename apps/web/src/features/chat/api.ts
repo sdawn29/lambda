@@ -156,6 +156,23 @@ export function fetchModels(signal?: AbortSignal): Promise<ModelsResponse> {
   return apiFetch<ModelsResponse>("/models", { signal })
 }
 
+// ── Slash commands ────────────────────────────────────────────────────────────
+
+export interface SlashCommand {
+  name: string
+  description?: string
+  source: "skill"
+}
+
+export async function fetchSlashCommands(
+  sessionId: string
+): Promise<SlashCommand[]> {
+  const data = await apiFetch<{ commands: SlashCommand[] }>(
+    `/session/${sessionId}/commands`
+  )
+  return data.commands
+}
+
 // ── Workspace files ───────────────────────────────────────────────────────────
 
 export type WorkspaceEntry = { path: string; type: "file" | "dir" }

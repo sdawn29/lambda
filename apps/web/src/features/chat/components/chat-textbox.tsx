@@ -9,8 +9,7 @@ import { ArrowUpIcon } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
-import { useModels } from "../queries"
-import { useWorkspaceFiles, type WorkspaceEntry } from "../queries"
+import { useModels, useWorkspaceFiles, useSlashCommands, type WorkspaceEntry } from "../queries"
 import { BranchSelector } from "@/features/git"
 import { ModelCombobox } from "./model-combobox"
 import { ThinkingCombobox, type ThinkingLevel } from "./thinking-combobox"
@@ -19,8 +18,11 @@ import {
   buildMentionChip,
   type RichInputHandle,
   type AtMention,
+  type SlashMention,
 } from "./rich-input"
 import { FileMentionDropdown } from "./file-mention-dropdown"
+import { SlashCommandDropdown } from "./slash-command-dropdown"
+import type { SlashCommand } from "../api"
 
 interface ChatTextboxProps {
   onSend?: (
@@ -69,7 +71,11 @@ export const ChatTextbox = memo(
     const [atMention, setAtMention] = React.useState<
       (AtMention & { selectedIndex: number }) | null
     >(null)
+    const [slashMention, setSlashMention] = React.useState<
+      (SlashMention & { selectedIndex: number }) | null
+    >(null)
     const mentionEntries = React.useRef<WorkspaceEntry[]>([])
+    const slashCommandsRef = React.useRef<SlashCommand[]>([])
     const isControlled = controlledModelId !== undefined
     const selectedModelId = isControlled ? controlledModelId : internalModelId
     const richInputRef = React.useRef<RichInputHandle>(null)
@@ -100,6 +106,7 @@ export const ChatTextbox = memo(
     )
 
     const { data: fileData } = useWorkspaceFiles(sessionId)
+    const { data: commandsData, isLoading: commandsLoading } = useSlashCommands(sessionId)
 
     const mentionEntries2 = React.useMemo(() => {
       if (!atMention) return []
@@ -110,6 +117,21 @@ export const ChatTextbox = memo(
         .slice(0, 10)
     }, [fileData, atMention])
     mentionEntries.current = mentionEntries2
+
+    const filteredCommands = React.useMemo(() => {
+      const commands = commandsData ?? []
+      if (!slashMention) return commands.slice(0, 12)
+      const f = slashMention.filter.toLowerCase()
+      if (!f) return commands.slice(0, 12)
+      return commands
+        .filter(
+          (c) =>
+            c.name.toLowerCase().includes(f) ||
+            c.description?.toLowerCase().includes(f)
+        )
+        .slice(0, 12)
+    }, [commandsData, slashMention])
+    slashCommandsRef.current = filteredCommands
 
     const canSend = !isEmpty && !isLoading
 
@@ -129,6 +151,7 @@ export const ChatTextbox = memo(
       richInputRef.current?.clear()
       setIsEmpty(true)
       setAtMention(null)
+      setSlashMention(null)
       richInputRef.current?.focus()
     }
 
@@ -147,6 +170,41 @@ export const ChatTextbox = memo(
         selectedIndex:
           mention.filter !== prev?.filter ? 0 : (prev?.selectedIndex ?? 0),
       }))
+    }
+
+    function handleSlashMentionChange(mention: SlashMention | null) {
+      if (!mention) {
+        setSlashMention(null)
+        return
+      }
+      setSlashMention((prev) => ({
+        ...mention,
+        selectedIndex:
+          mention.filter !== prev?.filter ? 0 : (prev?.selectedIndex ?? 0),
+      }))
+    }
+
+    function handleSelectCommand(cmd: SlashCommand) {
+      const current = slashMention
+      if (!current?.textNode) return
+      const { textNode, startOffset, filter } = current
+      const range = document.createRange()
+      range.setStart(textNode, startOffset)
+      range.setEnd(textNode, startOffset + 1 + filter.length)
+      range.deleteContents()
+
+      const replacement = document.createTextNode(`/${cmd.name} `)
+      range.insertNode(replacement)
+
+      const newRange = document.createRange()
+      newRange.setStart(replacement, replacement.length)
+      newRange.collapse(true)
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(newRange)
+
+      setSlashMention(null)
+      setIsEmpty(false)
+      richInputRef.current?.focus()
     }
 
     function handleSelectFile(entry: WorkspaceEntry) {
@@ -177,6 +235,14 @@ export const ChatTextbox = memo(
     return (
       <div className={cn("flex w-full flex-col gap-1", className)}>
         <div className="relative flex w-full flex-col rounded-2xl border border-input bg-card shadow-sm transition-all focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
+          <SlashCommandDropdown
+            commands={filteredCommands}
+            open={slashMention !== null && (filteredCommands.length > 0 || commandsLoading)}
+            isLoading={commandsLoading}
+            selectedIndex={slashMention?.selectedIndex ?? 0}
+            onSelect={handleSelectCommand}
+          />
+
           <FileMentionDropdown
             entries={mentionEntries2}
             open={atMention !== null && mentionEntries2.length > 0}
@@ -189,7 +255,9 @@ export const ChatTextbox = memo(
               ref={richInputRef}
               placeholder={placeholder}
               mentionActive={atMention !== null && mentionEntries2.length > 0}
+              slashActive={slashMention !== null && (filteredCommands.length > 0 || commandsLoading)}
               onAtMentionChange={handleAtMentionChange}
+              onSlashMentionChange={handleSlashMentionChange}
               onSend={handleSend}
               onInput={handleInput}
               onMentionEnter={() => {
@@ -197,33 +265,69 @@ export const ChatTextbox = memo(
                 const entry = mentionEntries2[idx]
                 if (entry) handleSelectFile(entry)
               }}
-              onArrowUp={() =>
-                setAtMention((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        selectedIndex:
-                          (prev.selectedIndex -
-                            1 +
-                            mentionEntries.current.length) %
-                          mentionEntries.current.length,
-                      }
-                    : prev
-                )
-              }
-              onArrowDown={() =>
-                setAtMention((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        selectedIndex:
-                          (prev.selectedIndex + 1) %
-                          mentionEntries.current.length,
-                      }
-                    : prev
-                )
-              }
-              onEscape={() => setAtMention(null)}
+              onSlashEnter={() => {
+                const idx = slashMention?.selectedIndex ?? 0
+                const cmd = slashCommandsRef.current[idx]
+                if (cmd) handleSelectCommand(cmd)
+              }}
+              onArrowUp={() => {
+                if (slashMention !== null) {
+                  setSlashMention((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          selectedIndex:
+                            (prev.selectedIndex -
+                              1 +
+                              slashCommandsRef.current.length) %
+                            slashCommandsRef.current.length,
+                        }
+                      : prev
+                  )
+                } else {
+                  setAtMention((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          selectedIndex:
+                            (prev.selectedIndex -
+                              1 +
+                              mentionEntries.current.length) %
+                            mentionEntries.current.length,
+                        }
+                      : prev
+                  )
+                }
+              }}
+              onArrowDown={() => {
+                if (slashMention !== null) {
+                  setSlashMention((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          selectedIndex:
+                            (prev.selectedIndex + 1) %
+                            slashCommandsRef.current.length,
+                        }
+                      : prev
+                  )
+                } else {
+                  setAtMention((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          selectedIndex:
+                            (prev.selectedIndex + 1) %
+                            mentionEntries.current.length,
+                        }
+                      : prev
+                  )
+                }
+              }}
+              onEscape={() => {
+                setAtMention(null)
+                setSlashMention(null)
+              }}
             />
           </div>
 

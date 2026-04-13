@@ -1,5 +1,12 @@
 import type { AgentSessionEvent } from "@mariozechner/pi-coding-agent";
 
+/** A slash command available in the current session. */
+export interface SlashCommand {
+  name: string;
+  description?: string;
+  source: "skill";
+}
+
 /** SDK-agnostic model descriptor. */
 export interface ModelInfo {
   id: string;
@@ -49,4 +56,6 @@ export interface ManagedSessionHandle {
    * Breaking out of the loop or calling return() cleans up the subscription.
    */
   events(): AsyncGenerator<SessionEvent>;
+  /** List available slash commands (skills) for the current workspace. */
+  getCommands(): SlashCommand[];
 }

@@ -341,6 +341,13 @@ app.post("/session/:id/prompt", async (c) => {
   return c.json({ accepted: true }, 202);
 });
 
+app.get("/session/:id/commands", (c) => {
+  const id = c.req.param("id");
+  const entry = store.get(id);
+  if (!entry) return c.json({ commands: [] });
+  return c.json({ commands: entry.handle.getCommands() });
+});
+
 app.get("/session/:id/branch", async (c) => {
   const cwd = store.getCwd(c.req.param("id"));
   if (!cwd) return c.json({ branch: null });
