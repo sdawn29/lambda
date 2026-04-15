@@ -20,6 +20,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Update versions
         run: |
           node scripts/sync-release-version.mjs --version ${{ github.event.inputs.version }}
@@ -35,7 +40,10 @@ jobs:
 
   build:
     needs: release
-    runs-on: macos-13
+    # macos-14 is Apple Silicon (arm64) — required for reliable native module
+    # compilation targeting arm64 (node-pty, better-sqlite3, photon).
+    # macos-13 is Intel and cross-compiling native addons to arm64 is unreliable.
+    runs-on: macos-14
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,12 +54,19 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Build full repository
+        run: npm run build
+
       - name: Build desktop release
+        env:
+          # Disable macOS code-signing on CI — remove if you configure signing secrets.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run build -w desktop
 
       - name: Create GitHub Release
