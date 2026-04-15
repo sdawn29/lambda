@@ -4,11 +4,14 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
   pull-requests: write
+  actions: write
+  statuses: write
 
 concurrency:
   group: release-please-${{ github.ref }}
