@@ -53,7 +53,7 @@ function expandWorkspacePatterns(patterns) {
     }
 
     const entries = readdirSync(parentDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
       .map((entry) => path.join(parentDir, entry.name, "package.json"))
       .filter((filePath) => existsSync(filePath))
       .sort((left, right) => left.localeCompare(right));
@@ -154,5 +154,5 @@ for (const packagePath of packagePaths) {
 const lockfileChanged = syncLockfile(requestedVersion, workspacePackagePaths);
 
 console.log(
-  `Synchronized version ${requestedVersion} across ${updatedPackageCount} package file(s)${lockfileChanged ? " and package-lock.json" : ""}.`,
+  `Synchronized version ${requestedVersion} across ${packagePaths.length} package file(s)${updatedPackageCount > 0 ? ` (${updatedPackageCount} updated)` : ""}${lockfileChanged ? " and package-lock.json" : ""}.`,
 );

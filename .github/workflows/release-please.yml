@@ -114,3 +114,12 @@ jobs:
             "apps/desktop/release/lamda-${VERSION}-mac-arm64.dmg" \
             "apps/desktop/release/lamda-${VERSION}-mac-arm64.zip" \
             --clobber
+
+      - name: Update GitHub Release with changelog
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          CHANGELOG_CONTENT=$(cat CHANGELOG.md)
+          gh release edit "$TAG_NAME" --notes "$CHANGELOG_CONTENT"
