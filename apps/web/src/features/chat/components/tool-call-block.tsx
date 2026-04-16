@@ -1,7 +1,6 @@
 import { lazy, memo, Suspense, useMemo, useState } from "react"
 import {
   BookOpenTextIcon,
-  ChevronRightIcon,
   FileEditIcon,
   FilePlusIcon,
   FolderSearchIcon,
@@ -183,12 +182,6 @@ export const ToolCallBlock = memo(function ToolCallBlock({
         className="group flex w-full items-center gap-1.5 py-0.5 text-left transition-colors"
         onClick={toggle}
       >
-        <ChevronRightIcon
-          className={cn(
-            "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform group-hover:text-muted-foreground/50",
-            expanded && "rotate-90"
-          )}
-        />
         <ToolGlyph toolName={msg.toolName} />
         <span
           className={cn(
@@ -212,58 +205,65 @@ export const ToolCallBlock = memo(function ToolCallBlock({
       </button>
 
       {/* Body */}
-      {expanded && (
-        <div className="mt-0.5 ml-1.5 animate-in border-l border-border/30 pl-4 duration-200 fade-in-0">
-          {/* Edit: show pre-computed diff from SDK */}
-          {isEdit && diff !== null && (
-            <DiffView
-              diff={diff}
-              filePath={(msg.args as { path?: string }).path}
-            />
-          )}
+      <div
+        className={cn(
+          "grid transition-all duration-500 ease-in-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-0.5 ml-1.5 border-l border-border/30 pl-4">
+            {/* Edit: show pre-computed diff from SDK */}
+            {isEdit && diff !== null && (
+              <DiffView
+                diff={diff}
+                filePath={(msg.args as { path?: string }).path}
+              />
+            )}
 
-          {/* Edit running — no diff yet */}
-          {isEdit && diff === null && msg.status === "running" && (
-            <span className="text-muted-foreground/40">Editing…</span>
-          )}
+            {/* Edit running — no diff yet */}
+            {isEdit && diff === null && msg.status === "running" && (
+              <span className="text-muted-foreground/40">Editing…</span>
+            )}
 
-          {/* Read tool: syntax-highlighted file content */}
-          {isRead && readFilePath && resultText && msg.status !== "error" && (
-            <ReadView
-              text={resultText}
-              filePath={readFilePath}
-              live={msg.status === "running"}
-            />
-          )}
+            {/* Read tool: syntax-highlighted file content */}
+            {isRead && readFilePath && resultText && msg.status !== "error" && (
+              <ReadView
+                text={resultText}
+                filePath={readFilePath}
+                live={msg.status === "running"}
+              />
+            )}
 
-          {isRead && !resultText && msg.status === "running" && (
-            <span className="text-muted-foreground/40">Reading…</span>
-          )}
+            {isRead && !resultText && msg.status === "running" && (
+              <span className="text-muted-foreground/40">Reading…</span>
+            )}
 
-          {/* Non-edit, non-read tools or error fallback */}
-          {!isEdit &&
-            !isRead &&
-            resultText &&
-            (msg.status === "error" ? (
+            {/* Non-edit, non-read tools or error fallback */}
+            {!isEdit &&
+              !isRead &&
+              resultText &&
+              (msg.status === "error" ? (
+                <pre className="max-h-48 overflow-auto break-all whitespace-pre-wrap text-destructive/70">
+                  {resultText}
+                </pre>
+              ) : (
+                <LivePre text={resultText} live={msg.status === "running"} />
+              ))}
+
+            {!isEdit && !isRead && !resultText && msg.status === "running" && (
+              <span className="text-muted-foreground/40">Running…</span>
+            )}
+
+            {/* Edit / read error */}
+            {(isEdit || isRead) && msg.status === "error" && resultText && (
               <pre className="max-h-48 overflow-auto break-all whitespace-pre-wrap text-destructive/70">
                 {resultText}
               </pre>
-            ) : (
-              <LivePre text={resultText} live={msg.status === "running"} />
-            ))}
-
-          {!isEdit && !isRead && !resultText && msg.status === "running" && (
-            <span className="text-muted-foreground/40">Running…</span>
-          )}
-
-          {/* Edit / read error */}
-          {(isEdit || isRead) && msg.status === "error" && resultText && (
-            <pre className="max-h-48 overflow-auto break-all whitespace-pre-wrap text-destructive/70">
-              {resultText}
-            </pre>
-          )}
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 })

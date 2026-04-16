@@ -1,5 +1,5 @@
 import { memo, useState } from "react"
-import { BrainIcon, ChevronRightIcon } from "lucide-react"
+import { BrainIcon } from "lucide-react"
 
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -37,23 +37,24 @@ export const ThinkingBlock = memo(function ThinkingBlock({
         className="group flex w-full items-center gap-1.5 py-0.5 text-left transition-colors"
         onClick={() => setExpanded((e) => !e)}
       >
-        <ChevronRightIcon
-          className={cn(
-            "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform group-hover:text-muted-foreground/50",
-            expanded && "rotate-90"
-          )}
-        />
         <BrainIcon className="h-3 w-3 shrink-0 transition-colors text-muted-foreground/35 group-hover:text-muted-foreground/55" />
         <span className="min-w-0 flex-1 truncate leading-none italic text-muted-foreground/45 group-hover:text-muted-foreground/65">
           {summary || "thinking…"}
         </span>
       </button>
 
-      {expanded && (
-        <div className="mt-1 ml-1.5 animate-in border-l border-border/30 pl-4 duration-200 fade-in-0 text-muted-foreground/55 leading-relaxed [&>*+*]:mt-2 [&>*:first-child]:mt-0">
+      <div
+        className={cn(
+          "grid transition-all duration-500 ease-in-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-1 ml-1.5 border-l border-border/30 pl-4 text-muted-foreground/55 leading-relaxed [&>*+*]:mt-2 [&>*:first-child]:mt-0">
             <Markdown remarkPlugins={[remarkGfm]}>{thinking}</Markdown>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 })
