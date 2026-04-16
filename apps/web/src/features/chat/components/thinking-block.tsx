@@ -5,7 +5,6 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 import { cn } from "@/shared/lib/utils"
-import { markdownComponents } from "./markdown-components"
 
 function getThinkingSummary(thinking: string): string {
   const firstMeaningfulLine =
@@ -51,15 +50,8 @@ export const ThinkingBlock = memo(function ThinkingBlock({
       </button>
 
       {expanded && (
-        <div className="mt-1 ml-1.5 animate-in border-l border-border/30 pl-4 duration-200 fade-in-0">
-          <div className="prose prose-sm max-w-none text-muted-foreground/55 dark:prose-invert prose-headings:text-foreground/65 dark:prose-headings:text-foreground/65 prose-p:text-muted-foreground/55 prose-strong:text-foreground/65 dark:prose-strong:text-foreground/65 prose-li:text-muted-foreground/55 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <Markdown
-              remarkPlugins={[remarkGfm]}
-              components={markdownComponents}
-            >
-              {thinking}
-            </Markdown>
-          </div>
+        <div className="mt-1 ml-1.5 animate-in border-l border-border/30 pl-4 duration-200 fade-in-0 text-muted-foreground/55 leading-relaxed [&>*+*]:mt-2 [&>*:first-child]:mt-0">
+            <Markdown remarkPlugins={[remarkGfm]}>{thinking}</Markdown>
         </div>
       )}
     </div>
