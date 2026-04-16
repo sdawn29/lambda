@@ -5,15 +5,8 @@ import { X, GripHorizontal } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useTheme } from "@/shared/components/theme-provider"
 import { useTerminal } from "../context"
+import { getServerUrl } from "@/shared/lib/client"
 import "@xterm/xterm/css/xterm.css"
-
-const SERVER_URL =
-  (import.meta.env.VITE_SERVER_URL as string | undefined) ??
-  "http://localhost:3001"
-
-function wsUrl(path: string): string {
-  return SERVER_URL.replace(/^http/, "ws") + path
-}
 
 const MIN_HEIGHT = 120
 const DEFAULT_HEIGHT = 260
@@ -112,9 +105,8 @@ export const TerminalPanel = memo(function TerminalPanel({
     termRef.current = term
     fitAddonRef.current = fitAddon
 
-    const url = wsUrl(`/terminal?cwd=${encodeURIComponent(cwd)}`)
-    const ws = new WebSocket(url)
-    wsRef.current = ws
+    let cancelled = false
+    let ws: WebSocket | null = null
     let pendingOutput = ""
     let flushTimeout: number | null = null
 
@@ -130,49 +122,13 @@ export const TerminalPanel = memo(function TerminalPanel({
         if (delay !== 0) return
         window.clearTimeout(flushTimeout)
       }
-
-      flushTimeout = window.setTimeout(() => {
-        flushOutput()
-      }, delay)
+      flushTimeout = window.setTimeout(flushOutput, delay)
     }
-
-    ws.onopen = () => {
-      const dims = fitAddon.proposeDimensions()
-      if (dims) {
-        ws.send(
-          JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
-        )
-      }
-    }
-
-    ws.onmessage = (e) => {
-      if (typeof e.data !== "string") return
-
-      pendingOutput += e.data
-      scheduleFlush(
-        pendingOutput.length >= TERMINAL_IMMEDIATE_FLUSH_THRESHOLD
-          ? 0
-          : undefined
-      )
-    }
-
-    ws.onclose = () => {
-      if (pendingOutput) {
-        flushOutput()
-      }
-      term.write("\r\n\x1b[31m[disconnected]\x1b[0m\r\n")
-    }
-
-    term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "input", data }))
-      }
-    })
 
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit()
       const dims = fitAddon.proposeDimensions()
-      if (dims && ws.readyState === WebSocket.OPEN) {
+      if (dims && ws?.readyState === WebSocket.OPEN) {
         ws.send(
           JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
         )
@@ -180,13 +136,52 @@ export const TerminalPanel = memo(function TerminalPanel({
     })
     resizeObserver.observe(container)
 
+    getServerUrl().then((serverUrl) => {
+      if (cancelled) return
+      const wsBase = serverUrl.replace(/^http/, "ws")
+      const url = `${wsBase}/terminal?cwd=${encodeURIComponent(cwd)}`
+      ws = new WebSocket(url)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        const dims = fitAddon.proposeDimensions()
+        if (dims) {
+          ws!.send(
+            JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
+          )
+        }
+      }
+
+      ws.onmessage = (e) => {
+        if (typeof e.data !== "string") return
+        pendingOutput += e.data
+        scheduleFlush(
+          pendingOutput.length >= TERMINAL_IMMEDIATE_FLUSH_THRESHOLD
+            ? 0
+            : undefined
+        )
+      }
+
+      ws.onclose = () => {
+        if (pendingOutput) flushOutput()
+        term.write("\r\n\x1b[31m[disconnected]\x1b[0m\r\n")
+      }
+
+      term.onData((data) => {
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "input", data }))
+        }
+      })
+    })
+
     return () => {
+      cancelled = true
       if (flushTimeout !== null) {
         window.clearTimeout(flushTimeout)
       }
       pendingOutput = ""
       resizeObserver.disconnect()
-      ws.close()
+      ws?.close()
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
