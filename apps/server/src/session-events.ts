@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { insertMessage } from "@lamda/db";
 import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
 import { messageBuffer } from "./message-buffer.js";
+import { threadStatusBroadcaster } from "./thread-status-broadcaster.js";
 
 const MAX_RECENT_EVENTS = 512;
 
@@ -271,6 +272,7 @@ class SessionEventHub {
       if (data.message?.role === "assistant") {
         this.runInProgress = true;
         this.currentRunEvents = [];
+        threadStatusBroadcaster.broadcast(this.threadId, "running");
       }
     }
 
@@ -285,6 +287,7 @@ class SessionEventHub {
 
     if (event.type === "agent_end" || event.type === "sdk_error") {
       this.runInProgress = false;
+      threadStatusBroadcaster.broadcast(this.threadId, "idle");
     }
 
     for (const subscriber of this.subscribers.values()) {

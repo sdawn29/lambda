@@ -260,5 +260,7 @@ The server is a Hono app ([apps/server/src/app.ts](apps/server/src/app.ts)) star
 
 When working with the `@mariozechner/pi-coding-agent` SDK, refer to the local installation:
 
-- **Docs:** `/Users/snehasishdawn/.nvm/versions/node/v25.8.2/lib/node_modules/@mariozechner/pi-coding-agent/docs`
-- **Examples:** `/Users/snehasishdawn/.nvm/versions/node/v25.8.2/lib/node_modules/@mariozechner/pi-coding-agent/examples`
+Main readme: node_modules/@mariozechner/pi-coding-agent/README.md
+SDK documentation: node_modules/@mariozechner/pi-coding-agent/docs/sdk.md
+General docs (extensions, themes, skills, TUI, etc.): node_modules/@mariozechner/pi-coding-agent/docs/
+Examples (extensions, custom tools, SDK examples): node_modules/@mariozechner/pi-coding-agent/examples/

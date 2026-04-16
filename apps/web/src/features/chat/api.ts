@@ -41,6 +41,11 @@ export async function openSessionEventSource(id: string): Promise<EventSource> {
   return new EventSource(`${base}/session/${id}/events`)
 }
 
+export async function openGlobalEventSource(): Promise<EventSource> {
+  const base = await getServerUrl()
+  return new EventSource(`${base}/events`)
+}
+
 export function sendPrompt(
   id: string,
   text: string,

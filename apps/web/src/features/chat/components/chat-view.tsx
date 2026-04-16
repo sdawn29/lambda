@@ -4,13 +4,12 @@ import {
   useCallback,
   useRef,
   useMemo,
-  type ReactNode,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { SparklesIcon, StopCircleIcon } from "lucide-react"
 
 import { ChatTextbox, type ChatTextboxHandle } from "./chat-textbox"
-import { MessageRow, estimateMessageSize, getMessageKey } from "./message-row"
+import { MessageRow, getMessageKey } from "./message-row"
 import { openSessionEventSource } from "../api"
 import {
   AlertDialog,
@@ -47,44 +46,6 @@ import { useSetThreadStatus } from "../thread-status-context"
 
 // Persists scroll positions across thread switches (survives remounts, cleared on page reload)
 const threadScrollPositions = new Map<string, number>()
-const VIRTUAL_OVERSCAN_PX = 600
-
-function MeasuredMessageRow({
-  messageKey,
-  onHeightChange,
-  children,
-}: {
-  messageKey: string
-  onHeightChange: (messageKey: string, height: number) => void
-  children: ReactNode
-}) {
-  const rowRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const row = rowRef.current
-    if (!row) return
-
-    const measure = () => {
-      onHeightChange(messageKey, Math.ceil(row.getBoundingClientRect().height))
-    }
-
-    measure()
-
-    const observer = new ResizeObserver(() => {
-      measure()
-    })
-
-    observer.observe(row)
-
-    return () => observer.disconnect()
-  }, [messageKey, onHeightChange])
-
-  return (
-    <div ref={rowRef} className="pb-3">
-      {children}
-    </div>
-  )
-}
 
 function upsertToolMessage(
   prev: Message[],
@@ -185,13 +146,6 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
   const [selectedModelId, setSelectedModelId] = useState<string | null>(initialModelId)
   const updateThreadModel = useUpdateThreadModel()
   const updateThreadStopped = useUpdateThreadStopped()
-  const [scrollTop, setScrollTop] = useState(
-    () => threadScrollPositions.get(threadId) ?? 0
-  )
-  const [viewportHeight, setViewportHeight] = useState(0)
-  const [measuredRowHeights, setMeasuredRowHeights] = useState<
-    Record<string, number>
-  >({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(false)
@@ -244,25 +198,6 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
     if (messages !== null) return
     latestVisibleMessagesRef.current = messagesData ?? []
   }, [messages, messagesData])
-
-  useEffect(() => {
-    const el = scrollContainerRef.current
-    if (!el) return
-
-    const updateViewportHeight = () => {
-      setViewportHeight(el.clientHeight)
-    }
-
-    updateViewportHeight()
-
-    const observer = new ResizeObserver(() => {
-      updateViewportHeight()
-    })
-
-    observer.observe(el)
-
-    return () => observer.disconnect()
-  }, [])
 
   // ── SSE event stream ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -445,74 +380,6 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
     () => visibleMessages.map(getMessageKey),
     [visibleMessages]
   )
-  const {
-    startIndex: visibleStartIndex,
-    endIndex: visibleEndIndex,
-    topSpacerHeight,
-    bottomSpacerHeight,
-  } = useMemo(() => {
-    const count = visibleMessages.length
-    if (count === 0) {
-      return {
-        startIndex: 0,
-        endIndex: 0,
-        topSpacerHeight: 0,
-        bottomSpacerHeight: 0,
-      }
-    }
-
-    const rowHeights = visibleMessages.map((message, index) => {
-      const messageKey = messageKeys[index]
-      return messageKey
-        ? (measuredRowHeights[messageKey] ?? estimateMessageSize(message))
-        : estimateMessageSize(message)
-    })
-
-    const rowOffsets: number[] = []
-    let totalHeight = 0
-    for (const rowHeight of rowHeights) {
-      rowOffsets.push(totalHeight)
-      totalHeight += rowHeight
-    }
-
-    const minVisibleY = Math.max(scrollTop - VIRTUAL_OVERSCAN_PX, 0)
-    const maxVisibleY =
-      scrollTop + Math.max(viewportHeight, 1) + VIRTUAL_OVERSCAN_PX
-
-    let startIndex = 0
-    while (
-      startIndex < count &&
-      rowOffsets[startIndex] + rowHeights[startIndex] < minVisibleY
-    ) {
-      startIndex += 1
-    }
-
-    let endIndex = startIndex
-    while (endIndex < count && rowOffsets[endIndex] < maxVisibleY) {
-      endIndex += 1
-    }
-
-    if (endIndex === startIndex) {
-      endIndex = Math.min(count, startIndex + 1)
-    }
-
-    const topSpacerHeight = startIndex > 0 ? rowOffsets[startIndex] : 0
-    const bottomSpacerHeight =
-      endIndex < count ? Math.max(totalHeight - rowOffsets[endIndex], 0) : 0
-
-    return {
-      startIndex,
-      endIndex,
-      topSpacerHeight,
-      bottomSpacerHeight,
-    }
-  }, [
-    messageKeys,
-    measuredRowHeights,
-    scrollTop,
-    viewportHeight,
-    visibleMessages,
-  ])
 
   const commandsByName = useMemo(
     () =>
@@ -534,11 +401,9 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
       if (!el) return
       if (saved !== undefined) {
         el.scrollTop = saved
-        setScrollTop(saved)
       } else {
         // First visit to this thread — start pinned at the bottom
         el.scrollTop = el.scrollHeight
-        setScrollTop(el.scrollTop)
         pinnedRef.current = true
       }
     })
@@ -553,7 +418,6 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
     const frame = requestAnimationFrame(() => {
       if (isLoading) {
         el.scrollTop = el.scrollHeight
-        setScrollTop(el.scrollTop)
       } else {
         bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
       }
@@ -562,29 +426,12 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
     return () => cancelAnimationFrame(frame)
   }, [isLoading, visibleMessages])
 
-  const handleMeasuredRow = useCallback(
-    (messageKey: string, height: number) => {
-      setMeasuredRowHeights((current) => {
-        if (current[messageKey] === height) return current
-
-        return {
-          ...current,
-          [messageKey]: height,
-        }
-      })
-    },
-    []
-  )
-
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current
     if (!el) return
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
     pinnedRef.current = distanceFromBottom < 80
     threadScrollPositions.set(threadId, el.scrollTop)
-    setScrollTop((current) =>
-      current === el.scrollTop ? current : el.scrollTop
-    )
   }, [threadId])
 
   const handleModelChange = useCallback(
@@ -726,35 +573,19 @@ export function ChatView({ sessionId, workspaceId, threadId, initialModelId, ini
           )}
           {visibleMessages.length > 0 && (
             <div className="w-full">
-              {topSpacerHeight > 0 && (
-                <div style={{ height: `${topSpacerHeight}px` }} />
-              )}
-
-              {visibleMessages
-                .slice(visibleStartIndex, visibleEndIndex)
-                .map((message, offsetIndex) => {
-                  const index = visibleStartIndex + offsetIndex
-                  const messageKey = messageKeys[index]
-                  if (!messageKey) return null
-
-                  return (
-                    <MeasuredMessageRow
-                      key={messageKey}
-                      messageKey={messageKey}
-                      onHeightChange={handleMeasuredRow}
-                    >
-                      <MessageRow
-                        message={message}
-                        commandsByName={commandsByName}
-                        showThinking={showThinkingSetting}
-                      />
-                    </MeasuredMessageRow>
-                  )
-                })}
-
-              {bottomSpacerHeight > 0 && (
-                <div style={{ height: `${bottomSpacerHeight}px` }} />
-              )}
+              {visibleMessages.map((message, index) => {
+                const messageKey = messageKeys[index]
+                if (!messageKey) return null
+                return (
+                  <div key={messageKey} className="pb-3">
+                    <MessageRow
+                      message={message}
+                      commandsByName={commandsByName}
+                      showThinking={showThinkingSetting}
+                    />
+                  </div>
+                )
+              })}
             </div>
           )}
           {isLoading && <ThinkingIndicator className="py-0.5" />}

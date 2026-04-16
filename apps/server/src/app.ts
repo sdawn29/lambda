@@ -61,6 +61,7 @@ import {
 } from "@lamda/db";
 import { store } from "./store.js";
 import { SESSION_SSE_RETRY_MS, sessionEvents } from "./session-events.js";
+import { threadStatusBroadcaster } from "./thread-status-broadcaster.js";
 
 const app = new Hono();
 
@@ -88,6 +89,24 @@ function ensureSessionEventHub(
 }
 
 app.get("/health", (c) => c.json({ status: "ok", uptime: process.uptime() }));
+
+app.get("/events", (c) => {
+  const response = streamSSE(c, async (stream) => {
+    const unsubscribe = threadStatusBroadcaster.subscribe(({ threadId, status }) => {
+      stream.writeSSE({
+        event: "thread_status",
+        data: JSON.stringify({ threadId, status }),
+      });
+    });
+
+    stream.onAbort(unsubscribe);
+    await new Promise<void>((resolve) => stream.onAbort(resolve));
+  });
+
+  response.headers.set("Cache-Control", "no-cache, no-transform");
+  response.headers.set("X-Accel-Buffering", "no");
+  return response;
+});
 
 app.get("/models", (c) => {
   return c.json({ models: getAvailableModels() });

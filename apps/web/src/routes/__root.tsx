@@ -7,10 +7,11 @@ import { TooltipProvider } from "@/shared/ui/tooltip"
 import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { TerminalProvider } from "@/features/terminal"
 import { DiffPanelProvider } from "@/features/git"
-import { ThreadStatusProvider } from "@/features/chat/thread-status-context"
+import { ThreadStatusProvider, useGlobalThreadStatusWatcher } from "@/features/chat"
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()
+  useGlobalThreadStatusWatcher()
 
   if (isLoading) {
     return
