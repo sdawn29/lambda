@@ -180,6 +180,16 @@ function StashInputBar({
 
 // ── File accordion item ─────────────────────────────────────────────────────
 
+function parseDiffCounts(diff: string): { added: number; removed: number } {
+  let added = 0
+  let removed = 0
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("+") && !line.startsWith("+++")) added++
+    else if (line.startsWith("-") && !line.startsWith("---")) removed++
+  }
+  return { added, removed }
+}
+
 function FileAccordionItem({
   file,
   sessionId,
@@ -196,13 +206,14 @@ function FileAccordionItem({
   const [expanded, setExpanded] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [reverting, setReverting] = useState(false)
-
   const { data: diff, isLoading: diffLoading } = useGitFileDiff(
     sessionId,
     file.filePath,
     file.raw,
-    expanded
+    true
   )
+
+  const counts = useMemo(() => (diff != null ? parseDiffCounts(diff) : null), [diff])
 
   async function handleToggle(e: React.MouseEvent) {
     e.stopPropagation()
@@ -236,7 +247,7 @@ function FileAccordionItem({
       <div className="relative flex w-full items-center">
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-2 pr-8 pl-2 text-left transition-colors hover:bg-muted/40"
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-2 pr-14 pl-2 text-left transition-colors hover:bg-muted/40"
         >
           <ChevronRight
             className={cn(
@@ -256,6 +267,16 @@ function FileAccordionItem({
             {dirPath && (
               <span className="truncate font-mono text-[10px] text-muted-foreground/50">
                 {dirPath}
+              </span>
+            )}
+            {counts != null && (
+              <span className="flex shrink-0 items-baseline gap-0.5 font-mono text-[10px]">
+                {counts.added > 0 && (
+                  <span className="text-green-600 dark:text-green-400">+{counts.added}</span>
+                )}
+                {counts.removed > 0 && (
+                  <span className="text-red-500 dark:text-red-400">-{counts.removed}</span>
+                )}
               </span>
             )}
           </span>
