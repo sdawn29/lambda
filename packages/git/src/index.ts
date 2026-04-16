@@ -2,6 +2,86 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+function parseNumstat(stdout: string): {
+  additions: number;
+  deletions: number;
+} {
+  let additions = 0;
+  let deletions = 0;
+
+  for (const line of stdout.split("\n")) {
+    const [added, deleted] = line.trim().split("\t");
+    const addedCount = Number.parseInt(added ?? "", 10);
+    const deletedCount = Number.parseInt(deleted ?? "", 10);
+
+    if (!Number.isNaN(addedCount)) additions += addedCount;
+    if (!Number.isNaN(deletedCount)) deletions += deletedCount;
+  }
+
+  return { additions, deletions };
+}
+
+async function getTrackedNumstat(cwd: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["diff", "--numstat", "HEAD"],
+      { cwd, timeout: 5000 },
+    );
+    return stdout;
+  } catch {
+    try {
+      const { stdout } = await execFileAsync(
+        "git",
+        ["diff", "--cached", "--numstat", "--root", EMPTY_TREE_HASH],
+        { cwd, timeout: 5000 },
+      );
+      return stdout;
+    } catch {
+      return "";
+    }
+  }
+}
+
+async function listUntrackedFiles(cwd: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["ls-files", "--others", "--exclude-standard", "-z"],
+      { cwd, timeout: 5000 },
+    );
+    return stdout.split("\0").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function getUntrackedNumstat(
+  cwd: string,
+  filePath: string,
+): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["diff", "--no-index", "--numstat", "--", "/dev/null", filePath],
+      { cwd, timeout: 5000 },
+    );
+    return stdout;
+  } catch (err: unknown) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "stdout" in err &&
+      typeof (err as { stdout?: unknown }).stdout === "string"
+    ) {
+      return (err as { stdout: string }).stdout;
+    }
+
+    return "";
+  }
+}
 
 export async function getCurrentBranch(cwd: string): Promise<string | null> {
   try {
@@ -229,28 +309,30 @@ export async function gitStashDrop(cwd: string, ref: string): Promise<void> {
   await execFileAsync("git", ["stash", "drop", ref], { cwd, timeout: 10000 });
 }
 
-/** Returns total insertions/deletions across all uncommitted changes (`git diff --numstat HEAD`). */
+/** Returns total insertions/deletions across all uncommitted changes, including untracked files. */
 export async function gitDiffStat(
   cwd: string,
 ): Promise<{ additions: number; deletions: number }> {
   try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["diff", "--numstat", "HEAD"],
-      { cwd, timeout: 5000 },
+    const [trackedNumstat, untrackedFiles] = await Promise.all([
+      getTrackedNumstat(cwd),
+      listUntrackedFiles(cwd),
+    ]);
+
+    const total = parseNumstat(trackedNumstat);
+
+    const untrackedStats = await Promise.all(
+      untrackedFiles.map(async (filePath) =>
+        parseNumstat(await getUntrackedNumstat(cwd, filePath)),
+      ),
     );
-    let additions = 0;
-    let deletions = 0;
-    for (const line of stdout.split("\n")) {
-      const parts = line.trim().split("\t");
-      if (parts.length >= 2) {
-        const a = parseInt(parts[0], 10);
-        const d = parseInt(parts[1], 10);
-        if (!isNaN(a)) additions += a;
-        if (!isNaN(d)) deletions += d;
-      }
+
+    for (const stat of untrackedStats) {
+      total.additions += stat.additions;
+      total.deletions += stat.deletions;
     }
-    return { additions, deletions };
+
+    return total;
   } catch {
     return { additions: 0, deletions: 0 };
   }
