@@ -48,6 +48,7 @@ import {
   type Message,
   type ToolMessage,
 } from "../types"
+import { useSetThreadStatus } from "../thread-status-context"
 
 // Persists scroll positions across thread switches (survives remounts, cleared on page reload)
 const threadScrollPositions = new Map<string, number>()
@@ -178,6 +179,7 @@ interface ChatViewProps {
 export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
   const queryClient = useQueryClient()
   const showThinkingSetting = useShowThinkingSetting()
+  const setThreadStatus = useSetThreadStatus()
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const stoppedKey = getStoppedStorageKey(threadId)
@@ -207,6 +209,10 @@ export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
   const initialMessagesRef = useRef<Message[]>([])
   const latestVisibleMessagesRef = useRef<Message[]>([])
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
+
+  useEffect(() => {
+    setThreadStatus(threadId, isLoading ? "running" : "idle")
+  }, [threadId, isLoading, setThreadStatus])
 
   const { setThreadTitle } = useWorkspace()
 

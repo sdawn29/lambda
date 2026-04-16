@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip"
 import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { TerminalProvider } from "@/features/terminal"
 import { DiffPanelProvider } from "@/features/git"
+import { ThreadStatusProvider } from "@/features/chat/thread-status-context"
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()
@@ -33,11 +34,13 @@ function RootLayoutInner() {
 
 const RootLayout = () => (
   <WorkspaceProvider>
-    <TerminalProvider>
-      <DiffPanelProvider>
-        <RootLayoutInner />
-      </DiffPanelProvider>
-    </TerminalProvider>
+    <ThreadStatusProvider>
+      <TerminalProvider>
+        <DiffPanelProvider>
+          <RootLayoutInner />
+        </DiffPanelProvider>
+      </TerminalProvider>
+    </ThreadStatusProvider>
   </WorkspaceProvider>
 )
 

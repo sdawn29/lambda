@@ -4,6 +4,7 @@ import {
   ExternalLink,
   Folder,
   FolderOpen,
+  Loader2,
   MoreHorizontal,
   Plus,
   Settings,
@@ -34,6 +35,34 @@ import {
 import { useOpenPath, useOpenWorkspaceWithApp } from "@/features/electron"
 import { Button } from "@/shared/ui/button"
 import { useWorkspace, useCreateWorkspaceAction } from "../context"
+import { useThreadStatus } from "@/features/chat"
+import type { Thread } from "../context"
+
+function ThreadRow({
+  thread,
+  isActive,
+  onClick,
+}: {
+  thread: Thread
+  isActive: boolean
+  onClick: () => void
+}) {
+  const status = useThreadStatus(thread.id)
+  return (
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton isActive={isActive} onClick={onClick}>
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+          {status === "running" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/60" />
+          ) : (
+            <span className="h-1.5 w-1.5 rounded-full bg-transparent" />
+          )}
+        </span>
+        <span className="truncate">{thread.title}</span>
+      </SidebarMenuSubButton>
+    </SidebarMenuSubItem>
+  )
+}
 
 export function AppSidebar() {
   const { workspaces, createThread, deleteWorkspace } = useWorkspace()
@@ -145,19 +174,17 @@ export function AppSidebar() {
                     {!collapsed[ws.id] && ws.threads.length > 0 && (
                       <SidebarMenuSub className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
                         {ws.threads.map((thread) => (
-                          <SidebarMenuSubItem key={thread.id}>
-                            <SidebarMenuSubButton
-                              isActive={activeThreadId === thread.id}
-                              onClick={() =>
-                                navigate({
-                                  to: "/workspace/$threadId",
-                                  params: { threadId: thread.id },
-                                })
-                              }
-                            >
-                              <span className="truncate">{thread.title}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
+                          <ThreadRow
+                            key={thread.id}
+                            thread={thread}
+                            isActive={activeThreadId === thread.id}
+                            onClick={() =>
+                              navigate({
+                                to: "/workspace/$threadId",
+                                params: { threadId: thread.id },
+                              })
+                            }
+                          />
                         ))}
                       </SidebarMenuSub>
                     )}
