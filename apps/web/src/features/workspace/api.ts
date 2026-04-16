@@ -11,6 +11,8 @@ export interface ThreadDto {
   id: string
   workspaceId: string
   title: string
+  modelId: string | null
+  isStopped: boolean
   createdAt: number
   sessionId: string | null
 }
@@ -19,6 +21,7 @@ export interface WorkspaceDto {
   id: string
   name: string
   path: string
+  openWithAppId: string | null
   createdAt: number
   threads: ThreadDto[]
 }
@@ -51,6 +54,17 @@ export function deleteWorkspace(id: string): Promise<void> {
   return apiFetch<void>(`/workspace/${id}`, { method: "DELETE" })
 }
 
+export function updateWorkspaceOpenWithApp(
+  id: string,
+  appId: string | null
+): Promise<void> {
+  return apiFetch<void>(`/workspace/${id}/open-with-app`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ appId }),
+  })
+}
+
 export function createThread(
   workspaceId: string
 ): Promise<{ thread: ThreadDto }> {
@@ -73,6 +87,34 @@ export function updateThreadTitle(
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title }),
+  })
+}
+
+export function updateThreadModel(
+  threadId: string,
+  modelId: string | null
+): Promise<void> {
+  return apiFetch<void>(`/thread/${threadId}/model`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ modelId }),
+  })
+}
+
+export function updateThreadStopped(
+  threadId: string,
+  stopped: boolean
+): Promise<void> {
+  return apiFetch<void>(`/thread/${threadId}/stopped`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stopped }),
+  })
+}
+
+export function updateThreadLastAccessed(threadId: string): Promise<void> {
+  return apiFetch<void>(`/thread/${threadId}/last-accessed`, {
+    method: "PATCH",
   })
 }
 

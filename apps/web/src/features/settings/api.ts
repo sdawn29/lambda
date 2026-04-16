@@ -1,5 +1,20 @@
 import { apiFetch, getServerUrl } from "@/shared/lib/client"
 
+// ── App settings ──────────────────────────────────────────────────────────────
+
+export async function fetchAppSettings(): Promise<Record<string, string>> {
+  const res = await apiFetch<{ settings: Record<string, string> }>("/settings")
+  return res.settings
+}
+
+export async function updateAppSetting(key: string, value: string): Promise<void> {
+  await apiFetch(`/settings/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  })
+}
+
 // ── Provider API keys ─────────────────────────────────────────────────────────
 
 export type ProviderKeys = Record<string, string>

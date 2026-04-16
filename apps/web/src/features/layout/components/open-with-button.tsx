@@ -8,6 +8,7 @@ import {
   useOpenWithApps,
   useOpenWorkspaceWithApp,
 } from "@/features/electron"
+import { useUpdateWorkspaceOpenWithApp } from "@/features/workspace/mutations"
 import { Button } from "@/shared/ui/button"
 import { ButtonGroup } from "@/shared/ui/button-group"
 import {
@@ -19,59 +20,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
-import {
-  OPEN_WITH_LEGACY_STORAGE_KEYS,
-  OPEN_WITH_STORAGE_KEY,
-  readStorageValue,
-  writeStorageValue,
-} from "@/shared/lib/storage-keys"
-
-type StoredSelections = {
-  version: 1
-  workspaceSelections: Record<string, string>
-}
-
-function readStoredSelections(): Record<string, string> {
-  if (typeof window === "undefined") return {}
-
-  try {
-    const raw = readStorageValue(
-      OPEN_WITH_STORAGE_KEY,
-      OPEN_WITH_LEGACY_STORAGE_KEYS
-    )
-    if (!raw) return {}
-
-    const parsed = JSON.parse(raw) as Partial<StoredSelections>
-    if (
-      parsed.version !== 1 ||
-      typeof parsed.workspaceSelections !== "object" ||
-      parsed.workspaceSelections === null
-    ) {
-      return {}
-    }
-
-    return Object.fromEntries(
-      Object.entries(parsed.workspaceSelections).filter(
-        (entry): entry is [string, string] => typeof entry[1] === "string"
-      )
-    )
-  } catch {
-    return {}
-  }
-}
-
-function writeStoredSelections(selections: Record<string, string>) {
-  if (typeof window === "undefined") return
-
-  writeStorageValue(
-    OPEN_WITH_STORAGE_KEY,
-    JSON.stringify({
-      version: 1,
-      workspaceSelections: selections,
-    } satisfies StoredSelections),
-    OPEN_WITH_LEGACY_STORAGE_KEYS
-  )
-}
 
 function AppIcon({
   appName,
@@ -82,9 +30,7 @@ function AppIcon({
   iconDataUrl: string | null
   className?: string
 }) {
-  const [failedIconDataUrl, setFailedIconDataUrl] = useState<string | null>(
-    null
-  )
+  const [failedIconDataUrl, setFailedIconDataUrl] = useState<string | null>(null)
   const hasLoadError = iconDataUrl !== null && failedIconDataUrl === iconDataUrl
 
   if (iconDataUrl && !hasLoadError) {
@@ -115,7 +61,15 @@ function AppIcon({
   )
 }
 
-export function OpenWithButton({ workspacePath }: { workspacePath?: string }) {
+export function OpenWithButton({
+  workspaceId,
+  workspacePath,
+  openWithAppId,
+}: {
+  workspaceId?: string
+  workspacePath?: string
+  openWithAppId?: string | null
+}) {
   const { data: platform } = useElectronPlatform()
   const isMac = platform === "darwin"
   const { data: apps = [], isLoading: isLoadingApps } = useOpenWithApps(isMac)
@@ -125,33 +79,16 @@ export function OpenWithButton({ workspacePath }: { workspacePath?: string }) {
       isMac && apps.length > 0
     )
   const openWorkspaceMutation = useOpenWorkspaceWithApp()
-  const [storedSelections, setStoredSelections] = useState<
-    Record<string, string>
-  >(() => readStoredSelections())
+  const updateOpenWithApp = useUpdateWorkspaceOpenWithApp()
 
-  const selectedAppId = workspacePath
-    ? storedSelections[workspacePath]
-    : undefined
   const selectedApp = useMemo(() => {
     if (apps.length === 0) return null
-    return apps.find((editorApp) => editorApp.id === selectedAppId) ?? apps[0]
-  }, [apps, selectedAppId])
+    return apps.find((editorApp) => editorApp.id === openWithAppId) ?? apps[0]
+  }, [apps, openWithAppId])
 
   const persistSelection = (appId: string) => {
-    if (!workspacePath) return
-
-    setStoredSelections((currentSelections) => {
-      if (currentSelections[workspacePath] === appId) {
-        return currentSelections
-      }
-
-      const nextSelections = {
-        ...currentSelections,
-        [workspacePath]: appId,
-      }
-      writeStoredSelections(nextSelections)
-      return nextSelections
-    })
+    if (!workspaceId) return
+    updateOpenWithApp.mutate({ workspaceId, appId })
   }
 
   const openWorkspace = async (appId?: string) => {

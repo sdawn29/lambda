@@ -7,9 +7,13 @@ import {
   createWorkspace as apiCreateWorkspace,
   type CreateWorkspaceBody,
   deleteWorkspace as apiDeleteWorkspace,
+  updateWorkspaceOpenWithApp as apiUpdateWorkspaceOpenWithApp,
   createThread as apiCreateThread,
   deleteThread as apiDeleteThread,
   updateThreadTitle as apiUpdateThreadTitle,
+  updateThreadModel as apiUpdateThreadModel,
+  updateThreadStopped as apiUpdateThreadStopped,
+  updateThreadLastAccessed as apiUpdateThreadLastAccessed,
   resetAllData,
   type WorkspaceDto,
 } from "./api"
@@ -206,5 +210,71 @@ export function useDeleteSession() {
       queryClient.removeQueries({ queryKey: chatKeys.session(id) })
       queryClient.removeQueries({ queryKey: gitKeys.session(id) })
     },
+  })
+}
+
+export function useUpdateWorkspaceOpenWithApp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ workspaceId, appId }: { workspaceId: string; appId: string | null }) =>
+      apiUpdateWorkspaceOpenWithApp(workspaceId, appId),
+    onMutate: ({ workspaceId, appId }) => {
+      setWorkspacesData(queryClient, (workspaces) =>
+        workspaces.map((ws) =>
+          ws.id !== workspaceId ? ws : { ...ws, openWithAppId: appId }
+        )
+      )
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function useUpdateThreadModel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ threadId, modelId }: { threadId: string; modelId: string | null }) =>
+      apiUpdateThreadModel(threadId, modelId),
+    onMutate: ({ threadId, modelId }) => {
+      setWorkspacesData(queryClient, (workspaces) =>
+        workspaces.map((ws) => ({
+          ...ws,
+          threads: ws.threads.map((t) =>
+            t.id !== threadId ? t : { ...t, modelId }
+          ),
+        }))
+      )
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function useUpdateThreadStopped() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ threadId, stopped }: { threadId: string; stopped: boolean }) =>
+      apiUpdateThreadStopped(threadId, stopped),
+    onMutate: ({ threadId, stopped }) => {
+      setWorkspacesData(queryClient, (workspaces) =>
+        workspaces.map((ws) => ({
+          ...ws,
+          threads: ws.threads.map((t) =>
+            t.id !== threadId ? t : { ...t, isStopped: stopped }
+          ),
+        }))
+      )
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function useUpdateThreadLastAccessed() {
+  return useMutation({
+    mutationFn: (threadId: string) => apiUpdateThreadLastAccessed(threadId),
   })
 }

@@ -280,7 +280,11 @@ export function TitleBar() {
         className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
-        <OpenWithButton workspacePath={activeWorkspace?.path} />
+        <OpenWithButton
+          workspaceId={activeWorkspace?.id}
+          workspacePath={activeWorkspace?.path}
+          openWithAppId={activeWorkspace?.openWithAppId}
+        />
         {!isSettings && (
           <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
         )}

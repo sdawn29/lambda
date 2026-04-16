@@ -35,14 +35,9 @@ import {
 import { ThinkingIndicator } from "./thinking-indicator"
 import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
 import {
-  getLegacyStoppedStorageKey,
-  getLegacyThreadModelStorageKey,
-  getStoppedStorageKey,
-  getThreadModelStorageKey,
-  readStorageValue,
-  removeStorageValue,
-  writeStorageValue,
-} from "@/shared/lib/storage-keys"
+  useUpdateThreadModel,
+  useUpdateThreadStopped,
+} from "@/features/workspace/mutations"
 import {
   createAssistantMessage,
   type Message,
@@ -174,26 +169,22 @@ interface ChatViewProps {
   workspaceName: string
   workspaceId: string
   threadId: string
+  initialModelId: string | null
+  initialIsStopped: boolean
 }
 
-export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
+export function ChatView({ sessionId, workspaceId, threadId, initialModelId, initialIsStopped }: ChatViewProps) {
   const queryClient = useQueryClient()
   const showThinkingSetting = useShowThinkingSetting()
   const setThreadStatus = useSetThreadStatus()
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const stoppedKey = getStoppedStorageKey(threadId)
-  const legacyStoppedKey = getLegacyStoppedStorageKey(threadId)
-  const threadModelKey = getThreadModelStorageKey(threadId)
-  const legacyThreadModelKey = getLegacyThreadModelStorageKey(threadId)
-  const [isStopped, setIsStopped] = useState(
-    () => readStorageValue(stoppedKey, [legacyStoppedKey]) === "1"
-  )
+  const [isStopped, setIsStopped] = useState(initialIsStopped)
   const [isCompacting, setIsCompacting] = useState(false)
   const [gitError, setGitError] = useState<string | null>(null)
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(() =>
-    readStorageValue(threadModelKey, [legacyThreadModelKey])
-  )
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(initialModelId)
+  const updateThreadModel = useUpdateThreadModel()
+  const updateThreadStopped = useUpdateThreadStopped()
   const [scrollTop, setScrollTop] = useState(
     () => threadScrollPositions.get(threadId) ?? 0
   )
@@ -599,9 +590,9 @@ export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
   const handleModelChange = useCallback(
     (id: string) => {
       setSelectedModelId(id)
-      writeStorageValue(threadModelKey, id, [legacyThreadModelKey])
+      updateThreadModel.mutate({ threadId, modelId: id })
     },
-    [legacyThreadModelKey, threadModelKey]
+    [threadId, updateThreadModel]
   )
 
   const handleGitError = useCallback((message: string) => {
@@ -634,8 +625,8 @@ export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
     })
     setIsLoading(false)
     setIsStopped(true)
-    writeStorageValue(stoppedKey, "1", [legacyStoppedKey])
-  }, [abortSessionMutation, legacyStoppedKey, stoppedKey])
+    updateThreadStopped.mutate({ threadId, stopped: true })
+  }, [abortSessionMutation, threadId, updateThreadStopped])
 
   const handleSend = useCallback(
     (
@@ -653,7 +644,7 @@ export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
       }
       pinnedRef.current = true
       setIsStopped(false)
-      removeStorageValue(stoppedKey, [legacyStoppedKey])
+      updateThreadStopped.mutate({ threadId, stopped: false })
       applyLocalMessages((prev) => [...prev, { role: "user", content: text }])
       setIsLoading(true)
       const model = modelId && provider ? { provider, modelId } : undefined
@@ -669,8 +660,7 @@ export function ChatView({ sessionId, workspaceId, threadId }: ChatViewProps) {
       threadId,
       applyLocalMessages,
       setThreadTitle,
-      legacyStoppedKey,
-      stoppedKey,
+      updateThreadStopped,
     ]
   )
 

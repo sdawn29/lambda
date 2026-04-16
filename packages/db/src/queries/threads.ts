@@ -23,6 +23,18 @@ export function updateThreadSessionFile(id: string, sessionFile: string) {
   db.update(threads).set({ sessionFile }).where(eq(threads.id, id)).run()
 }
 
+export function updateThreadModel(id: string, modelId: string | null) {
+  db.update(threads).set({ modelId }).where(eq(threads.id, id)).run()
+}
+
+export function updateThreadStopped(id: string, isStopped: boolean) {
+  db.update(threads).set({ isStopped }).where(eq(threads.id, id)).run()
+}
+
+export function updateThreadLastAccessed(id: string) {
+  db.update(threads).set({ lastAccessedAt: Date.now() }).where(eq(threads.id, id)).run()
+}
+
 export function deleteThread(id: string) {
   db.delete(threads).where(eq(threads.id, id)).run()
 }

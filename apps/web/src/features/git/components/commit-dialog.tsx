@@ -13,11 +13,8 @@ import { Button } from "@/shared/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/shared/ui/dialog"
 import { DiffView } from "./diff-view"
 import { cn } from "@/shared/lib/utils"
-import {
-  COMMIT_PROMPT_LEGACY_STORAGE_KEYS,
-  COMMIT_PROMPT_STORAGE_KEY,
-  readStorageValue,
-} from "@/shared/lib/storage-keys"
+import { useAppSettings } from "@/features/settings/queries"
+import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
 import { useGitStatus } from "../queries"
 import { useGitFileDiff } from "../queries"
 import {
@@ -183,6 +180,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState("")
   const navigate = useNavigate()
+  const { data: settings } = useAppSettings()
 
   const { data: statusRaw, isLoading: loading } = useGitStatus(sessionId ?? "")
   const { data: branchData } = useBranch(sessionId ?? "")
@@ -256,11 +254,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
   async function handleGenerate() {
     if (!sessionId || generateCommitMessageMutation.isPending) return
     try {
-      const promptTemplate =
-        readStorageValue(
-          COMMIT_PROMPT_STORAGE_KEY,
-          COMMIT_PROMPT_LEGACY_STORAGE_KEYS
-        ) ?? undefined
+      const promptTemplate = settings?.[APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT] ?? undefined
       const generated =
         await generateCommitMessageMutation.mutateAsync(promptTemplate)
       setMessage(generated)

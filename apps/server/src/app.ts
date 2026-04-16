@@ -39,17 +39,23 @@ import {
   gitStagedDiff,
 } from "@lamda/git";
 import {
+  getAllSettings,
+  upsertSetting,
   listWorkspacesWithThreads,
   getWorkspace,
   getWorkspaceByPath,
   insertWorkspace,
   deleteWorkspace,
   deleteAllWorkspaces,
+  updateWorkspaceOpenWithApp,
   insertThread,
   getThread,
   deleteThread,
   updateThreadTitle,
   updateThreadSessionFile,
+  updateThreadModel,
+  updateThreadStopped,
+  updateThreadLastAccessed,
   listMessages,
   insertMessage,
 } from "@lamda/db";
@@ -87,6 +93,22 @@ app.get("/models", (c) => {
   return c.json({ models: getAvailableModels() });
 });
 
+// ── App settings ───────────────────────────────────────────────────────────────
+
+app.get("/settings", (c) => {
+  return c.json({ settings: getAllSettings() });
+});
+
+app.put("/settings/:key", async (c) => {
+  const key = c.req.param("key");
+  const body = await c.req
+    .json<{ value?: string }>()
+    .catch((): { value?: string } => ({}));
+  if (body.value === undefined) return c.json({ error: "value is required" }, 400);
+  upsertSetting(key, body.value);
+  return c.json({ ok: true });
+});
+
 app.post("/title", async (c) => {
   const body = await c.req
     .json<{ message?: string; provider?: string; model?: string }>()
@@ -107,6 +129,7 @@ app.get("/workspaces", (c) => {
     id: ws.id,
     name: ws.name,
     path: ws.path,
+    openWithAppId: ws.openWithAppId ?? null,
     createdAt: ws.createdAt,
     threads: ws.threads.map((t) => {
       const session = store.getByThreadId(t.id);
@@ -114,6 +137,8 @@ app.get("/workspaces", (c) => {
         id: t.id,
         workspaceId: ws.id,
         title: t.title,
+        modelId: t.modelId ?? null,
+        isStopped: Boolean(t.isStopped),
         createdAt: t.createdAt,
         sessionId: session?.sessionId ?? null,
       };
@@ -152,6 +177,8 @@ app.post("/workspace", async (c) => {
         id: t.id,
         workspaceId: existing.id,
         title: t.title,
+        modelId: t.modelId ?? null,
+        isStopped: Boolean(t.isStopped),
         createdAt: t.createdAt,
         sessionId: session?.sessionId ?? null,
       };
@@ -159,7 +186,7 @@ app.post("/workspace", async (c) => {
     return c.json(
       {
         error: "A workspace already exists for this path",
-        workspace: { ...existing, threads },
+        workspace: { ...existing, openWithAppId: existing.openWithAppId ?? null, threads },
       },
       409,
     );
@@ -178,11 +205,14 @@ app.post("/workspace", async (c) => {
         id: workspaceId,
         name: body.name,
         path: body.path,
+        openWithAppId: null,
         threads: [
           {
             id: threadId,
             workspaceId,
             title: "New Thread",
+            modelId: null,
+            isStopped: false,
             createdAt: Date.now(),
             sessionId,
           },
@@ -243,6 +273,8 @@ app.post("/workspace/:workspaceId/thread", async (c) => {
         id: threadId,
         workspaceId,
         title: "New Thread",
+        modelId: null,
+        isStopped: false,
         createdAt: Date.now(),
         sessionId,
       },
@@ -271,6 +303,45 @@ app.patch("/thread/:id/title", async (c) => {
   const thread = getThread(threadId);
   if (!thread) return c.json({ error: "Thread not found" }, 404);
   updateThreadTitle(threadId, body.title);
+  return c.json({ ok: true });
+});
+
+app.patch("/thread/:id/model", async (c) => {
+  const threadId = c.req.param("id");
+  const body = await c.req
+    .json<{ modelId?: string | null }>()
+    .catch((): { modelId?: string | null } => ({}));
+  const thread = getThread(threadId);
+  if (!thread) return c.json({ error: "Thread not found" }, 404);
+  updateThreadModel(threadId, body.modelId ?? null);
+  return c.json({ ok: true });
+});
+
+app.patch("/thread/:id/stopped", async (c) => {
+  const threadId = c.req.param("id");
+  const body = await c.req
+    .json<{ stopped?: boolean }>()
+    .catch((): { stopped?: boolean } => ({}));
+  const thread = getThread(threadId);
+  if (!thread) return c.json({ error: "Thread not found" }, 404);
+  updateThreadStopped(threadId, body.stopped ?? false);
+  return c.json({ ok: true });
+});
+
+app.patch("/thread/:id/last-accessed", (c) => {
+  const threadId = c.req.param("id");
+  updateThreadLastAccessed(threadId);
+  return c.json({ ok: true });
+});
+
+app.patch("/workspace/:id/open-with-app", async (c) => {
+  const workspaceId = c.req.param("id");
+  const body = await c.req
+    .json<{ appId?: string | null }>()
+    .catch((): { appId?: string | null } => ({}));
+  const ws = getWorkspace(workspaceId);
+  if (!ws) return c.json({ error: "Workspace not found" }, 404);
+  updateWorkspaceOpenWithApp(workspaceId, body.appId ?? null);
   return c.json({ ok: true });
 });
 

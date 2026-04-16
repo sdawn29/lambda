@@ -2,29 +2,24 @@ import { createFileRoute, Navigate } from "@tanstack/react-router"
 
 import { WorkspaceEmptyState } from "@/features/workspace"
 import { useWorkspace } from "@/features/workspace"
-import {
-  ACTIVE_THREAD_LEGACY_STORAGE_KEYS,
-  ACTIVE_THREAD_STORAGE_KEY,
-  readStorageValue,
-} from "@/shared/lib/storage-keys"
+import { useAppSettings } from "@/features/settings/queries"
+import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
 
 export const Route = createFileRoute("/")({
   component: Index,
 })
 
 function Index() {
-  const { workspaces, isLoading } = useWorkspace()
+  const { workspaces, isLoading: workspacesLoading } = useWorkspace()
+  const { data: settings, isLoading: settingsLoading } = useAppSettings()
 
-  if (isLoading) return null
+  if (workspacesLoading || settingsLoading) return null
 
   if (workspaces.length === 0) return <WorkspaceEmptyState />
 
   const allThreads = workspaces.flatMap((w) => w.threads)
-  const savedThId = readStorageValue(
-    ACTIVE_THREAD_STORAGE_KEY,
-    ACTIVE_THREAD_LEGACY_STORAGE_KEYS
-  )
-  const thread = allThreads.find((t) => t.id === savedThId) ?? allThreads[0]
+  const savedThreadId = settings?.[APP_SETTINGS_KEYS.ACTIVE_THREAD_ID]
+  const thread = allThreads.find((t) => t.id === savedThreadId) ?? allThreads[0]
 
   if (thread) {
     return (

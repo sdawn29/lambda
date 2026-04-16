@@ -5,11 +5,9 @@ import { ChatView } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
 import { useDiffPanel } from "@/features/git"
 import { useTerminal } from "@/features/terminal"
-import {
-  ACTIVE_THREAD_LEGACY_STORAGE_KEYS,
-  ACTIVE_THREAD_STORAGE_KEY,
-  writeStorageValue,
-} from "@/shared/lib/storage-keys"
+import { useUpdateAppSetting } from "@/features/settings/mutations"
+import { useUpdateThreadLastAccessed } from "@/features/workspace/mutations"
+import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
 
 const DiffPanel = lazy(() =>
   import("@/features/git").then((module) => ({
@@ -33,14 +31,13 @@ function WorkspaceThreadRoute() {
   const navigate = useNavigate()
   const { isOpen: diffOpen } = useDiffPanel()
   const { isOpen: terminalOpen } = useTerminal()
+  const updateSetting = useUpdateAppSetting()
+  const updateLastAccessed = useUpdateThreadLastAccessed()
 
-  // Persist last-visited thread for index redirect
   useEffect(() => {
-    writeStorageValue(
-      ACTIVE_THREAD_STORAGE_KEY,
-      threadId,
-      ACTIVE_THREAD_LEGACY_STORAGE_KEYS
-    )
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.ACTIVE_THREAD_ID, value: threadId })
+    updateLastAccessed.mutate(threadId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId])
 
   let foundWorkspace = null
@@ -54,7 +51,6 @@ function WorkspaceThreadRoute() {
     }
   }
 
-  // If workspaces have loaded but thread is not found, redirect to index
   useEffect(() => {
     if (workspaces.length > 0 && !foundThread) {
       navigate({ to: "/" })
@@ -69,7 +65,6 @@ function WorkspaceThreadRoute() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Main row: chat + diff panel side by side */}
       <div className="flex min-h-0 flex-1 overflow-hidden border-t">
         <ChatView
           key={foundThread.id}
@@ -77,12 +72,14 @@ function WorkspaceThreadRoute() {
           workspaceName={foundWorkspace.name}
           workspaceId={foundWorkspace.id}
           threadId={foundThread.id}
+          initialModelId={foundThread.modelId}
+          initialIsStopped={foundThread.isStopped}
         />
 
         {diffOpen && (
           <Suspense
             fallback={
-              <div className="w-[440px] shrink-0 border-l border-border/60 bg-muted/10" />
+              <div className="w-110 shrink-0 border-l border-border/60 bg-muted/10" />
             }
           >
             <DiffPanel sessionId={foundThread.sessionId} />
@@ -90,11 +87,10 @@ function WorkspaceThreadRoute() {
         )}
       </div>
 
-      {/* Terminal panel anchored to bottom */}
       {terminalOpen && (
         <Suspense
           fallback={
-            <div className="h-[260px] shrink-0 border-t bg-background" />
+            <div className="h-65 shrink-0 border-t bg-background" />
           }
         >
           <TerminalPanel cwd={cwd} />

@@ -6,10 +6,35 @@ import {
   respondToOAuthPrompt,
   startOAuthLogin,
   updateProviders,
+  updateAppSetting,
   type ProviderKeys,
 } from "./api"
-import { oauthProvidersQueryKey, providersQueryKey } from "./queries"
+import { appSettingsQueryKey, oauthProvidersQueryKey, providersQueryKey } from "./queries"
 import { modelsQueryKey } from "@/features/chat/queries"
+
+export function useUpdateAppSetting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      updateAppSetting(key, value),
+    onMutate: async ({ key, value }) => {
+      const prev = queryClient.getQueryData<Record<string, string>>(appSettingsQueryKey)
+      queryClient.setQueryData<Record<string, string>>(appSettingsQueryKey, (current) => ({
+        ...(current ?? {}),
+        [key]: value,
+      }))
+      return { prev }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(appSettingsQueryKey, context.prev)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: appSettingsQueryKey })
+    },
+  })
+}
 
 export function useUpdateProviders() {
   const queryClient = useQueryClient()

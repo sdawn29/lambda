@@ -1,12 +1,23 @@
 import { useQuery } from "@tanstack/react-query"
-import { fetchProviders, fetchOAuthProviders } from "./api"
+import { fetchProviders, fetchOAuthProviders, fetchAppSettings } from "./api"
 
 const settingsRootKey = ["settings"] as const
 
 export const settingsKeys = {
   all: settingsRootKey,
+  app: [...settingsRootKey, "app"] as const,
   providers: [...settingsRootKey, "providers"] as const,
   oauthProviders: [...settingsRootKey, "oauth-providers"] as const,
+}
+
+export const appSettingsQueryKey = settingsKeys.app
+
+export function useAppSettings() {
+  return useQuery({
+    queryKey: appSettingsQueryKey,
+    queryFn: ({ signal: _ }) => fetchAppSettings(),
+    staleTime: Infinity,
+  })
 }
 
 export const providersQueryKey = settingsKeys.providers

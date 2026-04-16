@@ -30,6 +30,10 @@ export function insertWorkspace(name: string, path: string): string {
   return id
 }
 
+export function updateWorkspaceOpenWithApp(id: string, openWithAppId: string | null) {
+  db.update(workspaces).set({ openWithAppId }).where(eq(workspaces.id, id)).run()
+}
+
 export function deleteWorkspace(id: string) {
   db.delete(workspaces).where(eq(workspaces.id, id)).run()
 }

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import React, { useState, useRef } from "react"
 import {
   Sun,
   Moon,
@@ -57,18 +57,11 @@ import {
 } from "@/shared/ui/select"
 import { Separator } from "@/shared/ui/separator"
 import { Textarea } from "@/shared/ui/textarea"
-import {
-  setShowThinkingSetting,
-  useShowThinkingSetting,
-} from "@/shared/lib/thinking-visibility"
+import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
 import { useWorkspace } from "@/features/workspace"
-import {
-  COMMIT_PROMPT_LEGACY_STORAGE_KEYS,
-  COMMIT_PROMPT_STORAGE_KEY,
-  readStorageValue,
-  removeStorageValue,
-  writeStorageValue,
-} from "@/shared/lib/storage-keys"
+import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
+import { useAppSettings } from "../queries"
+import { useUpdateAppSetting } from "../mutations"
 import { useTheme } from "@/shared/components/theme-provider"
 import {
   useProviders,
@@ -301,6 +294,14 @@ export function SettingsPage() {
 
 function ChatPreferencesCard() {
   const showThinking = useShowThinkingSetting()
+  const updateSetting = useUpdateAppSetting()
+
+  const handleToggle = (pressed: boolean) => {
+    updateSetting.mutate({
+      key: APP_SETTINGS_KEYS.SHOW_THINKING,
+      value: pressed ? "1" : "0",
+    })
+  }
 
   return (
     <Card>
@@ -315,7 +316,7 @@ function ChatPreferencesCard() {
           </FieldContent>
           <Toggle
             pressed={showThinking}
-            onPressedChange={setShowThinkingSetting}
+            onPressedChange={handleToggle}
             variant="outline"
             aria-label="Show model thinking"
             className="min-w-24 justify-center"
@@ -874,39 +875,29 @@ function ApiKeysCard() {
 const DEFAULT_COMMIT_PROMPT = `Generate a git commit message for the following staged diff. Follow the conventional commits format (e.g. "feat: ...", "fix: ...", "refactor: ..."). Use an imperative verb. Be concise — the subject line should be under 72 characters. If needed, add a blank line followed by a short body. Reply with ONLY the commit message, no extra explanation.\n\n{diff}`
 
 function CommitPromptCard() {
-  const [value, setValue] = useState(
-    () =>
-      readStorageValue(
-        COMMIT_PROMPT_STORAGE_KEY,
-        COMMIT_PROMPT_LEGACY_STORAGE_KEYS
-      ) ?? DEFAULT_COMMIT_PROMPT
-  )
+  const { data: settings } = useAppSettings()
+  const updateSetting = useUpdateAppSetting()
+  const persistedValue = settings?.[APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT] ?? DEFAULT_COMMIT_PROMPT
+  const [value, setValue] = useState(persistedValue)
   const [saved, setSaved] = useState(false)
+
+  // Sync local state when persisted value loads
+  const prevPersistedRef = React.useRef(persistedValue)
+  if (prevPersistedRef.current !== persistedValue && value === prevPersistedRef.current) {
+    prevPersistedRef.current = persistedValue
+    setValue(persistedValue)
+  }
 
   function handleSave() {
     const trimmed = value.trim()
-    if (trimmed === DEFAULT_COMMIT_PROMPT) {
-      removeStorageValue(
-        COMMIT_PROMPT_STORAGE_KEY,
-        COMMIT_PROMPT_LEGACY_STORAGE_KEYS
-      )
-    } else {
-      writeStorageValue(
-        COMMIT_PROMPT_STORAGE_KEY,
-        trimmed,
-        COMMIT_PROMPT_LEGACY_STORAGE_KEYS
-      )
-    }
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT, value: trimmed })
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }
 
   function handleReset() {
     setValue(DEFAULT_COMMIT_PROMPT)
-    removeStorageValue(
-      COMMIT_PROMPT_STORAGE_KEY,
-      COMMIT_PROMPT_LEGACY_STORAGE_KEYS
-    )
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT, value: DEFAULT_COMMIT_PROMPT })
   }
 
   const isDefault = value.trim() === DEFAULT_COMMIT_PROMPT
