@@ -8,6 +8,10 @@ import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { TerminalProvider } from "@/features/terminal"
 import { DiffPanelProvider } from "@/features/git"
 import { ThreadStatusProvider, useGlobalThreadStatusWatcher } from "@/features/chat"
+import {
+  ServerUnavailable,
+  useElectronServerStatus,
+} from "@/features/electron"
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()
@@ -33,16 +37,25 @@ function RootLayoutInner() {
   )
 }
 
-const RootLayout = () => (
-  <WorkspaceProvider>
-    <ThreadStatusProvider>
-      <TerminalProvider>
-        <DiffPanelProvider>
-          <RootLayoutInner />
-        </DiffPanelProvider>
-      </TerminalProvider>
-    </ThreadStatusProvider>
-  </WorkspaceProvider>
-)
+function RootLayoutGate() {
+  const { data: serverStatus } = useElectronServerStatus()
 
-export const Route = createRootRoute({ component: RootLayout })
+  if (!serverStatus) return null
+  if (serverStatus.status !== "ready") {
+    return <ServerUnavailable status={serverStatus} />
+  }
+
+  return (
+    <WorkspaceProvider>
+      <ThreadStatusProvider>
+        <TerminalProvider>
+          <DiffPanelProvider>
+            <RootLayoutInner />
+          </DiffPanelProvider>
+        </TerminalProvider>
+      </ThreadStatusProvider>
+    </WorkspaceProvider>
+  )
+}
+
+export const Route = createRootRoute({ component: RootLayoutGate })

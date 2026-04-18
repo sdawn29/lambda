@@ -28,6 +28,27 @@ export async function getServerPort(): Promise<number | null> {
   return (await getElectronAPI()?.getServerPort()) ?? null
 }
 
+export type ElectronServerStatus = ServerStatus
+
+export async function getServerStatus(): Promise<ElectronServerStatus> {
+  const result = await getElectronAPI()?.getServerStatus()
+  if (result) return result
+  // Non-Electron (browser dev): treat as ready so the app proceeds against VITE_SERVER_URL.
+  return { status: "ready", port: null, error: null }
+}
+
+export function subscribeToServerStatus(
+  callback: (status: ElectronServerStatus) => void
+): () => void {
+  return getElectronAPI()?.onServerStatusChange(callback) ?? (() => {})
+}
+
+export async function restartServer(): Promise<ElectronServerStatus> {
+  const result = await getElectronAPI()?.restartServer()
+  if (result) return result
+  return { status: "ready", port: null, error: null }
+}
+
 export async function openPath(path: string): Promise<boolean> {
   const electronAPI = getElectronAPI()
   if (!electronAPI?.openPath) {

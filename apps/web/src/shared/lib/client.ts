@@ -4,6 +4,28 @@ import { queryClient } from "./query-client"
 
 let resolvedServerUrl: string | null = null
 
+export function resetServerUrl(): void {
+  resolvedServerUrl = null
+}
+
+export class ServerUnreachableError extends Error {
+  readonly isServerUnreachable = true
+
+  constructor(message: string) {
+    super(message)
+    this.name = "ServerUnreachableError"
+  }
+}
+
+export function isServerUnreachableError(
+  error: unknown
+): error is ServerUnreachableError {
+  return (
+    error instanceof Error &&
+    (error as { isServerUnreachable?: boolean }).isServerUnreachable === true
+  )
+}
+
 export async function getServerUrl(): Promise<string> {
   if (resolvedServerUrl) return resolvedServerUrl
 
@@ -15,22 +37,22 @@ export async function getServerUrl(): Promise<string> {
   const port = await queryClient.ensureQueryData(
     electronServerPortQueryOptions()
   )
-  if (port !== null) {
-    resolvedServerUrl = `http://localhost:${port}`
-    return resolvedServerUrl
+  if (port === null || port === undefined) {
+    throw new ServerUnreachableError(
+      "Server is not available — port has not been assigned."
+    )
   }
-
-  resolvedServerUrl = "http://localhost:3001"
+  resolvedServerUrl = `http://localhost:${port}`
   return resolvedServerUrl
 }
 
 export function apiUrl(path: string): string {
-  // Sync fallback used for non-Electron / dev environments where VITE_SERVER_URL is set
-  const base =
-    resolvedServerUrl ??
-    (import.meta.env.VITE_SERVER_URL as string | undefined) ??
-    "http://localhost:3001"
-  return `${base}${path}`
+  if (resolvedServerUrl) return `${resolvedServerUrl}${path}`
+  const envUrl = import.meta.env.VITE_SERVER_URL as string | undefined
+  if (envUrl) return `${envUrl}${path}`
+  throw new ServerUnreachableError(
+    "apiUrl called before server URL was resolved."
+  )
 }
 
 export async function apiFetch<T>(
@@ -38,7 +60,16 @@ export async function apiFetch<T>(
   init?: RequestInit
 ): Promise<T> {
   const base = await getServerUrl()
-  const res = await fetch(`${base}${path}`, init)
+  let res: Response
+  try {
+    res = await fetch(`${base}${path}`, init)
+  } catch (err) {
+    throw new ServerUnreachableError(
+      err instanceof Error
+        ? `Server unreachable: ${err.message}`
+        : "Server unreachable"
+    )
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
     throw new Error(`API ${res.status}: ${text}`)

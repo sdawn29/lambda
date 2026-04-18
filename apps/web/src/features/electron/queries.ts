@@ -11,8 +11,10 @@ import {
   getFullscreen,
   getOpenWithAppIcon,
   getServerPort,
+  getServerStatus,
   listOpenWithApps,
   subscribeToFullscreen,
+  subscribeToServerStatus,
   type OpenWithApp,
 } from "./api"
 
@@ -22,6 +24,7 @@ export const electronKeys = {
   all: electronRootKey,
   platform: [...electronRootKey, "platform"] as const,
   serverPort: [...electronRootKey, "server-port"] as const,
+  serverStatus: [...electronRootKey, "server-status"] as const,
   fullscreen: [...electronRootKey, "fullscreen"] as const,
   openWithApps: [...electronRootKey, "open-with-apps"] as const,
   openWithAppIcon: (appId: string) =>
@@ -42,6 +45,15 @@ export function electronServerPortQueryOptions() {
   return queryOptions({
     queryKey: electronKeys.serverPort,
     queryFn: getServerPort,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+export function electronServerStatusQueryOptions() {
+  return queryOptions({
+    queryKey: electronKeys.serverStatus,
+    queryFn: getServerStatus,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
   })
@@ -79,6 +91,20 @@ export function useElectronPlatform() {
 
 export function useElectronServerPort() {
   return useQuery(electronServerPortQueryOptions())
+}
+
+export function useElectronServerStatus() {
+  const queryClient = useQueryClient()
+  const query = useQuery(electronServerStatusQueryOptions())
+
+  useEffect(() => {
+    return subscribeToServerStatus((status) => {
+      queryClient.setQueryData(electronKeys.serverStatus, status)
+      queryClient.setQueryData(electronKeys.serverPort, status.port)
+    })
+  }, [queryClient])
+
+  return query
 }
 
 export function useElectronFullscreen() {

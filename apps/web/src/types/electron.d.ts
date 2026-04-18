@@ -8,10 +8,19 @@ interface OpenWithApp {
   iconDataUrl: string | null
 }
 
+interface ServerStatus {
+  status: "starting" | "ready" | "failed"
+  port: number | null
+  error: string | null
+}
+
 interface ElectronAPI {
   platform: string
   selectFolder: (options?: SelectFolderOptions) => Promise<string | null>
-  getServerPort: () => Promise<number>
+  getServerPort: () => Promise<number | null>
+  getServerStatus: () => Promise<ServerStatus>
+  onServerStatusChange: (callback: (status: ServerStatus) => void) => () => void
+  restartServer: () => Promise<ServerStatus>
   openPath: (path: string) => Promise<void>
   listOpenWithApps: () => Promise<OpenWithApp[]>
   getOpenWithAppIcon: (appId: string) => Promise<string | null>

@@ -37,13 +37,36 @@ app.setName(APP_NAME);
 
 console.log(`Running in ${isDev ? "development" : "production"} mode`);
 
+type ServerStatus = {
+  status: "starting" | "ready" | "failed";
+  port: number | null;
+  error: string | null;
+};
+
+const SERVER_READY_TIMEOUT_MS = 15_000;
+const STDERR_TAIL_LIMIT = 8_000;
+
 let serverProcess: ChildProcess | null = null;
-let serverPort = 3001;
+let serverStatus: ServerStatus = {
+  status: "starting",
+  port: null,
+  error: null,
+};
+let quitting = false;
 let preloadPathPromise: Promise<string> | null = null;
 
 type SelectFolderOptions = {
   canCreateFolder?: boolean;
 };
+
+function setServerStatus(next: ServerStatus) {
+  serverStatus = next;
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send("server-status-changed", next);
+    }
+  }
+}
 
 async function spawnServer(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -57,7 +80,7 @@ async function spawnServer(): Promise<number> {
           [path.join(process.resourcesPath, "server", "server.cjs")],
         ] as const);
 
-    serverProcess = spawn(executable, args, {
+    const child = spawn(executable, args, {
       env: {
         ...process.env,
         PORT: "0",
@@ -72,13 +95,26 @@ async function spawnServer(): Promise<number> {
               NODE_PATH: path.join(process.resourcesPath, "server", "addons"),
             }),
       },
-      // pipe stdout to read the ready JSON line; inherit stderr for logs
-      stdio: ["ignore", "pipe", "inherit"],
+      // pipe stdout to read the ready JSON line; pipe stderr so we can forward
+      // to our own stderr AND keep a rolling tail for ServerStatus error payload
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
-    let resolved = false;
+    serverProcess = child;
 
-    serverProcess.stdout!.on("data", (chunk: Buffer) => {
+    let resolved = false;
+    let stderrTail = "";
+
+    const fail = (err: Error) => {
+      if (resolved) return;
+      resolved = true;
+      const message = stderrTail
+        ? `${err.message}\n\n${stderrTail.trim()}`
+        : err.message;
+      reject(new Error(message));
+    };
+
+    child.stdout!.on("data", (chunk: Buffer) => {
       for (const line of chunk.toString().split("\n")) {
         if (!line.trim()) continue;
         try {
@@ -93,21 +129,71 @@ async function spawnServer(): Promise<number> {
       }
     });
 
-    serverProcess.on("error", (err) => {
-      if (!resolved) reject(err);
+    child.stderr!.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      process.stderr.write(text);
+      stderrTail = (stderrTail + text).slice(-STDERR_TAIL_LIMIT);
     });
 
-    serverProcess.on("exit", (code) => {
-      serverProcess = null;
-      if (!resolved)
-        reject(new Error(`Server exited (code ${code}) before becoming ready`));
+    child.on("error", (err) => fail(err));
+
+    child.on("exit", (code, signal) => {
+      if (serverProcess === child) serverProcess = null;
+      if (!resolved) {
+        fail(
+          new Error(
+            `Server exited (code ${code}${signal ? `, signal ${signal}` : ""}) before becoming ready`,
+          ),
+        );
+      }
     });
 
     setTimeout(() => {
-      if (!resolved)
-        reject(new Error("Server did not become ready within 15s"));
-    }, 15_000);
+      fail(
+        new Error(
+          `Server did not become ready within ${SERVER_READY_TIMEOUT_MS / 1000}s`,
+        ),
+      );
+    }, SERVER_READY_TIMEOUT_MS);
   });
+}
+
+async function startServerAndTrack(): Promise<void> {
+  setServerStatus({ status: "starting", port: null, error: null });
+  try {
+    const port = await spawnServer();
+    setServerStatus({ status: "ready", port, error: null });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[server] failed to start:", message);
+    setServerStatus({ status: "failed", port: null, error: message });
+  }
+}
+
+async function restartServer(): Promise<ServerStatus> {
+  if (quitting) return serverStatus;
+  if (serverStatus.status === "starting") return serverStatus;
+
+  const existing = serverProcess;
+  if (existing && !existing.killed) {
+    await new Promise<void>((resolveKill) => {
+      const timeout = setTimeout(() => resolveKill(), 2_000);
+      existing.once("exit", () => {
+        clearTimeout(timeout);
+        resolveKill();
+      });
+      try {
+        existing.kill("SIGTERM");
+      } catch {
+        clearTimeout(timeout);
+        resolveKill();
+      }
+    });
+  }
+  serverProcess = null;
+
+  await startServerAndTrack();
+  return serverStatus;
 }
 
 async function buildPreload(): Promise<string> {
@@ -211,12 +297,7 @@ app.whenReady().then(async () => {
     }
   }
 
-  try {
-    serverPort = await spawnServer();
-  } catch (err) {
-    console.error("Server failed to start:", err);
-    // Still open the window — it will show a connection error rather than nothing
-  }
+  await startServerAndTrack();
 
   ipcMain.handle("get-fullscreen", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -240,7 +321,9 @@ app.whenReady().then(async () => {
     },
   );
 
-  ipcMain.handle("get-server-port", () => serverPort);
+  ipcMain.handle("get-server-status", () => serverStatus);
+  ipcMain.handle("get-server-port", () => serverStatus.port);
+  ipcMain.handle("restart-server", () => restartServer());
 
   ipcMain.handle("open-path", (_event, filePath: string) => {
     shell.showItemInFolder(filePath);
@@ -292,6 +375,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => {
+  quitting = true;
   globalShortcut.unregisterAll();
   serverProcess?.kill("SIGTERM");
   serverProcess = null;

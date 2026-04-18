@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync, statSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,22 +40,61 @@ function run(command, args, cwd = monorepoRoot) {
 await run("npm", ["run", "build", "-w", "web"]);
 
 // Rebuild native modules for the packaged Electron runtime.
-// Native modules (better-sqlite3, node-pty, photon) are hoisted to the
-// monorepo root node_modules/ — run the CLI from there so it locates them.
-// Note: the @electron/rebuild JS API silently skips rebuilds in this monorepo
-// layout; the CLI is the reliable alternative.
-await run(
-  path.join(monorepoRoot, "node_modules", ".bin", "electron-rebuild"),
-  [
-    "--version", electronVersion,
-    "--arch", "arm64",
-    "--force",
-    "--only", "better-sqlite3,node-pty,@silvia-odwyer/photon-node",
-  ],
-  monorepoRoot,
-);
+// Native modules (better-sqlite3, node-pty) are hoisted to the monorepo root
+// node_modules/. We invoke node-gyp directly instead of @electron/rebuild
+// because the rebuild CLI caches via a `.forge-meta` marker file and can
+// silently skip producing a new .node binary even with --force, leaving a
+// stale ABI. node-gyp-on-a-clean-build/ is the reliable primitive.
+// @silvia-odwyer/photon-node is WASM — no native rebuild needed.
+async function rebuildNativeModule(packageName) {
+  const pkgDir = path.join(monorepoRoot, "node_modules", packageName);
+  rmSync(path.join(pkgDir, "build"), { recursive: true, force: true });
+  await run(
+    path.join(monorepoRoot, "node_modules", ".bin", "node-gyp"),
+    [
+      "rebuild",
+      `--target=${electronVersion}`,
+      "--arch=arm64",
+      "--dist-url=https://electronjs.org/headers",
+      "--release",
+    ],
+    pkgDir,
+  );
+}
+
+await rebuildNativeModule("better-sqlite3");
+await rebuildNativeModule("node-pty");
 
 await run("npm", ["run", "build", "-w", "@lamda/server"]);
+
+// Belt-and-suspenders: the server build script already asserts addons/ exists,
+// but double-check here so a cached/skipped workspace build can't slip a broken
+// server/dist into electron-builder.
+const serverDist = path.join(monorepoRoot, "apps/server/dist");
+const requiredAddons = [
+  "better-sqlite3",
+  "bindings",
+  "file-uri-to-path",
+  "node-pty",
+  "@silvia-odwyer/photon-node",
+];
+const serverCjs = path.join(serverDist, "server.cjs");
+if (!statSync(serverCjs).isFile() || statSync(serverCjs).size === 0) {
+  throw new Error(`[desktop build] ${serverCjs} is missing or empty`);
+}
+const missingAddons = requiredAddons.filter((name) => {
+  try {
+    return !statSync(path.join(serverDist, "addons", name)).isDirectory();
+  } catch {
+    return true;
+  }
+});
+if (missingAddons.length > 0) {
+  throw new Error(
+    `[desktop build] missing native addons in apps/server/dist/addons/: ${missingAddons.join(", ")}. ` +
+      `Run 'npm run build -w @lamda/server' and retry.`,
+  );
+}
 
 await build({
   entryPoints: [path.join(__dirname, "src/main.ts")],

@@ -1,13 +1,36 @@
 import { build } from "esbuild";
 import { createRequire } from "node:module";
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function resolvePackageDir(packageName) {
   return dirname(require.resolve(`${packageName}/package.json`));
 }
+
+function findPackageRoot(packageName) {
+  let dir = __dirname;
+  while (dir !== dirname(dir)) {
+    const candidate = resolve(dir, "node_modules", packageName);
+    if (existsSync(resolve(candidate, "package.json"))) return candidate;
+    dir = dirname(dir);
+  }
+  throw new Error(`Could not locate ${packageName} in any node_modules above ${__dirname}`);
+}
+
+// Wipe dist/ up front so stale layouts from previous builds (e.g. pre-refactor
+// dist/node_modules/) cannot linger and mislead electron-builder.
+rmSync(resolve("dist"), { recursive: true, force: true });
 
 await build({
   entryPoints: ["src/index.ts"],
@@ -31,10 +54,6 @@ await build({
     "import.meta.url": "__importMetaUrl",
   },
 });
-
-// Remove any stale node_modules directory left over from a previous build that
-// used a different output path, so the dist tree stays clean.
-rmSync(resolve("dist/node_modules"), { recursive: true, force: true });
 
 // Copy native addons so dist/server.cjs can require() them at runtime.
 // Named "addons" (not "node_modules") so electron-builder does not strip the
@@ -62,5 +81,45 @@ cpSync(nodePtySrc, resolve("dist/addons/node-pty"), { recursive: true });
 // @silvia-odwyer/photon-node (no runtime npm deps)
 const addonSrc = resolvePackageDir("@silvia-odwyer/photon-node");
 cpSync(addonSrc, resolve("dist/addons/@silvia-odwyer/photon-node"), { recursive: true });
+
+// @mariozechner/pi-coding-agent reads its own package.json at module load to
+// pick up `version`, `piConfig.name`, and `piConfig.configDir`. Once bundled
+// into server.cjs, the SDK's getPackageDir() walks up from __dirname (= dist/
+// in dev, Resources/server/ in prod) looking for the first package.json. Drop
+// the SDK's package.json next to server.cjs so that walk succeeds and the
+// SDK reads the right metadata (name "pi", configDir ".pi", real version).
+// Note: the package's `exports` field forbids both `./package.json` and the
+// CJS `require` condition, so neither require.resolve form works — fall back
+// to walking the node_modules chain directly.
+const piPackageDir = findPackageRoot("@mariozechner/pi-coding-agent");
+copyFileSync(resolve(piPackageDir, "package.json"), resolve("dist/package.json"));
+
+const REQUIRED_ADDONS = [
+  "better-sqlite3",
+  "bindings",
+  "file-uri-to-path",
+  "node-pty",
+  "@silvia-odwyer/photon-node",
+];
+
+function assertAddonsPresent() {
+  const missing = [];
+  for (const name of REQUIRED_ADDONS) {
+    const path = resolve("dist/addons", name);
+    try {
+      if (!statSync(path).isDirectory()) missing.push(name);
+    } catch {
+      missing.push(name);
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `[server build] missing native addons in dist/addons/: ${missing.join(", ")}. ` +
+        `Reinstall dependencies at the monorepo root and rebuild.`,
+    );
+  }
+}
+
+assertAddonsPresent();
 
 console.log("Build complete → dist/server.cjs");
