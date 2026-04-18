@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { SparklesIcon, StopCircleIcon } from "lucide-react"
+import { SparklesIcon, StopCircleIcon, ArrowDownIcon } from "lucide-react"
 
 import { ChatTextbox, type ChatTextboxHandle } from "./chat-textbox"
 import { MessageRow, getMessageKey } from "./message-row"
@@ -62,6 +62,7 @@ export function ChatView({
     initialIsStopped,
   })
   const [gitError, setGitError] = useState<string | null>(null)
+  const [showScrollButton, setShowScrollButton] = useState(false)
   const [selectedModelId, setSelectedModelId] = useState<string | null>(
     initialModelId
   )
@@ -151,8 +152,16 @@ export function ChatView({
     if (!el) return
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
     pinnedRef.current = distanceFromBottom < 80
+    setShowScrollButton(distanceFromBottom >= 80)
     threadScrollPositions.set(threadId, el.scrollTop)
   }, [threadId])
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+    pinnedRef.current = true
+  }, [])
 
   const handleModelChange = useCallback(
     (id: string) => {
@@ -250,14 +259,14 @@ export function ChatView({
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-6 pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {visibleMessages.length === 0 && !isLoading && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center select-none">
+            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-4 px-6 text-center select-none">
               <span className="text-6xl font-light text-muted-foreground/20">
                 λ
               </span>
@@ -290,7 +299,7 @@ export function ChatView({
             </div>
           )}
           {visibleMessages.length > 0 && (
-            <div className="w-full">
+            <div className="mx-auto w-full max-w-2xl px-6">
               {visibleMessages.map((message, index) => {
                 const messageKey = messageKeys[index]
                 if (!messageKey) return null
@@ -306,21 +315,36 @@ export function ChatView({
               })}
             </div>
           )}
-          {isLoading && <ThinkingIndicator className="py-0.5" />}
-          {isCompacting && (
-            <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
-              <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
-              <span className="text-xs">Compacting context…</span>
-            </div>
-          )}
-          {isStopped && !isLoading && (
-            <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
-              <StopCircleIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />
-              <span className="text-xs">Interrupted</span>
-            </div>
-          )}
+          <div className="mx-auto w-full max-w-2xl px-6">
+            {isLoading && <ThinkingIndicator className="py-0.5" />}
+            {isCompacting && (
+              <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
+                <SparklesIcon className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-xs">Compacting context…</span>
+              </div>
+            )}
+            {isStopped && !isLoading && (
+              <div className="flex animate-in items-center gap-1.5 self-start text-muted-foreground/60 duration-200 fade-in-0">
+                <StopCircleIcon className="h-3.5 w-3.5 shrink-0 text-destructive" />
+                <span className="text-xs">Interrupted</span>
+              </div>
+            )}
+          </div>
           <div ref={bottomRef} />
         </div>
+
+        {showScrollButton && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-42 z-10 flex justify-center">
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={scrollToBottom}
+              className="pointer-events-auto h-8 w-8 rounded-full shadow-md"
+            >
+              <ArrowDownIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         <div className="mx-auto w-full max-w-2xl px-6 pb-6">
           <ChatTextbox
