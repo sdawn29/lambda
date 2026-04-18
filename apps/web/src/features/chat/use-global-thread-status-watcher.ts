@@ -1,9 +1,11 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { openGlobalEventSource } from "./api"
 import { useSetThreadStatus } from "./thread-status-context"
 
-export function useGlobalThreadStatusWatcher() {
+export function useGlobalThreadStatusWatcher(activeThreadId?: string) {
   const setStatus = useSetThreadStatus()
+  const activeThreadIdRef = useRef(activeThreadId)
+  activeThreadIdRef.current = activeThreadId
 
   useEffect(() => {
     let active = true
@@ -23,7 +25,11 @@ export function useGlobalThreadStatusWatcher() {
             threadId: string
             status: "running" | "idle"
           }
-          setStatus(threadId, status)
+          if (status === "idle" && threadId !== activeThreadIdRef.current) {
+            setStatus(threadId, "completed")
+          } else {
+            setStatus(threadId, status)
+          }
         } catch (error) {
           console.error("[thread-status]", error)
         }

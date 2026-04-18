@@ -1,5 +1,5 @@
 export { ChatView } from "./components/chat-view"
-export { ThreadStatusProvider, useThreadStatus } from "./thread-status-context"
+export { ThreadStatusProvider, useThreadStatus, useSetThreadStatus } from "./thread-status-context"
 export { useGlobalThreadStatusWatcher } from "./use-global-thread-status-watcher"
 export type {
   AssistantMessage,

@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router"
+import { createRootRoute, Outlet, useParams } from "@tanstack/react-router"
 
 import { AppSidebar } from "@/features/workspace"
 import { TitleBar } from "@/features/layout"
@@ -15,7 +15,10 @@ import {
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()
-  useGlobalThreadStatusWatcher()
+  const { threadId: activeThreadId } = useParams({ strict: false }) as {
+    threadId?: string
+  }
+  useGlobalThreadStatusWatcher(activeThreadId)
 
   if (isLoading) {
     return

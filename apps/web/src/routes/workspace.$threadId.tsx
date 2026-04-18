@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect } from "react"
 
-import { ChatView } from "@/features/chat"
+import { ChatView, useSetThreadStatus } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
 import { useDiffPanel } from "@/features/git"
 import { useTerminal } from "@/features/terminal"
@@ -33,6 +33,7 @@ function WorkspaceThreadRoute() {
   const { isOpen: terminalOpen } = useTerminal()
   const updateSetting = useUpdateAppSetting()
   const updateLastAccessed = useUpdateThreadLastAccessed()
+  const setThreadStatus = useSetThreadStatus()
 
   useEffect(() => {
     updateSetting.mutate({
@@ -40,6 +41,7 @@ function WorkspaceThreadRoute() {
       value: threadId,
     })
     updateLastAccessed.mutate(threadId)
+    setThreadStatus(threadId, "idle")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId])
 
