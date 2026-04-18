@@ -1,9 +1,15 @@
 import { FileIcon, FileTextIcon, FolderIcon, TerminalIcon } from "lucide-react"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
-import { Badge } from "@/shared/ui/badge"
+import { badgeVariants } from "@/shared/ui/badge"
 import { getFileTypeColor } from "@/shared/lib/file-type-color"
+import { cn } from "@/shared/lib/utils"
 import type { SlashCommand } from "../api"
+
+const CHIP_BASE_CLASS = cn(
+  badgeVariants({ variant: "secondary" }),
+  "mx-0.5 gap-1 px-1.5 py-0.5 text-xs text-foreground select-text"
+)
 
 const TOKEN_RE = /(@[^\s]+|\/[^\s]+)/g
 
@@ -16,7 +22,9 @@ function FileChip({ filePath }: { filePath: string }) {
   const basename = filePath.split("/").pop() ?? filePath
   const color = getFileTypeColor(basename)
   return (
-    <span className="mx-0.5 inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1 py-px font-mono text-[10px] font-medium text-foreground select-text">
+    <span
+      className={cn(CHIP_BASE_CLASS, "border-primary/25 bg-primary/10 font-mono")}
+    >
       <FileIcon
         width={10}
         height={10}
@@ -32,7 +40,9 @@ function FolderChip({ folderPath }: { folderPath: string }) {
   const normalized = folderPath.replace(/\/+$/, "")
   const basename = normalized.split("/").pop() || normalized
   return (
-    <span className="mx-0.5 inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1 py-px font-mono text-[10px] font-medium text-foreground select-text">
+    <span
+      className={cn(CHIP_BASE_CLASS, "border-primary/25 bg-primary/10 font-mono")}
+    >
       <FolderIcon
         width={10}
         height={10}
@@ -52,13 +62,13 @@ function SlashCommandChip({ command }: { command: SlashCommand }) {
       <TooltipTrigger
         render={
           <span className="inline-flex align-middle">
-            <Badge
-              variant="outline"
-              className={
+            <span
+              className={cn(
+                CHIP_BASE_CLASS,
                 command.source === "skill"
-                  ? "mx-0.5 h-5 gap-1 rounded-full border-emerald-500/25 bg-emerald-500/10 px-1.5 text-[9px] text-foreground"
-                  : "mx-0.5 h-5 gap-1 rounded-full border-sky-500/25 bg-sky-500/10 px-1.5 text-[9px] text-foreground"
-              }
+                  ? "border-emerald-500/25 bg-emerald-500/10"
+                  : "border-sky-500/25 bg-sky-500/10"
+              )}
             >
               {command.source === "skill" ? (
                 <TerminalIcon aria-hidden />
@@ -66,7 +76,7 @@ function SlashCommandChip({ command }: { command: SlashCommand }) {
                 <FileTextIcon aria-hidden />
               )}
               <span className="font-mono">/{command.name}</span>
-            </Badge>
+            </span>
           </span>
         }
       />

@@ -65,8 +65,8 @@ function buildChipBase(className: string): HTMLSpanElement {
   const chip = document.createElement("span")
   chip.contentEditable = "false"
   chip.className = cn(
-    badgeVariants({ variant: "outline" }),
-    "mx-0.5 h-5 gap-1 px-1.5 text-[9px] text-foreground select-none",
+    badgeVariants({ variant: "secondary" }),
+    "mx-0.5 gap-1 px-1.5 py-0.5 text-xs text-foreground select-none",
     className
   )
   return chip
