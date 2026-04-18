@@ -258,7 +258,16 @@ export function SettingsPage() {
 
     function updateActive() {
       if (isScrollingTo.current) return
-      const containerRect = container!.getBoundingClientRect()
+      const c = container!
+      const atBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 8
+
+      if (atBottom) {
+        const last = visibleSections[visibleSections.length - 1]
+        if (last) setActiveSection(last.id)
+        return
+      }
+
+      const containerRect = c.getBoundingClientRect()
       const threshold = containerRect.top + containerRect.height * 0.4
 
       let active: string | null = null
@@ -266,9 +275,7 @@ export function SettingsPage() {
         const el = sectionRefs.current[section.id]
         if (!el) continue
         const rect = el.getBoundingClientRect()
-        if (rect.top <= threshold) {
-          active = section.id
-        }
+        if (rect.top <= threshold) active = section.id
       }
       if (active) setActiveSection(active)
     }
