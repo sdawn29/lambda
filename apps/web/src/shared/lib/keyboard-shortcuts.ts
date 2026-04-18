@@ -13,6 +13,7 @@ export const SHORTCUT_ACTIONS = {
   NAVIGATE_FORWARD: "navigate_forward",
   OPEN_IN_EDITOR: "open_in_editor",
   SCROLL_TO_BOTTOM: "scroll_to_bottom",
+  OPEN_COMMIT_DIALOG: "open_commit_dialog",
 } as const
 
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[keyof typeof SHORTCUT_ACTIONS]
@@ -32,6 +33,7 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
   navigate_forward: "Go Forward",
   open_in_editor: "Open in Editor",
   scroll_to_bottom: "Scroll to Bottom",
+  open_commit_dialog: "Open Commit Dialog",
 }
 
 // Order for display in settings
@@ -50,6 +52,7 @@ export const SHORTCUT_ACTION_ORDER: ShortcutAction[] = [
   "navigate_forward",
   "open_in_editor",
   "scroll_to_bottom",
+  "open_commit_dialog",
 ]
 
 // Bindings use: mod (cmd/ctrl), shift, alt; plus a key name (lowercase)
@@ -68,6 +71,7 @@ export const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
   navigate_forward: "mod+]",
   open_in_editor: "mod+shift+e",
   scroll_to_bottom: "mod+arrowdown",
+  open_commit_dialog: "mod+shift+c",
 }
 
 // Actions that fire even when focus is in an editable element

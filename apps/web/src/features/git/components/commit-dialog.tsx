@@ -11,6 +11,10 @@ import {
 import { useNavigate } from "@tanstack/react-router"
 import { Button } from "@/shared/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/shared/ui/dialog"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
+import { ShortcutKbd } from "@/shared/ui/kbd"
+import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { DiffView } from "./diff-view"
 import { cn } from "@/shared/lib/utils"
 import { useAppSettings } from "@/features/settings/queries"
@@ -271,6 +275,13 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
   const committing = commitMutation.isPending
   const generating = generateCommitMessageMutation.isPending
   const pushing = pushMutation.isPending
+
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.OPEN_COMMIT_DIALOG,
+    sessionId ? () => setOpen((v) => !v) : null
+  )
+  const commitBinding = useShortcutBinding(SHORTCUT_ACTIONS.OPEN_COMMIT_DIALOG)
+
   const canCommit =
     !committing &&
     !pushing &&
@@ -281,22 +292,29 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          <Button
-            variant="outline"
-            size="default"
-            disabled={!sessionId || committing || pushing}
-          />
-        }
-      >
-        {committing || pushing ? (
-          <Loader2 className="animate-spin" />
-        ) : (
-          <GitCommit />
-        )}
-        Commit
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DialogTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="default"
+                  disabled={!sessionId || committing || pushing}
+                />
+              }
+            >
+              {committing || pushing ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <GitCommit />
+              )}
+              Commit
+            </DialogTrigger>
+          }
+        />
+        <TooltipContent>Commit staged changes <ShortcutKbd binding={commitBinding} className="ml-1" /></TooltipContent>
+      </Tooltip>
 
       <DialogContent
         showCloseButton

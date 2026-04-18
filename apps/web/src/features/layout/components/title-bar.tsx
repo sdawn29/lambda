@@ -131,6 +131,7 @@ export function TitleBar() {
   const forwardBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_FORWARD)
   const diffBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL)
   const terminalBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_TERMINAL)
+  const renameBinding = useShortcutBinding(SHORTCUT_ACTIONS.RENAME_THREAD)
 
   const navRef = useRef<HTMLDivElement>(null)
   const [navWidth, setNavWidth] = useState(0)
@@ -261,26 +262,34 @@ export function TitleBar() {
                 {activeThread.title}
               </span>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus:ring-0 focus-visible:outline-none">
-                <MoreHorizontal className="size-3.5" />
-                <span className="sr-only">Thread options</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={startRename}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Rename
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={handleDeleteThread}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Thread
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Tooltip>
+              <DropdownMenu>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus:ring-0 focus-visible:outline-none">
+                      <MoreHorizontal className="size-3.5" />
+                      <span className="sr-only">Thread options</span>
+                    </DropdownMenuTrigger>
+                  }
+                />
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={startRename}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Rename
+                    <ShortcutKbd binding={renameBinding} className="ml-auto pl-2" />
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={handleDeleteThread}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Thread
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <TooltipContent>Thread options</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       )}

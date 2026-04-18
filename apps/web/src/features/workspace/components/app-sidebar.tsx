@@ -1,5 +1,6 @@
 import { useState } from "react"
 import {
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
   Folder,
@@ -10,18 +11,22 @@ import {
   Settings,
   Trash2,
 } from "lucide-react"
-import { useNavigate, useLocation, useParams } from "@tanstack/react-router"
-import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
+import { useNavigate, useLocation, useParams, useRouter } from "@tanstack/react-router"
+import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
+import { ShortcutKbd } from "@/shared/ui/kbd"
 
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -75,10 +80,10 @@ export function AppSidebar() {
   const openWithAppMutation = useOpenWorkspaceWithApp()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
+  const router = useRouter()
   const location = useLocation()
   const isSettings = location.pathname === "/settings"
 
-  // Get the active thread from URL params (undefined on non-thread routes)
   const { threadId: activeThreadId } = useParams({ strict: false }) as {
     threadId?: string
   }
@@ -101,20 +106,28 @@ export function AppSidebar() {
     navigate({ to: "/settings" })
   )
 
+  const newWorkspaceBinding = useShortcutBinding(SHORTCUT_ACTIONS.NEW_WORKSPACE)
+  const newThreadBinding = useShortcutBinding(SHORTCUT_ACTIONS.NEW_THREAD)
+  const openSettingsBinding = useShortcutBinding(SHORTCUT_ACTIONS.OPEN_SETTINGS)
+
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarContent className="mt-10">
         <SidebarGroup>
-          <div className="flex items-center justify-between">
-            <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleCreateWorkspace}
-            >
-              <Plus />
-            </Button>
-          </div>
+          <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <SidebarGroupAction onClick={handleCreateWorkspace}>
+                  <Plus />
+                  <span className="sr-only">New workspace</span>
+                </SidebarGroupAction>
+              }
+            />
+            <TooltipContent side="right">
+              New workspace <ShortcutKbd binding={newWorkspaceBinding} className="ml-1" />
+            </TooltipContent>
+          </Tooltip>
           <SidebarGroupContent>
             <SidebarMenu>
               {workspaces.length === 0 ? (
@@ -123,75 +136,85 @@ export function AppSidebar() {
                 </div>
               ) : (
                 workspaces.map((ws) => (
-                  <SidebarMenuItem key={ws.id}>
-                    <div className="group/ws flex items-center">
-                      <SidebarMenuButton
-                        onClick={() => {
-                          setCollapsed((prev) => ({
-                            ...prev,
-                            [ws.id]: !prev[ws.id],
-                          }))
-                        }}
-                        tooltip={ws.name}
-                        className="flex-1"
-                      >
-                        <span className="relative h-4 w-4 shrink-0">
-                          <Folder className="absolute inset-0 h-4 w-4 transition-[opacity,transform] duration-150 group-hover/ws:scale-75 group-hover/ws:opacity-0" />
-                          <ChevronRight
-                            className={`absolute inset-0 h-4 w-4 opacity-0 transition-[opacity,transform] duration-150 group-hover/ws:opacity-100 ${collapsed[ws.id] ? "" : "rotate-90"}`}
-                          />
-                        </span>
-                        <span>{ws.name}</span>
-                      </SidebarMenuButton>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="shrink-0 opacity-0 transition-opacity group-hover/ws:opacity-100"
-                        onClick={async () => {
-                          const thread = await createThread(ws.id)
-                          navigate({
-                            to: "/workspace/$threadId",
-                            params: { threadId: thread.id },
-                          })
-                        }}
-                        title="New Thread"
-                      >
-                        <Plus />
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover/ws:opacity-100 hover:bg-accent"
-                          title="More options"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openPathMutation.mutate(ws.path)}
-                          >
-                            <FolderOpen className="mr-2 h-4 w-4" />
-                            Find in Finder
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              openWithAppMutation.mutate({
-                                workspacePath: ws.path,
+                  <SidebarMenuItem key={ws.id} className="group/ws">
+                    <SidebarMenuButton
+                      onClick={() => {
+                        setCollapsed((prev) => ({
+                          ...prev,
+                          [ws.id]: !prev[ws.id],
+                        }))
+                      }}
+                      tooltip={ws.name}
+                    >
+                      <span className="relative h-4 w-4 shrink-0">
+                        <Folder className="absolute inset-0 h-4 w-4 transition-[opacity,transform] duration-150 group-hover/ws:scale-75 group-hover/ws:opacity-0" />
+                        <ChevronRight
+                          className={`absolute inset-0 h-4 w-4 opacity-0 transition-[opacity,transform] duration-150 group-hover/ws:opacity-100 ${collapsed[ws.id] ? "" : "rotate-90"}`}
+                        />
+                      </span>
+                      <span>{ws.name}</span>
+                    </SidebarMenuButton>
+
+                    {/* New thread action */}
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <SidebarMenuAction
+                            showOnHover
+                            className="right-7"
+                            onClick={async () => {
+                              const thread = await createThread(ws.id)
+                              navigate({
+                                to: "/workspace/$threadId",
+                                params: { threadId: thread.id },
                               })
-                            }
+                            }}
                           >
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Open in Editor
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => deleteWorkspace(ws)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Workspace
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                            <Plus />
+                            <span className="sr-only">New thread</span>
+                          </SidebarMenuAction>
+                        }
+                      />
+                      <TooltipContent side="right">
+                        New thread <ShortcutKbd binding={newThreadBinding} className="ml-1" />
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Workspace options */}
+                    <DropdownMenu>
+                      <SidebarMenuAction
+                        showOnHover
+                        render={<DropdownMenuTrigger />}
+                      >
+                        <MoreHorizontal />
+                        <span className="sr-only">Workspace options</span>
+                      </SidebarMenuAction>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => openPathMutation.mutate(ws.path)}
+                        >
+                          <FolderOpen className="mr-2 h-4 w-4" />
+                          Find in Finder
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            openWithAppMutation.mutate({
+                              workspacePath: ws.path,
+                            })
+                          }
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Open in Editor
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => deleteWorkspace(ws)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Workspace
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
                     {!collapsed[ws.id] && ws.threads.length > 0 && (
                       <SidebarMenuSub className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
@@ -218,15 +241,34 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-border p-2">
-        <Button
-          variant={isSettings ? "secondary" : "ghost"}
-          size="sm"
-          className="w-full justify-start"
-          onClick={() => navigate({ to: "/settings" })}
-        >
-          <Settings className="transition-transform duration-300 group-hover/button:rotate-45" />
-          Settings
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={isSettings ? "secondary" : "ghost"}
+                size="sm"
+                className="w-full justify-start"
+                onClick={() =>
+                  isSettings ? router.history.back() : navigate({ to: "/settings" })
+                }
+              >
+                {isSettings ? (
+                  <ChevronLeft className="transition-transform duration-300" />
+                ) : (
+                  <Settings className="transition-transform duration-300 group-hover/button:rotate-45" />
+                )}
+                {isSettings ? "Go back" : "Settings"}
+              </Button>
+            }
+          />
+          <TooltipContent side="right">
+            {isSettings ? (
+              "Go back"
+            ) : (
+              <>Settings <ShortcutKbd binding={openSettingsBinding} className="ml-1" /></>
+            )}
+          </TooltipContent>
+        </Tooltip>
       </SidebarFooter>
     </Sidebar>
   )
