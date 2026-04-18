@@ -1,6 +1,5 @@
 import { useState } from "react"
 import {
-  ChevronLeft,
   ChevronRight,
   ExternalLink,
   Folder,
@@ -11,7 +10,7 @@ import {
   Settings,
   Trash2,
 } from "lucide-react"
-import { useNavigate, useLocation, useParams, useRouter } from "@tanstack/react-router"
+import { useNavigate, useParams } from "@tanstack/react-router"
 import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
@@ -44,6 +43,7 @@ import { Button } from "@/shared/ui/button"
 import { useWorkspace, useCreateWorkspaceAction } from "../context"
 import { useThreadStatus } from "@/features/chat"
 import type { Thread } from "../context"
+import { useSettingsModal } from "@/features/settings"
 
 function ThreadRow({
   thread,
@@ -80,9 +80,7 @@ export function AppSidebar() {
   const openWithAppMutation = useOpenWorkspaceWithApp()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
-  const router = useRouter()
-  const location = useLocation()
-  const isSettings = location.pathname === "/settings"
+  const { openSettings } = useSettingsModal()
 
   const { threadId: activeThreadId } = useParams({ strict: false }) as {
     threadId?: string
@@ -102,9 +100,7 @@ export function AppSidebar() {
         }
       : null
   )
-  useShortcutHandler(SHORTCUT_ACTIONS.OPEN_SETTINGS, () =>
-    navigate({ to: "/settings" })
-  )
+  useShortcutHandler(SHORTCUT_ACTIONS.OPEN_SETTINGS, openSettings)
 
   const newWorkspaceBinding = useShortcutBinding(SHORTCUT_ACTIONS.NEW_WORKSPACE)
   const newThreadBinding = useShortcutBinding(SHORTCUT_ACTIONS.NEW_THREAD)
@@ -245,28 +241,18 @@ export function AppSidebar() {
           <TooltipTrigger
             render={
               <Button
-                variant={isSettings ? "secondary" : "ghost"}
+                variant="ghost"
                 size="sm"
                 className="w-full justify-start"
-                onClick={() =>
-                  isSettings ? router.history.back() : navigate({ to: "/settings" })
-                }
+                onClick={openSettings}
               >
-                {isSettings ? (
-                  <ChevronLeft className="transition-transform duration-300" />
-                ) : (
-                  <Settings className="transition-transform duration-300 group-hover/button:rotate-45" />
-                )}
-                {isSettings ? "Go back" : "Settings"}
+                <Settings className="transition-transform duration-300 group-hover/button:rotate-45" />
+                Settings
               </Button>
             }
           />
           <TooltipContent side="right">
-            {isSettings ? (
-              "Go back"
-            ) : (
-              <>Settings <ShortcutKbd binding={openSettingsBinding} className="ml-1" /></>
-            )}
+            Settings <ShortcutKbd binding={openSettingsBinding} className="ml-1" />
           </TooltipContent>
         </Tooltip>
       </SidebarFooter>

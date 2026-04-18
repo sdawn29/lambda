@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import {
   Sun,
   Moon,
@@ -15,6 +15,14 @@ import {
   ExternalLink,
   RotateCcw,
   X,
+  Search,
+  Palette,
+  MessageSquare,
+  Key,
+  GitBranch,
+  Keyboard,
+  Database,
+  ChevronRight,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -92,8 +100,13 @@ import {
   useStartOAuthLogin,
   useUpdateProviders,
 } from "../mutations"
+import { cn } from "@/shared/lib/utils"
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 type Theme = "light" | "dark" | "system"
+
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const THEMES: { value: Theme; label: string; icon: React.ElementType }[] = [
   { value: "light", label: "Light", icon: Sun },
@@ -122,15 +135,156 @@ const API_KEY_PROVIDERS: { id: string; label: string; placeholder: string }[] =
     { id: "azure-openai-responses", label: "Azure OpenAI", placeholder: "..." },
   ]
 
+interface SettingsSection {
+  id: string
+  label: string
+  icon: React.ElementType
+  description: string
+  keywords: string[]
+}
+
+const SECTIONS: SettingsSection[] = [
+  {
+    id: "appearance",
+    label: "Appearance",
+    icon: Palette,
+    description: "Theme and visual preferences",
+    keywords: ["theme", "dark", "light", "system", "color", "mode"],
+  },
+  {
+    id: "chat",
+    label: "Chat",
+    icon: MessageSquare,
+    description: "Response display and thinking indicators",
+    keywords: [
+      "thinking",
+      "reasoning",
+      "phrases",
+      "loading",
+      "indicator",
+      "model",
+      "visible",
+      "hidden",
+    ],
+  },
+  {
+    id: "subscriptions",
+    label: "Subscriptions",
+    icon: Key,
+    description: "OAuth sign-in for Claude Pro, GitHub Copilot, etc.",
+    keywords: ["oauth", "subscription", "sign in", "claude pro", "copilot", "login"],
+  },
+  {
+    id: "api-keys",
+    label: "API Keys",
+    icon: Key,
+    description: "Provider API keys stored in auth.json",
+    keywords: [
+      "api key",
+      "anthropic",
+      "openai",
+      "google",
+      "mistral",
+      "groq",
+      "xai",
+      "provider",
+      "secret",
+      "token",
+    ],
+  },
+  {
+    id: "git",
+    label: "Git",
+    icon: GitBranch,
+    description: "AI-generated commit messages",
+    keywords: ["commit", "message", "diff", "prompt", "ai", "git", "staged"],
+  },
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    icon: Keyboard,
+    description: "Keyboard bindings for all actions",
+    keywords: [
+      "keyboard",
+      "hotkey",
+      "keybinding",
+      "shortcut",
+      "binding",
+      "keys",
+    ],
+  },
+  {
+    id: "data",
+    label: "Data",
+    icon: Database,
+    description: "Manage and delete application data",
+    keywords: ["delete", "reset", "workspace", "thread", "message", "data", "wipe"],
+  },
+]
+
+function sectionMatches(section: SettingsSection, query: string): boolean {
+  const q = query.toLowerCase()
+  return (
+    section.label.toLowerCase().includes(q) ||
+    section.description.toLowerCase().includes(q) ||
+    section.keywords.some((k) => k.includes(q))
+  )
+}
+
+// ── Main Settings Page ─────────────────────────────────────────────────────────
+
 export function SettingsPage() {
   const { resetAll } = useWorkspace()
-  const { theme, setTheme } = useTheme()
-  const { shortcuts } = useKeyboardShortcuts()
   const [showConfirm, setShowConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
-  const activeTheme = THEMES.find(({ value }) => value === theme) ?? THEMES[0]
-  const ActiveThemeIcon = activeTheme.icon
+  const [search, setSearch] = useState("")
+  const [activeSection, setActiveSection] = useState<string>("appearance")
+  const contentRef = useRef<HTMLDivElement>(null)
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
+  const isScrollingTo = useRef(false)
 
+  const visibleSections = useMemo(
+    () =>
+      search.trim()
+        ? SECTIONS.filter((s) => sectionMatches(s, search.trim()))
+        : SECTIONS,
+    [search]
+  )
+
+  // Track active section via IntersectionObserver
+  useEffect(() => {
+    const container = contentRef.current
+    if (!container) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isScrollingTo.current) return
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+          }
+        }
+      },
+      { root: container, threshold: 0.3, rootMargin: "-10% 0px -60% 0px" }
+    )
+
+    Object.values(sectionRefs.current).forEach((el) => {
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
+  }, [visibleSections])
+
+  const scrollToSection = useCallback((id: string) => {
+    const el = sectionRefs.current[id]
+    if (!el) return
+    isScrollingTo.current = true
+    setActiveSection(id)
+    el.scrollIntoView({ behavior: "smooth", block: "start" })
+    setTimeout(() => {
+      isScrollingTo.current = false
+    }, 700)
+  }, [])
 
   async function handleReset() {
     setResetting(true)
@@ -143,170 +297,235 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-2xl px-6 pt-8 pb-12">
-        <div className="mb-8">
-          <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your preferences and application data.
-          </p>
+    <div className="flex h-full overflow-hidden">
+      {/* ── Left sidebar nav ── */}
+      <aside className="flex w-52 shrink-0 flex-col border-r">
+        {/* Search */}
+        <div className="p-3 pb-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search settings…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-7 pl-7 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-8">
-          {/* Appearance */}
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Appearance"
-              description="Choose how the application looks."
-            />
-            <Card>
-              <CardContent className="p-4">
-                <Field orientation="horizontal">
-                  <FieldContent>
-                    <FieldTitle>Theme</FieldTitle>
-                    <FieldDescription>
-                      {shortcuts[SHORTCUT_ACTIONS.TOGGLE_THEME] && (
-                        <>
-                          Press <ShortcutKbd binding={shortcuts[SHORTCUT_ACTIONS.TOGGLE_THEME]} /> to toggle quickly.
-                        </>
-                      )}
-                    </FieldDescription>
-                  </FieldContent>
-                  <Select
-                    value={theme}
-                    onValueChange={(value) => {
-                      if (typeof value === "string") {
-                        setTheme(value as Theme)
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="min-w-32" aria-label="Theme">
-                      <ActiveThemeIcon data-icon="inline-start" />
-                      <SelectValue placeholder="Theme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {THEMES.map(({ value, label, icon: Icon }) => (
-                          <SelectItem key={value} value={value}>
-                            <Icon />
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </CardContent>
-            </Card>
-          </section>
+        {/* Nav */}
+        <nav className="flex flex-col gap-0.5 overflow-y-auto px-2 pb-4">
+          {visibleSections.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-muted-foreground">No results</p>
+          ) : (
+            visibleSections.map((section) => {
+              const Icon = section.icon
+              const isActive = activeSection === section.id
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => scrollToSection(section.id)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground font-medium"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{section.label}</span>
+                </button>
+              )
+            })
+          )}
+        </nav>
 
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Chat"
-              description="Control how assistant responses are displayed."
-            />
-            <ChatPreferencesCard />
-          </section>
+        {/* Footer */}
+        <div className="mt-auto border-t px-3 py-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            λ<span className="font-mono">Code</span>
+            <Badge variant="outline" className="ml-auto">Alpha</Badge>
+          </div>
+        </div>
+      </aside>
 
-          {/* Subscriptions (OAuth) */}
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Subscriptions"
-              description="Sign in with your existing subscriptions (Claude Pro, GitHub Copilot, etc.). Credentials stored in auth.json."
-            />
-            <SubscriptionsCard />
-          </section>
+      {/* ── Content area ── */}
+      <main ref={contentRef} className="flex-1 overflow-y-auto scroll-smooth">
+        {visibleSections.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2">
+            <Search className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">
+              No settings match <strong>"{search}"</strong>
+            </p>
+            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>
+              Clear search
+            </Button>
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-2xl space-y-10 px-8 py-8">
+            {/* ── Appearance ── */}
+            {visibleSections.some((s) => s.id === "appearance") && (
+              <section
+                id="appearance"
+                ref={(el) => { sectionRefs.current["appearance"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={Palette}
+                  title="Appearance"
+                  description="Choose how the application looks and feels."
+                />
+                <AppearanceCard />
+              </section>
+            )}
 
-          {/* API Keys */}
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="API Keys"
-              description="Configure API keys for each provider. Stored in ~/.pi/agent/auth.json."
-            />
-            <ApiKeysCard />
-          </section>
+            {/* ── Chat ── */}
+            {visibleSections.some((s) => s.id === "chat") && (
+              <section
+                id="chat"
+                ref={(el) => { sectionRefs.current["chat"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={MessageSquare}
+                  title="Chat"
+                  description="Control how assistant responses are displayed."
+                />
+                <ChatPreferencesCard />
+              </section>
+            )}
 
-          {/* AI Commit Messages */}
-          <section className="flex flex-col gap-3" id="commit-prompt">
-            <SectionHeader
-              title="AI Commit Messages"
-              description="Customize the prompt used to generate commit messages. Use {diff} where the staged diff should be inserted."
-            />
-            <CommitPromptCard />
-          </section>
+            {/* ── Subscriptions ── */}
+            {visibleSections.some((s) => s.id === "subscriptions") && (
+              <section
+                id="subscriptions"
+                ref={(el) => { sectionRefs.current["subscriptions"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={Key}
+                  title="Subscriptions"
+                  description="Sign in with Claude Pro, GitHub Copilot, and more. Credentials stored in auth.json."
+                />
+                <SubscriptionsCard />
+              </section>
+            )}
 
-          {/* Keyboard Shortcuts */}
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Keyboard Shortcuts"
-              description="Customize keyboard shortcuts for all actions. Click a binding to record a new one."
-            />
-            <KeyboardShortcutsCard />
-          </section>
+            {/* ── API Keys ── */}
+            {visibleSections.some((s) => s.id === "api-keys") && (
+              <section
+                id="api-keys"
+                ref={(el) => { sectionRefs.current["api-keys"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={Key}
+                  title="API Keys"
+                  description="Configure API keys for each provider. Stored in ~/.pi/agent/auth.json."
+                />
+                <ApiKeysCard />
+              </section>
+            )}
 
-          {/* Data */}
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Data"
-              description="Manage your locally stored application data."
-            />
-            <Card>
-              <CardContent className="p-4">
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5">
-                  <div className="flex items-start justify-between gap-4 px-4 py-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                      <div>
-                        <p className="text-sm font-medium">Delete all data</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Permanently removes all workspaces, threads, and
-                          messages. This cannot be undone.
-                        </p>
+            {/* ── Git ── */}
+            {visibleSections.some((s) => s.id === "git") && (
+              <section
+                id="git"
+                ref={(el) => { sectionRefs.current["git"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={GitBranch}
+                  title="Git"
+                  description="Customize the AI prompt for generating commit messages. Use {diff} for the staged diff."
+                />
+                <CommitPromptCard />
+              </section>
+            )}
+
+            {/* ── Keyboard Shortcuts ── */}
+            {visibleSections.some((s) => s.id === "shortcuts") && (
+              <section
+                id="shortcuts"
+                ref={(el) => { sectionRefs.current["shortcuts"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={Keyboard}
+                  title="Keyboard Shortcuts"
+                  description="Customize bindings for all actions. Click a binding to record a new one."
+                />
+                <KeyboardShortcutsCard />
+              </section>
+            )}
+
+            {/* ── Data ── */}
+            {visibleSections.some((s) => s.id === "data") && (
+              <section
+                id="data"
+                ref={(el) => { sectionRefs.current["data"] = el }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={Database}
+                  title="Data"
+                  description="Manage your locally stored application data."
+                />
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5">
+                      <div className="flex items-start justify-between gap-4 px-4 py-3">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                          <div>
+                            <p className="text-sm font-medium">Delete all data</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Permanently removes all workspaces, threads, and messages. This cannot be undone.
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => setShowConfirm(true)}
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                          Delete all
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => setShowConfirm(true)}
-                    >
-                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                      Delete all
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          <footer className="flex items-center gap-2 pt-2">
-            λ<span className="font-mono text-xs">Code</span>
-            <Badge variant="outline">Alpha</Badge>
-          </footer>
-        </div>
-      </div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+          </div>
+        )}
+      </main>
 
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Delete all data?</DialogTitle>
             <DialogDescription>
-              This will permanently delete all workspaces, threads, and
-              messages. This action cannot be undone.
+              This will permanently delete all workspaces, threads, and messages. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose
-              render={<Button variant="outline" />}
-              disabled={resetting}
-            >
+            <DialogClose render={<Button variant="outline" />} disabled={resetting}>
               Cancel
             </DialogClose>
-            <Button
-              variant="destructive"
-              onClick={handleReset}
-              disabled={resetting}
-            >
+            <Button variant="destructive" onClick={handleReset} disabled={resetting}>
               {resetting ? "Deleting…" : "Delete all"}
             </Button>
           </DialogFooter>
@@ -316,7 +535,80 @@ export function SettingsPage() {
   )
 }
 
-// ── Subscriptions (OAuth) card ─────────────────────────────────────────────────
+// ── Section header ─────────────────────────────────────────────────────────────
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType
+  title: string
+  description: string
+}) {
+  return (
+    <div className="mb-3 flex items-start gap-3">
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-muted/50">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+      </div>
+      <div>
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Appearance card ────────────────────────────────────────────────────────────
+
+function AppearanceCard() {
+  const { theme, setTheme } = useTheme()
+  const { shortcuts } = useKeyboardShortcuts()
+  const activeTheme = THEMES.find(({ value }) => value === theme) ?? THEMES[0]
+  const ActiveThemeIcon = activeTheme.icon
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldTitle>Theme</FieldTitle>
+            <FieldDescription>
+              {shortcuts[SHORTCUT_ACTIONS.TOGGLE_THEME] && (
+                <>
+                  Press <ShortcutKbd binding={shortcuts[SHORTCUT_ACTIONS.TOGGLE_THEME]} /> to toggle quickly.
+                </>
+              )}
+            </FieldDescription>
+          </FieldContent>
+          <Select
+            value={theme}
+            onValueChange={(value) => {
+              if (typeof value === "string") setTheme(value as Theme)
+            }}
+          >
+            <SelectTrigger className="min-w-32" aria-label="Theme">
+              <ActiveThemeIcon data-icon="inline-start" />
+              <SelectValue placeholder="Theme" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {THEMES.map(({ value, label, icon: Icon }) => (
+                  <SelectItem key={value} value={value}>
+                    <Icon />
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Chat preferences card ──────────────────────────────────────────────────────
 
 function ChatPreferencesCard() {
   const showThinking = useShowThinkingSetting()
@@ -348,10 +640,7 @@ function ChatPreferencesCard() {
 
   function handleSavePhrases() {
     const trimmed = phrasesValue.trim()
-    updateSetting.mutate({
-      key: APP_SETTINGS_KEYS.THINKING_PHRASES,
-      value: trimmed,
-    })
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.THINKING_PHRASES, value: trimmed })
     setPhrasesSaved(true)
     setTimeout(() => setPhrasesSaved(false), 1500)
   }
@@ -359,14 +648,10 @@ function ChatPreferencesCard() {
   function handleResetPhrases() {
     const defaultRaw = DEFAULT_THINKING_PHRASES.join("\n")
     setPhrasesValue(defaultRaw)
-    updateSetting.mutate({
-      key: APP_SETTINGS_KEYS.THINKING_PHRASES,
-      value: defaultRaw,
-    })
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.THINKING_PHRASES, value: defaultRaw })
   }
 
-  const isDefaultPhrases =
-    phrasesValue.trim() === DEFAULT_THINKING_PHRASES.join("\n")
+  const isDefaultPhrases = phrasesValue.trim() === DEFAULT_THINKING_PHRASES.join("\n")
 
   return (
     <Card>
@@ -375,8 +660,7 @@ function ChatPreferencesCard() {
           <FieldContent>
             <FieldTitle>Show model thinking</FieldTitle>
             <FieldDescription>
-              Display streamed reasoning blocks in chat when the selected model
-              emits thinking deltas.
+              Display streamed reasoning blocks in chat when the selected model emits thinking deltas.
             </FieldDescription>
           </FieldContent>
           <Toggle
@@ -399,12 +683,9 @@ function ChatPreferencesCard() {
 
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="thinking-phrases">
-              Agent working phrases
-            </FieldLabel>
+            <FieldLabel htmlFor="thinking-phrases">Agent working phrases</FieldLabel>
             <FieldDescription>
-              Phrases cycled in the loading indicator while the agent is
-              working. One phrase per line.
+              Phrases cycled in the loading indicator while the agent is working. One phrase per line.
             </FieldDescription>
             <Textarea
               id="thinking-phrases"
@@ -419,22 +700,12 @@ function ChatPreferencesCard() {
           </Field>
           <div className="flex justify-end gap-2">
             {!isDefaultPhrases && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetPhrases}
-                title="Reset to defaults"
-              >
+              <Button variant="ghost" size="sm" onClick={handleResetPhrases} title="Reset to defaults">
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reset
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSavePhrases}
-              disabled={phrasesSaved}
-            >
+            <Button size="sm" variant="outline" onClick={handleSavePhrases} disabled={phrasesSaved}>
               {phrasesSaved ? (
                 <Check data-icon="inline-start" />
               ) : (
@@ -491,11 +762,12 @@ function ShortcutRecorder({
       <button
         type="button"
         onClick={() => setRecording(true)}
-        className={`flex min-w-24 items-center justify-center rounded-md border px-2 py-1 text-xs transition-colors ${
+        className={cn(
+          "flex min-w-24 items-center justify-center rounded-md border px-2 py-1 text-xs transition-colors",
           recording
             ? "border-ring bg-primary/10 text-primary animate-pulse"
             : "border-border bg-transparent hover:border-ring hover:bg-muted/50"
-        }`}
+        )}
         title="Click to record a new shortcut"
       >
         {recording ? (
@@ -543,11 +815,10 @@ function KeyboardShortcutsCard() {
           {SHORTCUT_ACTION_ORDER.map((action, i) => (
             <div
               key={action}
-              className={`flex items-center justify-between py-2 ${
-                i < SHORTCUT_ACTION_ORDER.length - 1
-                  ? "border-b border-border/50"
-                  : ""
-              }`}
+              className={cn(
+                "flex items-center justify-between py-2",
+                i < SHORTCUT_ACTION_ORDER.length - 1 && "border-b border-border/50"
+              )}
             >
               <span className="text-sm">{SHORTCUT_LABELS[action]}</span>
               <ShortcutRecorder
@@ -633,9 +904,7 @@ function SubscriptionsCard() {
   async function handleOpenExternal(url: string) {
     try {
       const opened = await openExternalMutation.mutateAsync(url)
-      if (!opened) {
-        window.open(url, "_blank")
-      }
+      if (!opened) window.open(url, "_blank")
     } catch {
       window.open(url, "_blank")
     }
@@ -649,11 +918,7 @@ function SubscriptionsCard() {
     try {
       loginId = await startOAuthLoginMutation.mutateAsync(providerId)
     } catch (err) {
-      setLoginState({
-        status: "error",
-        providerId,
-        message: err instanceof Error ? err.message : String(err),
-      })
+      setLoginState({ status: "error", providerId, message: err instanceof Error ? err.message : String(err) })
       return
     }
 
@@ -661,11 +926,7 @@ function SubscriptionsCard() {
     try {
       es = await openOAuthEventSourceMutation.mutateAsync(loginId)
     } catch (err) {
-      setLoginState({
-        status: "error",
-        providerId,
-        message: err instanceof Error ? err.message : String(err),
-      })
+      setLoginState({ status: "error", providerId, message: err instanceof Error ? err.message : String(err) })
       return
     }
 
@@ -673,32 +934,15 @@ function SubscriptionsCard() {
     esRef.current = es
 
     es.addEventListener("auth_url", (e) => {
-      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & {
-        type: "auth_url"
-      }
-      setLoginState({
-        status: "waiting_auth",
-        providerId,
-        loginId,
-        url: event.url,
-        instructions: event.instructions,
-      })
+      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & { type: "auth_url" }
+      setLoginState({ status: "waiting_auth", providerId, loginId, url: event.url, instructions: event.instructions })
       void handleOpenExternal(event.url)
     })
 
     es.addEventListener("prompt", (e) => {
-      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & {
-        type: "prompt"
-      }
+      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & { type: "prompt" }
       setPromptValue("")
-      setLoginState({
-        status: "waiting_prompt",
-        providerId,
-        loginId,
-        promptId: event.promptId,
-        message: event.message,
-        placeholder: event.placeholder,
-      })
+      setLoginState({ status: "waiting_prompt", providerId, loginId, promptId: event.promptId, message: event.message, placeholder: event.placeholder })
     })
 
     es.addEventListener("done", () => {
@@ -712,20 +956,14 @@ function SubscriptionsCard() {
 
     es.addEventListener("error", (e) => {
       if (e instanceof MessageEvent) {
-        // SSE message with event: error — auth flow error from server
         const event = JSON.parse(e.data) as OAuthSseEvent & { type: "error" }
         completed = true
         closeEventSource()
         setLoginState({ status: "error", providerId, message: event.message })
       } else {
-        // EventSource connection error
         closeEventSource()
         if (!completed) {
-          setLoginState({
-            status: "error",
-            providerId,
-            message: "Connection lost",
-          })
+          setLoginState({ status: "error", providerId, message: "Connection lost" })
         }
       }
     })
@@ -736,34 +974,20 @@ function SubscriptionsCard() {
     const { loginId, promptId, providerId } = loginState
     setLoginState((s) => ({ ...s, status: "connecting" }) as LoginState)
     try {
-      await respondToOAuthPromptMutation.mutateAsync({
-        loginId,
-        promptId,
-        value: promptValue,
-      })
+      await respondToOAuthPromptMutation.mutateAsync({ loginId, promptId, value: promptValue })
       setPromptValue("")
     } catch (err) {
-      setLoginState({
-        status: "error",
-        providerId,
-        message: err instanceof Error ? err.message : String(err),
-      })
+      setLoginState({ status: "error", providerId, message: err instanceof Error ? err.message : String(err) })
     }
   }
 
   async function handleAbort() {
     closeEventSource()
-    if (
-      loginState.status === "waiting_auth" ||
-      loginState.status === "waiting_prompt" ||
-      loginState.status === "connecting"
-    ) {
+    if (loginState.status === "waiting_auth" || loginState.status === "waiting_prompt" || loginState.status === "connecting") {
       try {
-        await abortOAuthLoginMutation.mutateAsync(
-          (loginState as { loginId?: string }).loginId ?? ""
-        )
+        await abortOAuthLoginMutation.mutateAsync((loginState as { loginId?: string }).loginId ?? "")
       } catch {
-        // Ignore abort failures when the login flow has already ended.
+        // ignore
       }
     }
     setLoginState({ status: "idle" })
@@ -773,162 +997,119 @@ function SubscriptionsCard() {
     try {
       await oauthLogoutMutation.mutateAsync(providerId)
     } catch {
-      // Ignore logout failures and keep the current provider state visible.
+      // ignore
     }
   }
 
-  const activeProviderId =
-    loginState.status !== "idle"
-      ? (loginState as { providerId: string }).providerId
-      : null
+  const activeProviderId = loginState.status !== "idle" ? (loginState as { providerId: string }).providerId : null
 
   return (
-    <>
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-4">
-          {isLoading ? (
-            <p className="text-xs text-muted-foreground">Loading…</p>
-          ) : !providers?.length ? (
-            <p className="text-xs text-muted-foreground">
-              No OAuth providers available.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {providers.map((p, i) => {
-                const isActive = activeProviderId === p.id
-                const isPending = isActive && loginState.status === "connecting"
-                const isDone = isActive && loginState.status === "done"
-                const showSignedIn = (p.loggedIn && !isActive) || isDone
+    <Card>
+      <CardContent className="flex flex-col gap-3 p-4">
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        ) : !providers?.length ? (
+          <p className="text-xs text-muted-foreground">No OAuth providers available.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {providers.map((p, i) => {
+              const isActive = activeProviderId === p.id
+              const isPending = isActive && loginState.status === "connecting"
+              const isDone = isActive && loginState.status === "done"
+              const showSignedIn = (p.loggedIn && !isActive) || isDone
 
-                return (
-                  <div key={p.id} className="flex flex-col gap-2">
-                    {i > 0 && <Separator />}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{p.name}</p>
-                        {showSignedIn && <SuccessBadge>Signed in</SuccessBadge>}
-                        {isActive && loginState.status === "error" && (
-                          <span className="text-[10px] text-destructive">
-                            {loginState.message}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {p.loggedIn && !isActive ? (
+              return (
+                <div key={p.id} className="flex flex-col gap-2">
+                  {i > 0 && <Separator />}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{p.name}</p>
+                      {showSignedIn && <SuccessBadge>Signed in</SuccessBadge>}
+                      {isActive && loginState.status === "error" && (
+                        <span className="text-[10px] text-destructive">{loginState.message}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {p.loggedIn && !isActive ? (
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleLogout(p.id)}>
+                          <LogOut data-icon="inline-start" />
+                          Sign out
+                        </Button>
+                      ) : isActive && loginState.status !== "idle" && loginState.status !== "done" && loginState.status !== "error" ? (
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleAbort}>
+                          Cancel
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={isPending || (activeProviderId !== null && activeProviderId !== p.id)}
+                          onClick={() => handleLogin(p.id)}
+                        >
+                          {isPending ? (
+                            <Loader2 data-icon="inline-start" className="animate-spin" />
+                          ) : (
+                            <LogIn data-icon="inline-start" />
+                          )}
+                          {isPending ? "Connecting…" : "Sign in"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isActive && loginState.status === "waiting_auth" && (
+                    <div className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                      <div className="flex items-start gap-2">
+                        <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium">Browser opened for authentication</p>
+                          {loginState.instructions && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">{loginState.instructions}</p>
+                          )}
                           <Button
-                            variant="outline"
+                            variant="link"
                             size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => handleLogout(p.id)}
+                            className="h-auto justify-start px-0"
+                            onClick={() => void handleOpenExternal(loginState.url)}
                           >
-                            <LogOut data-icon="inline-start" />
-                            Sign out
+                            <ExternalLink data-icon="inline-start" />
+                            Open again
                           </Button>
-                        ) : isActive &&
-                          loginState.status !== "idle" &&
-                          loginState.status !== "done" &&
-                          loginState.status !== "error" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={handleAbort}
-                          >
-                            Cancel
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={
-                              isPending ||
-                              (activeProviderId !== null &&
-                                activeProviderId !== p.id)
-                            }
-                            onClick={() => handleLogin(p.id)}
-                          >
-                            {isPending ? (
-                              <Loader2
-                                data-icon="inline-start"
-                                className="animate-spin"
-                              />
-                            ) : (
-                              <LogIn data-icon="inline-start" />
-                            )}
-                            {isPending ? "Connecting…" : "Sign in"}
-                          </Button>
-                        )}
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Auth URL waiting state */}
-                    {isActive && loginState.status === "waiting_auth" && (
-                      <div className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                        <div className="flex items-start gap-2">
-                          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium">
-                              Browser opened for authentication
-                            </p>
-                            {loginState.instructions && (
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                {loginState.instructions}
-                              </p>
-                            )}
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="h-auto justify-start px-0"
-                              onClick={() => {
-                                void handleOpenExternal(loginState.url)
-                              }}
-                            >
-                              <ExternalLink data-icon="inline-start" />
-                              Open again
-                            </Button>
-                          </div>
-                        </div>
+                  {isActive && loginState.status === "waiting_prompt" && (
+                    <div className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                      <p className="mb-2 text-xs font-medium">{loginState.message}</p>
+                      <div className="flex gap-2">
+                        <Input
+                          autoFocus
+                          value={promptValue}
+                          onChange={(e) => setPromptValue(e.target.value)}
+                          placeholder={loginState.placeholder ?? "Enter code…"}
+                          className="h-7 font-mono text-xs"
+                          onKeyDown={(e) => { if (e.key === "Enter") handlePromptSubmit() }}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-7 shrink-0 text-xs"
+                          onClick={handlePromptSubmit}
+                          disabled={!promptValue.trim()}
+                        >
+                          Submit
+                        </Button>
                       </div>
-                    )}
-
-                    {/* Prompt input state */}
-                    {isActive && loginState.status === "waiting_prompt" && (
-                      <div className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                        <p className="mb-2 text-xs font-medium">
-                          {loginState.message}
-                        </p>
-                        <div className="flex gap-2">
-                          <Input
-                            autoFocus
-                            value={promptValue}
-                            onChange={(e) => setPromptValue(e.target.value)}
-                            placeholder={
-                              loginState.placeholder ?? "Enter code…"
-                            }
-                            className="h-7 font-mono text-xs"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handlePromptSubmit()
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            className="h-7 shrink-0 text-xs"
-                            onClick={handlePromptSubmit}
-                            disabled={!promptValue.trim()}
-                          >
-                            Submit
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -943,24 +1124,9 @@ interface ConfigureKeyDialogProps {
   isSaving: boolean
 }
 
-function ConfigureKeyDialog({
-  provider,
-  savedKey,
-  open,
-  onOpenChange,
-  onSave,
-  isSaving,
-}: ConfigureKeyDialogProps) {
+function ConfigureKeyDialog({ provider, savedKey, open, onOpenChange, onSave, isSaving }: ConfigureKeyDialogProps) {
   const [value, setValue] = useState(savedKey)
   const [visible, setVisible] = useState(false)
-
-  function handleSave() {
-    onSave(provider.id, value)
-  }
-
-  function handleRemove() {
-    onSave(provider.id, "")
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -969,10 +1135,7 @@ function ConfigureKeyDialog({
           <DialogTitle>Configure {provider.label}</DialogTitle>
           <DialogDescription>
             Enter your API key for {provider.label}. It will be saved to{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
-              ~/.pi/agent/auth.json
-            </code>
-            .
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">~/.pi/agent/auth.json</code>.
           </DialogDescription>
         </DialogHeader>
 
@@ -990,16 +1153,10 @@ function ConfigureKeyDialog({
                 className="font-mono text-sm"
                 autoComplete="off"
                 spellCheck={false}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSave()
-                }}
+                onKeyDown={(e) => { if (e.key === "Enter") onSave(provider.id, value) }}
               />
               <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  size="icon-xs"
-                  onClick={() => setVisible((current) => !current)}
-                  aria-label={visible ? "Hide API key" : "Show API key"}
-                >
+                <InputGroupButton size="icon-xs" onClick={() => setVisible((v) => !v)} aria-label={visible ? "Hide API key" : "Show API key"}>
                   {visible ? <EyeOff /> : <Eye />}
                 </InputGroupButton>
               </InputGroupAddon>
@@ -1009,25 +1166,14 @@ function ConfigureKeyDialog({
 
         <DialogFooter>
           {savedKey && (
-            <Button
-              variant="ghost"
-              className="mr-auto text-destructive hover:text-destructive"
-              onClick={handleRemove}
-              disabled={isSaving}
-            >
+            <Button variant="ghost" className="mr-auto text-destructive hover:text-destructive" onClick={() => onSave(provider.id, "")} disabled={isSaving}>
               Remove key
             </Button>
           )}
-          <DialogClose
-            render={<Button variant="outline" />}
-            disabled={isSaving}
-          >
+          <DialogClose render={<Button variant="outline" />} disabled={isSaving}>
             Cancel
           </DialogClose>
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || value === savedKey}
-          >
+          <Button onClick={() => onSave(provider.id, value)} disabled={isSaving || value === savedKey}>
             {isSaving ? (
               <>
                 <Loader2 data-icon="inline-start" className="animate-spin" />
@@ -1050,12 +1196,22 @@ function ApiKeysCard() {
   const { data: savedKeys, isLoading } = useProviders()
   const { mutate: saveProviders, isPending } = useUpdateProviders()
   const [openFor, setOpenFor] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+
+  const filteredProviders = useMemo(
+    () =>
+      search.trim()
+        ? API_KEY_PROVIDERS.filter((p) =>
+            p.label.toLowerCase().includes(search.toLowerCase())
+          )
+        : API_KEY_PROVIDERS,
+    [search]
+  )
+
+  const configuredCount = API_KEY_PROVIDERS.filter((p) => !!savedKeys?.[p.id]).length
 
   function handleSave(id: string, key: string) {
-    saveProviders(
-      { ...savedKeys, [id]: key },
-      { onSuccess: () => setOpenFor(null) }
-    )
+    saveProviders({ ...savedKeys, [id]: key }, { onSuccess: () => setOpenFor(null) })
   }
 
   return (
@@ -1064,42 +1220,68 @@ function ApiKeysCard() {
         {isLoading ? (
           <p className="text-xs text-muted-foreground">Loading…</p>
         ) : (
-          <div className="flex flex-col gap-1">
-            {API_KEY_PROVIDERS.map(({ id, label, placeholder }) => {
-              const hasKey = !!savedKeys?.[id]
-              return (
-                <div
-                  key={id}
-                  className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted/50"
-                >
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{label}</p>
-                    {hasKey && <SuccessBadge>Configured</SuccessBadge>}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setOpenFor(id)}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search providers…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-7 pl-7 text-xs"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
                   >
-                    Configure
-                  </Button>
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              {configuredCount > 0 && (
+                <Badge variant="secondary">{configuredCount} configured</Badge>
+              )}
+            </div>
 
-                  {openFor === id && (
-                    <ConfigureKeyDialog
-                      provider={{ id, label, placeholder }}
-                      savedKey={savedKeys?.[id] ?? ""}
-                      open={true}
-                      onOpenChange={(open) => {
-                        if (!open) setOpenFor(null)
-                      }}
-                      onSave={handleSave}
-                      isSaving={isPending}
-                    />
-                  )}
-                </div>
-              )
-            })}
+            <div className="flex flex-col gap-0">
+              {filteredProviders.length === 0 ? (
+                <p className="py-3 text-center text-xs text-muted-foreground">No providers match</p>
+              ) : (
+                filteredProviders.map(({ id, label, placeholder }, i) => {
+                  const hasKey = !!savedKeys?.[id]
+                  return (
+                    <div
+                      key={id}
+                      className={cn(
+                        "flex items-center justify-between px-1 py-2",
+                        i < filteredProviders.length - 1 && "border-b border-border/40"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm">{label}</p>
+                        {hasKey && <SuccessBadge>Configured</SuccessBadge>}
+                      </div>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setOpenFor(id)}>
+                        {hasKey ? "Edit" : "Configure"}
+                      </Button>
+
+                      {openFor === id && (
+                        <ConfigureKeyDialog
+                          provider={{ id, label, placeholder }}
+                          savedKey={savedKeys?.[id] ?? ""}
+                          open={true}
+                          onOpenChange={(open) => { if (!open) setOpenFor(null) }}
+                          onSave={handleSave}
+                          isSaving={isPending}
+                        />
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </div>
         )}
       </CardContent>
@@ -1114,39 +1296,27 @@ const DEFAULT_COMMIT_PROMPT = `Generate a git commit message for the following s
 function CommitPromptCard() {
   const { data: settings } = useAppSettings()
   const updateSetting = useUpdateAppSetting()
-  const persistedValue =
-    settings?.[APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT] ?? DEFAULT_COMMIT_PROMPT
+  const persistedValue = settings?.[APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT] ?? DEFAULT_COMMIT_PROMPT
   const [value, setValue] = useState(persistedValue)
   const [saved, setSaved] = useState(false)
 
-  // Sync local state when persisted value loads without clobbering unsaved edits.
   const prevPersistedRef = React.useRef(persistedValue)
   React.useEffect(() => {
-    if (
-      prevPersistedRef.current !== persistedValue &&
-      value === prevPersistedRef.current
-    ) {
+    if (prevPersistedRef.current !== persistedValue && value === prevPersistedRef.current) {
       prevPersistedRef.current = persistedValue
       setValue(persistedValue)
     }
   }, [persistedValue, value])
 
   function handleSave() {
-    const trimmed = value.trim()
-    updateSetting.mutate({
-      key: APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT,
-      value: trimmed,
-    })
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT, value: value.trim() })
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }
 
   function handleReset() {
     setValue(DEFAULT_COMMIT_PROMPT)
-    updateSetting.mutate({
-      key: APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT,
-      value: DEFAULT_COMMIT_PROMPT,
-    })
+    updateSetting.mutate({ key: APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT, value: DEFAULT_COMMIT_PROMPT })
   }
 
   const isDefault = value.trim() === DEFAULT_COMMIT_PROMPT
@@ -1157,7 +1327,7 @@ function CommitPromptCard() {
       <CardContent className="flex flex-col gap-3 p-4">
         <FieldGroup>
           <Field data-invalid={!hasDiffPlaceholder || undefined}>
-            <FieldLabel htmlFor="commit-message-prompt">Prompt</FieldLabel>
+            <FieldLabel htmlFor="commit-message-prompt">Prompt template</FieldLabel>
             <FieldDescription>
               Use{" "}
               <code className="rounded bg-muted px-1 py-0.5">{"{diff}"}</code>{" "}
@@ -1185,22 +1355,11 @@ function CommitPromptCard() {
           </Field>
         </FieldGroup>
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2"
-            disabled={isDefault}
-            onClick={handleReset}
-          >
+          <Button variant="ghost" size="sm" className="px-2" disabled={isDefault} onClick={handleReset}>
             <RotateCcw data-icon="inline-start" />
             Reset to default
           </Button>
-          <Button
-            size="sm"
-            className="px-3"
-            disabled={!hasDiffPlaceholder || saved}
-            onClick={handleSave}
-          >
+          <Button size="sm" className="px-3" disabled={!hasDiffPlaceholder || saved} onClick={handleSave}>
             {saved ? (
               <>
                 <Check data-icon="inline-start" />
@@ -1216,20 +1375,5 @@ function CommitPromptCard() {
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function SectionHeader({
-  title,
-  description,
-}: {
-  title: string
-  description: string
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="text-xs text-muted-foreground">{description}</p>
-    </div>
   )
 }

@@ -12,6 +12,7 @@ import {
   ServerUnavailable,
   useElectronServerStatus,
 } from "@/features/electron"
+import { SettingsModalProvider, SettingsModal } from "@/features/settings"
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()
@@ -49,15 +50,18 @@ function RootLayoutGate() {
   }
 
   return (
-    <WorkspaceProvider>
-      <ThreadStatusProvider>
-        <TerminalProvider>
-          <DiffPanelProvider>
-            <RootLayoutInner />
-          </DiffPanelProvider>
-        </TerminalProvider>
-      </ThreadStatusProvider>
-    </WorkspaceProvider>
+    <SettingsModalProvider>
+      <WorkspaceProvider>
+        <ThreadStatusProvider>
+          <TerminalProvider>
+            <DiffPanelProvider>
+              <RootLayoutInner />
+              <SettingsModal />
+            </DiffPanelProvider>
+          </TerminalProvider>
+        </ThreadStatusProvider>
+      </WorkspaceProvider>
+    </SettingsModalProvider>
   )
 }
 
