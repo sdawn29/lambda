@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react"
 
 import { cn } from "@/shared/lib/utils"
-
-const PHRASES = [
-  "Thinking...",
-  "Sketching the plan...",
-  "Checking the details...",
-  "Pulling the pieces together...",
-  "Polishing the answer...",
-]
+import { useThinkingPhrases } from "@/shared/lib/thinking-visibility"
 
 const PHRASE_INTERVAL_MS = 2200
 
 export function ThinkingIndicator({ className }: { className?: string }) {
+  const phrases = useThinkingPhrases()
   const [phraseIndex, setPhraseIndex] = useState(0)
+
+  useEffect(() => {
+    setPhraseIndex(0)
+  }, [phrases])
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -23,13 +21,13 @@ export function ThinkingIndicator({ className }: { className?: string }) {
     if (prefersReducedMotion) return
 
     const interval = window.setInterval(() => {
-      setPhraseIndex((currentIndex) => (currentIndex + 1) % PHRASES.length)
+      setPhraseIndex((currentIndex) => (currentIndex + 1) % phrases.length)
     }, PHRASE_INTERVAL_MS)
 
     return () => window.clearInterval(interval)
-  }, [])
+  }, [phrases])
 
-  const phrase = PHRASES[phraseIndex]
+  const phrase = phrases[phraseIndex] ?? phrases[0]
 
   return (
     <div
