@@ -12,6 +12,7 @@ import "./index.css"
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen"
 import { ThemeProvider } from "./shared/components/theme-provider"
+import { KeyboardShortcutsProvider } from "./shared/components/keyboard-shortcuts-provider"
 import { queryClient } from "./shared/lib/query-client"
 
 const router = createRouter({ routeTree, history: createHashHistory() })
@@ -30,9 +31,11 @@ if (!rootElement.innerHTML) {
   root.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <RouterProvider router={router} />
-        </ThemeProvider>
+        <KeyboardShortcutsProvider>
+          <ThemeProvider>
+            <RouterProvider router={router} />
+          </ThemeProvider>
+        </KeyboardShortcutsProvider>
       </QueryClientProvider>
     </StrictMode>
   )

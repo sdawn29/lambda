@@ -4,6 +4,7 @@ export const APP_SETTINGS_KEYS = {
   SHOW_THINKING: "show_thinking",
   THINKING_PHRASES: "thinking_phrases",
   THEME: "theme",
+  KEYBOARD_SHORTCUTS: "keyboard_shortcuts",
 } as const
 
 export type AppSettingKey = (typeof APP_SETTINGS_KEYS)[keyof typeof APP_SETTINGS_KEYS]

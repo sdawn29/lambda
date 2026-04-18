@@ -3,6 +3,7 @@ import { memo, forwardRef, useImperativeHandle } from "react"
 
 export interface ChatTextboxHandle {
   setValue: (text: string) => void
+  focus: () => void
 }
 import { ArrowUpIcon } from "lucide-react"
 
@@ -92,6 +93,9 @@ export const ChatTextbox = memo(
       setValue(text: string) {
         richInputRef.current?.setValue(text)
         setIsEmpty(text.trim().length === 0)
+      },
+      focus() {
+        richInputRef.current?.focus()
       },
     }))
 

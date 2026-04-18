@@ -14,6 +14,7 @@ import {
   Loader2,
   ExternalLink,
   RotateCcw,
+  X,
 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -67,6 +68,16 @@ import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
 import { useAppSettings } from "../queries"
 import { useUpdateAppSetting } from "../mutations"
 import { useTheme } from "@/shared/components/theme-provider"
+import { useKeyboardShortcuts } from "@/shared/components/keyboard-shortcuts-provider"
+import { ShortcutKbd } from "@/shared/ui/kbd"
+import {
+  SHORTCUT_ACTIONS,
+  SHORTCUT_LABELS,
+  SHORTCUT_ACTION_ORDER,
+  DEFAULT_SHORTCUTS,
+  eventToBinding,
+  type ShortcutAction,
+} from "@/shared/lib/keyboard-shortcuts"
 import {
   useProviders,
   useOAuthProviders,
@@ -114,10 +125,12 @@ const API_KEY_PROVIDERS: { id: string; label: string; placeholder: string }[] =
 export function SettingsPage() {
   const { resetAll } = useWorkspace()
   const { theme, setTheme } = useTheme()
+  const { shortcuts } = useKeyboardShortcuts()
   const [showConfirm, setShowConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const activeTheme = THEMES.find(({ value }) => value === theme) ?? THEMES[0]
   const ActiveThemeIcon = activeTheme.icon
+
 
   async function handleReset() {
     setResetting(true)
@@ -152,11 +165,11 @@ export function SettingsPage() {
                   <FieldContent>
                     <FieldTitle>Theme</FieldTitle>
                     <FieldDescription>
-                      Press{" "}
-                      <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                        D
-                      </kbd>{" "}
-                      to toggle quickly.
+                      {shortcuts[SHORTCUT_ACTIONS.TOGGLE_THEME] && (
+                        <>
+                          Press <ShortcutKbd binding={shortcuts[SHORTCUT_ACTIONS.TOGGLE_THEME]} /> to toggle quickly.
+                        </>
+                      )}
                     </FieldDescription>
                   </FieldContent>
                   <Select
@@ -220,6 +233,15 @@ export function SettingsPage() {
               description="Customize the prompt used to generate commit messages. Use {diff} where the staged diff should be inserted."
             />
             <CommitPromptCard />
+          </section>
+
+          {/* Keyboard Shortcuts */}
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title="Keyboard Shortcuts"
+              description="Customize keyboard shortcuts for all actions. Click a binding to record a new one."
+            />
+            <KeyboardShortcutsCard />
           </section>
 
           {/* Data */}
@@ -422,6 +444,128 @@ function ChatPreferencesCard() {
             </Button>
           </div>
         </FieldGroup>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Keyboard Shortcuts card ────────────────────────────────────────────────────
+
+function ShortcutRecorder({
+  action,
+  binding,
+  onSave,
+}: {
+  action: ShortcutAction
+  binding: string
+  onSave: (action: ShortcutAction, newBinding: string) => void
+}) {
+  const [recording, setRecording] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!recording) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      if (e.key === "Escape") {
+        setRecording(false)
+        return
+      }
+
+      const newBinding = eventToBinding(e)
+      if (!newBinding) return
+      onSave(action, newBinding)
+      setRecording(false)
+    }
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true })
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true })
+  }, [recording, action, onSave])
+
+  const isDefault = binding === DEFAULT_SHORTCUTS[action]
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => setRecording(true)}
+        className={`flex min-w-24 items-center justify-center rounded-md border px-2 py-1 text-xs transition-colors ${
+          recording
+            ? "border-ring bg-primary/10 text-primary animate-pulse"
+            : "border-border bg-transparent hover:border-ring hover:bg-muted/50"
+        }`}
+        title="Click to record a new shortcut"
+      >
+        {recording ? (
+          <span className="text-xs">Press key…</span>
+        ) : binding ? (
+          <ShortcutKbd binding={binding} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </button>
+      {!isDefault && (
+        <button
+          type="button"
+          title="Reset to default"
+          onClick={() => onSave(action, DEFAULT_SHORTCUTS[action])}
+          className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="h-3 w-3" />
+        </button>
+      )}
+      {binding && (
+        <button
+          type="button"
+          title="Clear shortcut"
+          onClick={() => onSave(action, "")}
+          className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function KeyboardShortcutsCard() {
+  const { shortcuts, updateShortcut, resetShortcuts } = useKeyboardShortcuts()
+  const isAllDefault = SHORTCUT_ACTION_ORDER.every(
+    (a) => (shortcuts[a] ?? DEFAULT_SHORTCUTS[a]) === DEFAULT_SHORTCUTS[a]
+  )
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-0">
+          {SHORTCUT_ACTION_ORDER.map((action, i) => (
+            <div
+              key={action}
+              className={`flex items-center justify-between py-2 ${
+                i < SHORTCUT_ACTION_ORDER.length - 1
+                  ? "border-b border-border/50"
+                  : ""
+              }`}
+            >
+              <span className="text-sm">{SHORTCUT_LABELS[action]}</span>
+              <ShortcutRecorder
+                action={action}
+                binding={shortcuts[action] ?? DEFAULT_SHORTCUTS[action]}
+                onSave={updateShortcut}
+              />
+            </div>
+          ))}
+        </div>
+        {!isAllDefault && (
+          <div className="mt-3 flex justify-end">
+            <Button variant="ghost" size="sm" onClick={resetShortcuts}>
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              Reset all to defaults
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

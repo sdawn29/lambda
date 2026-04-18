@@ -10,6 +10,8 @@ import {
 } from "@/features/electron"
 import { useUpdateWorkspaceOpenWithApp } from "@/features/workspace/mutations"
 import { Button } from "@/shared/ui/button"
+import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ButtonGroup } from "@/shared/ui/button-group"
 import {
   DropdownMenu,
@@ -110,6 +112,11 @@ export function OpenWithButton({
       console.error("Failed to open workspace with external editor", error)
     }
   }
+
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.OPEN_IN_EDITOR,
+    isMac && workspacePath && selectedApp ? () => void openWorkspace() : null
+  )
 
   if (!isMac || !workspacePath) {
     return null

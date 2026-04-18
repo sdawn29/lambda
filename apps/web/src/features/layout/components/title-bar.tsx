@@ -37,6 +37,9 @@ import { useElectronFullscreen, useElectronPlatform } from "@/features/electron"
 import { CommitDialog } from "@/features/git"
 import { useGitDiffStat } from "@/features/git/queries"
 import { OpenWithButton } from "./open-with-button"
+import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
+import { ShortcutKbd } from "@/shared/ui/kbd"
 
 const activeTitleBarButtonClassName =
   "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
@@ -46,7 +49,7 @@ export function TitleBar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const isSettings = pathname === "/settings"
-  const { isMobile, state } = useSidebar()
+  const { isMobile, state, toggleSidebar } = useSidebar()
   const { workspaces, setThreadTitle, deleteThread } = useWorkspace()
   const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminal()
   const { isOpen: diffOpen, toggle: toggleDiff } = useDiffPanel()
@@ -116,6 +119,19 @@ export function TitleBar() {
   const canGoBack = router.history.canGoBack()
   const canGoForward = useSyncExternalStore(subscribe, getSnapshot, () => false)
 
+  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR, toggleSidebar)
+  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL, isSettings ? null : toggleDiff)
+  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_TERMINAL, isSettings ? null : toggleTerminal)
+  useShortcutHandler(SHORTCUT_ACTIONS.RENAME_THREAD, activeThread ? startRename : null)
+  useShortcutHandler(SHORTCUT_ACTIONS.NAVIGATE_BACK, canGoBack ? () => router.history.back() : null)
+  useShortcutHandler(SHORTCUT_ACTIONS.NAVIGATE_FORWARD, canGoForward ? () => router.history.forward() : null)
+
+  const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
+  const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
+  const forwardBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_FORWARD)
+  const diffBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL)
+  const terminalBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_TERMINAL)
+
   const navRef = useRef<HTMLDivElement>(null)
   const [navWidth, setNavWidth] = useState(0)
   const rightControlsRef = useRef<HTMLDivElement>(null)
@@ -165,7 +181,7 @@ export function TitleBar() {
       >
         <Tooltip>
           <TooltipTrigger render={<SidebarTrigger />} />
-          <TooltipContent>Toggle sidebar</TooltipContent>
+          <TooltipContent>Toggle sidebar <ShortcutKbd binding={sidebarBinding} className="ml-1" /></TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -181,7 +197,7 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Go back</TooltipContent>
+          <TooltipContent>Go back <ShortcutKbd binding={backBinding} className="ml-1" /></TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -197,7 +213,7 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Go forward</TooltipContent>
+          <TooltipContent>Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" /></TooltipContent>
         </Tooltip>
       </div>
 
@@ -317,7 +333,7 @@ export function TitleBar() {
                 </Button>
               }
             />
-            <TooltipContent>Toggle diff panel</TooltipContent>
+            <TooltipContent>Toggle diff panel <ShortcutKbd binding={diffBinding} className="ml-1" /></TooltipContent>
           </Tooltip>
         )}
         {!isSettings && (
@@ -337,7 +353,7 @@ export function TitleBar() {
                 </Button>
               }
             />
-            <TooltipContent>Toggle terminal</TooltipContent>
+            <TooltipContent>Toggle terminal <ShortcutKbd binding={terminalBinding} className="ml-1" /></TooltipContent>
           </Tooltip>
         )}
       </div>

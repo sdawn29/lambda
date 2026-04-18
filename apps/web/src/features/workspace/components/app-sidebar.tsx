@@ -11,6 +11,8 @@ import {
   Trash2,
 } from "lucide-react"
 import { useNavigate, useLocation, useParams } from "@tanstack/react-router"
+import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 
 import {
   Sidebar,
@@ -80,6 +82,24 @@ export function AppSidebar() {
   const { threadId: activeThreadId } = useParams({ strict: false }) as {
     threadId?: string
   }
+
+  const activeWorkspace = workspaces.find((ws) =>
+    ws.threads.some((t) => t.id === activeThreadId)
+  ) ?? workspaces[0]
+
+  useShortcutHandler(SHORTCUT_ACTIONS.NEW_WORKSPACE, handleCreateWorkspace)
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.NEW_THREAD,
+    activeWorkspace
+      ? async () => {
+          const thread = await createThread(activeWorkspace.id)
+          navigate({ to: "/workspace/$threadId", params: { threadId: thread.id } })
+        }
+      : null
+  )
+  useShortcutHandler(SHORTCUT_ACTIONS.OPEN_SETTINGS, () =>
+    navigate({ to: "/settings" })
+  )
 
   return (
     <Sidebar collapsible="offcanvas">

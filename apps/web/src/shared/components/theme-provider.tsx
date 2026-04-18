@@ -2,6 +2,8 @@ import * as React from "react"
 import { useAppSettings } from "@/features/settings/queries"
 import { useUpdateAppSetting } from "@/features/settings/mutations"
 import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
+import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 
 type Theme = "dark" | "light" | "system"
 type ResolvedTheme = "dark" | "light"
@@ -48,12 +50,6 @@ function disableTransitionsTemporarily() {
       })
     })
   }
-}
-
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
-  return !!target.closest("input, textarea, select, [contenteditable='true']")
 }
 
 export function ThemeProvider({
@@ -115,29 +111,17 @@ export function ThemeProvider({
     }
   }, [])
 
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return
-      if (isEditableTarget(event.target)) return
-      if (event.key.toLowerCase() !== "d") return
-
-      const nextTheme =
-        theme === "dark"
-          ? "light"
-          : theme === "light"
-            ? "dark"
-            : getSystemTheme() === "dark"
-              ? "light"
-              : "dark"
-
-      setTheme(nextTheme)
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [theme, setTheme])
+  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_THEME, () => {
+    const nextTheme =
+      theme === "dark"
+        ? "light"
+        : theme === "light"
+          ? "dark"
+          : getSystemTheme() === "dark"
+            ? "light"
+            : "dark"
+    setTheme(nextTheme)
+  })
 
   const value = React.useMemo(
     () => ({ theme, resolvedTheme, setTheme }),

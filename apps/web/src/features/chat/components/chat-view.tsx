@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { SparklesIcon, StopCircleIcon, ArrowDownIcon } from "lucide-react"
 
+import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ChatTextbox, type ChatTextboxHandle } from "./chat-textbox"
 import { MessageRow, getMessageKey } from "./message-row"
 import {
@@ -202,6 +204,12 @@ export function ChatView({
     markStopped()
     updateThreadStopped.mutate({ threadId, stopped: true })
   }, [abortSessionMutation, markStopped, threadId, updateThreadStopped])
+
+  useShortcutHandler(SHORTCUT_ACTIONS.FOCUS_CHAT, () => {
+    chatTextboxRef.current?.focus()
+  })
+  useShortcutHandler(SHORTCUT_ACTIONS.STOP_GENERATION, isLoading ? handleStop : null)
+  useShortcutHandler(SHORTCUT_ACTIONS.SCROLL_TO_BOTTOM, scrollToBottom)
 
   const handleSend = useCallback(
     (
