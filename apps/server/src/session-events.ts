@@ -143,12 +143,11 @@ class SessionEventHub {
       subscriber.close();
     }
 
-    const generator = this.generator;
-    if (generator) {
-      await generator.return(undefined).catch(() => undefined);
-    }
-
-    await this.consumeTask?.catch(() => undefined);
+    // Fire-and-forget: generator.return() may never resolve if the underlying
+    // SDK stream is still connected. Since disposed=true already stops all
+    // processing in consume(), we don't need to await cleanup here.
+    this.generator?.return(undefined).catch(() => undefined);
+    this.consumeTask?.catch(() => undefined);
   }
 
   private getReplayEvents(lastEventId?: string): SessionEventRecord[] {

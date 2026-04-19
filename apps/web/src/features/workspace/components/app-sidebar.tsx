@@ -149,8 +149,25 @@ export function AppSidebar() {
   const openWithAppMutation = useOpenWorkspaceWithApp()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [archivedOpen, setArchivedOpen] = useState(false)
+  const [deletingWorkspace, setDeletingWorkspace] = useState<typeof workspaces[0] | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
   const { openSettings } = useSettingsModal()
+
+  async function handleConfirmDelete() {
+    if (!deletingWorkspace) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteWorkspace(deletingWorkspace)
+      setDeletingWorkspace(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete workspace")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const { threadId: activeThreadId } = useParams({ strict: false }) as {
     threadId?: string
@@ -281,7 +298,10 @@ export function AppSidebar() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => deleteWorkspace(ws)}
+                          onClick={() => {
+                            setDeleteError(null)
+                            setDeletingWorkspace(ws)
+                          }}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete Workspace
@@ -344,6 +364,33 @@ export function AppSidebar() {
         </Tooltip>
       </SidebarFooter>
       <ArchivedThreadsDialog open={archivedOpen} onOpenChange={setArchivedOpen} />
+
+      <AlertDialog
+        open={!!deletingWorkspace}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeletingWorkspace(null)
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete workspace?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{deletingWorkspace?.name}" and all its threads will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p className="text-xs text-destructive px-1">{deleteError}</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingWorkspace(null)} disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   )
 }

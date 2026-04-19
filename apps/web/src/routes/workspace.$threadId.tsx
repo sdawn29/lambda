@@ -27,7 +27,7 @@ export const Route = createFileRoute("/workspace/$threadId")({
 
 function WorkspaceThreadRoute() {
   const { threadId } = Route.useParams()
-  const { workspaces } = useWorkspace()
+  const { workspaces, isLoading } = useWorkspace()
   const navigate = useNavigate()
   const { isOpen: diffOpen } = useDiffPanel()
   const { isOpen: terminalOpen } = useTerminal()
@@ -57,10 +57,10 @@ function WorkspaceThreadRoute() {
   }
 
   useEffect(() => {
-    if (workspaces.length > 0 && !foundThread) {
+    if (!isLoading && !foundThread) {
       navigate({ to: "/" })
     }
-  }, [workspaces, foundThread, navigate])
+  }, [isLoading, foundThread, navigate])
 
   if (!foundWorkspace || !foundThread || !foundThread.sessionId) {
     return null
