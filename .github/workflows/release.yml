@@ -25,7 +25,6 @@ jobs:
             echo "::error::Invalid version '$VERSION' (expected semver like 0.0.2)."
             exit 1
           fi
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -38,7 +37,6 @@ jobs:
             echo "::error::Tag v$VERSION already exists on origin."
             exit 1
           fi
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -55,7 +53,6 @@ jobs:
           git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin main
           git push origin "v$VERSION"
-
   release:
     needs: tag
     # macos-14 is Apple Silicon — needed for arm64 native module compilation
@@ -76,17 +73,17 @@ jobs:
       - name: Build desktop app
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          GH_TOKEN: ${{ github.token }}
-          PUBLISH: "1"
         run: node apps/desktop/build.mjs
 
-      - name: Generate release notes
+      - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.tag.outputs.tag }}
+        working-directory: apps/desktop/release
         run: |
-          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
-            --method POST \
-            -f tag_name="$TAG" \
-            --jq '.body')
-          gh release edit "$TAG" --notes "$NOTES" --latest --verify-tag
+          assets=($(find . -maxdepth 1 -type f))
+          gh release create "$TAG" "${assets[@]}" \
+            --title "$TAG" \
+            --generate-notes \
+            --latest \
+            --verify-tag
