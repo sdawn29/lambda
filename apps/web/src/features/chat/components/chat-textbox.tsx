@@ -15,6 +15,7 @@ import {
   useWorkspaceFiles,
   useSlashCommands,
   useContextUsage,
+  useThinkingLevels,
   type WorkspaceEntry,
 } from "../queries"
 import { BranchSelector } from "@/features/git"
@@ -129,6 +130,7 @@ export const ChatTextbox = memo(
       slashCommandOpen
     )
     const { data: contextUsage } = useContextUsage(sessionId)
+    const { data: sessionThinkingLevels } = useThinkingLevels(sessionId)
 
     const mentionEntries2 = React.useMemo(() => {
       if (!atMention) return []
@@ -383,7 +385,7 @@ export const ChatTextbox = memo(
                 <ThinkingCombobox
                   selected={thinkingLevel}
                   onSelect={setThinkingLevel}
-                  availableLevels={selectedModel.thinkingLevels}
+                  availableLevels={sessionThinkingLevels ?? selectedModel.thinkingLevels}
                 />
               )}
             </div>

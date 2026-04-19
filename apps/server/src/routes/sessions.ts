@@ -90,6 +90,13 @@ sessions.get("/session/:id/commands", (c) => {
   return c.json({ commands: entry.handle.getCommands() });
 });
 
+sessions.get("/session/:id/thinking-levels", (c) => {
+  const id = c.req.param("id");
+  const entry = store.get(id);
+  if (!entry) return c.json({ levels: [] });
+  return c.json({ levels: entry.handle.getAvailableThinkingLevels() });
+});
+
 sessions.get("/session/:id/context-usage", (c) => {
   const id = c.req.param("id");
   const entry = store.get(id);

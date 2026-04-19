@@ -5,6 +5,7 @@ import {
   listWorkspaceFiles,
   fetchSlashCommands,
   fetchContextUsage,
+  fetchThinkingLevels,
 } from "./api"
 import {
   createAssistantMessage,
@@ -31,6 +32,8 @@ export const chatKeys = {
     [...chatSessionKey(sessionId), "commands"] as const,
   contextUsage: (sessionId: string) =>
     [...chatSessionKey(sessionId), "context-usage"] as const,
+  thinkingLevels: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "thinking-levels"] as const,
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────────
@@ -120,6 +123,18 @@ export function useSlashCommands(
     enabled: enabled && !!sessionId,
     gcTime: 60 * 1000,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+// ── Thinking levels ───────────────────────────────────────────────────────────
+
+export function useThinkingLevels(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: sessionId ? chatKeys.thinkingLevels(sessionId) : chatKeys.all,
+    queryFn: () => fetchThinkingLevels(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 5_000,
+    select: (data) => data.levels,
   })
 }
 

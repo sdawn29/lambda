@@ -72,6 +72,9 @@ function buildHandle(session: Awaited<ReturnType<typeof createAgentSession>>["se
     async compact() {
       await session.compact();
     },
+    getAvailableThinkingLevels() {
+      return session.getAvailableThinkingLevels();
+    },
     getCommands() {
       // Skills and prompts may live in the Pi default (~/.pi/agent/*)
       // or the agents-convention alternative (~/.agents/*).

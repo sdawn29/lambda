@@ -181,6 +181,12 @@ export async function fetchSlashCommands(
 
 // ── Context usage ─────────────────────────────────────────────────────────────
 
+export function fetchThinkingLevels(
+  sessionId: string
+): Promise<{ levels: string[] }> {
+  return apiFetch<{ levels: string[] }>(`/session/${sessionId}/thinking-levels`)
+}
+
 export interface ContextUsage {
   tokens: number | null
   contextWindow: number

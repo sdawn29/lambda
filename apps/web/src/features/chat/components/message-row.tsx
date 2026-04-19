@@ -11,12 +11,6 @@ import { getProviderMeta } from "@/shared/lib/provider-meta"
 import type { SlashCommand } from "../api"
 import { type AssistantMessage, type Message } from "../types"
 
-const THINKING_LEVEL_LABELS: Record<string, string> = {
-  low: "Low",
-  medium: "Med",
-  high: "High",
-  xhigh: "Max",
-}
 
 function assistantCopyText(
   message: AssistantMessage,
@@ -57,7 +51,13 @@ function AssistantMessageBlock({
   if (!hasThinking && !hasContent) return null
 
   const providerMeta = message.provider ? getProviderMeta(message.provider) : null
-  const thinkingLabel = message.thinkingLevel ? THINKING_LEVEL_LABELS[message.thinkingLevel] : null
+  const THINKING_LEVEL_LABELS: Record<string, string> = {
+    low: "Low",
+    medium: "Med",
+    high: "High",
+    xhigh: "Max",
+  }
+  const thinkingLabel = message.thinkingLevel ? (THINKING_LEVEL_LABELS[message.thinkingLevel] ?? message.thinkingLevel) : null
   const hasMeta = !!(message.model ?? message.responseTime != null)
 
   return (

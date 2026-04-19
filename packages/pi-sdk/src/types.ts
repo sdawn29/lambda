@@ -73,4 +73,6 @@ export interface ManagedSessionHandle {
   getContextUsage(): ContextUsage | undefined;
   /** Compact the context window by summarizing conversation history. */
   compact(): Promise<void>;
+  /** Get the thinking/effort levels available for the current model. */
+  getAvailableThinkingLevels(): string[];
 }
