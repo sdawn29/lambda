@@ -12,7 +12,6 @@ import { getProviderMeta } from "@/shared/lib/provider-meta"
 import type { SlashCommand } from "../api"
 import { type AssistantMessage, type Message } from "../types"
 
-
 function assistantCopyText(
   message: AssistantMessage,
   includeThinking: boolean
@@ -79,14 +78,18 @@ function AssistantMessageBlock({
 
   if (!hasThinking && !hasContent) return null
 
-  const providerMeta = message.provider ? getProviderMeta(message.provider) : null
+  const providerMeta = message.provider
+    ? getProviderMeta(message.provider)
+    : null
   const THINKING_LEVEL_LABELS: Record<string, string> = {
     low: "Low",
     medium: "Med",
     high: "High",
     xhigh: "Max",
   }
-  const thinkingLabel = message.thinkingLevel ? (THINKING_LEVEL_LABELS[message.thinkingLevel] ?? message.thinkingLevel) : null
+  const thinkingLabel = message.thinkingLevel
+    ? (THINKING_LEVEL_LABELS[message.thinkingLevel] ?? message.thinkingLevel)
+    : null
   const hasMeta = !!(message.model ?? message.responseTime != null)
 
   return (
@@ -104,7 +107,9 @@ function AssistantMessageBlock({
       <div className="flex items-center gap-3">
         {hasMeta && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {providerMeta && <span className="shrink-0">{providerMeta.icon}</span>}
+            {providerMeta && (
+              <span className="shrink-0">{providerMeta.icon}</span>
+            )}
             {message.model && <span>{message.model}</span>}
             {thinkingLabel && (
               <>
@@ -121,7 +126,11 @@ function AssistantMessageBlock({
           </div>
         )}
         <TokenCounter
-          up={message.thinking.length > 0 ? estimateTokens(message.thinking) : undefined}
+          up={
+            message.thinking.length > 0
+              ? estimateTokens(message.thinking)
+              : undefined
+          }
           down={estimateTokens(message.content)}
         />
         <CopyButton text={assistantCopyText(message, showThinking)} />
@@ -168,15 +177,18 @@ export const MessageRow = memo(function MessageRow({
   if (message.role === "user") {
     return (
       <div className="group flex animate-in flex-col items-end gap-1.5 self-end duration-200 fade-in-0 slide-in-from-bottom-2">
-        <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm" data-selectable>
+        <div
+          className="rounded-xl bg-muted px-4 py-2.5 text-sm"
+          data-selectable
+        >
           <UserMessageContent
             content={message.content}
             commandsByName={commandsByName}
           />
         </div>
         <div className="flex items-center gap-2">
-          <TokenCounter up={estimateTokens(message.content)} />
           <CopyButton text={message.content} />
+          <TokenCounter up={estimateTokens(message.content)} />
         </div>
       </div>
     )
