@@ -1,16 +1,12 @@
-import { useEffect, useRef, useCallback, useState, memo } from "react"
+import { useEffect, useRef, memo } from "react"
 import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
-import { X, GripHorizontal } from "lucide-react"
+import { X } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useTheme } from "@/shared/components/theme-provider"
 import { useTerminal } from "../context"
 import { getServerUrl } from "@/shared/lib/client"
 import "@xterm/xterm/css/xterm.css"
-
-const MIN_HEIGHT = 120
-const DEFAULT_HEIGHT = 260
-const MIN_CONTENT_HEIGHT = 200
 const TERMINAL_OUTPUT_FLUSH_MS = 16
 const TERMINAL_IMMEDIATE_FLUSH_THRESHOLD = 8_192
 
@@ -75,9 +71,6 @@ export const TerminalPanel = memo(function TerminalPanel({
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const [height, setHeight] = useState(DEFAULT_HEIGHT)
-  const dragStartRef = useRef<{ y: number; h: number } | null>(null)
   const terminalTheme =
     resolvedTheme === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME
 
@@ -196,68 +189,11 @@ export const TerminalPanel = memo(function TerminalPanel({
     term.options.theme = terminalTheme
   }, [terminalTheme])
 
-  // Re-fit when height changes
-  useEffect(() => {
-    const fitAddon = fitAddonRef.current
-    const ws = wsRef.current
-    if (!fitAddon) return
-    fitAddon.fit()
-    const dims = fitAddon.proposeDimensions()
-    if (dims && ws?.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
-      )
-    }
-  }, [height])
-
-  const onDragStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      dragStartRef.current = { y: e.clientY, h: height }
-      document.body.style.userSelect = "none"
-      document.body.style.cursor = "row-resize"
-
-      const onMove = (ev: MouseEvent) => {
-        if (!dragStartRef.current) return
-        const delta = dragStartRef.current.y - ev.clientY
-        const parentHeight =
-          panelRef.current?.parentElement?.clientHeight ?? window.innerHeight
-        const maxHeight = parentHeight - MIN_CONTENT_HEIGHT
-        setHeight(
-          Math.max(
-            MIN_HEIGHT,
-            Math.min(maxHeight, dragStartRef.current.h + delta)
-          )
-        )
-      }
-
-      const onUp = () => {
-        dragStartRef.current = null
-        document.body.style.userSelect = ""
-        document.body.style.cursor = ""
-        window.removeEventListener("mousemove", onMove)
-        window.removeEventListener("mouseup", onUp)
-      }
-
-      window.addEventListener("mousemove", onMove)
-      window.addEventListener("mouseup", onUp)
-    },
-    [height]
-  )
-
   return (
-    <div
-      ref={panelRef}
-      className="flex shrink-0 flex-col border-t bg-background"
-      style={{ height, maxHeight: "80%" }}
-    >
-      {/* Drag handle / header */}
-      <div
-        className="flex h-8 shrink-0 cursor-row-resize items-center justify-between border-b px-3 select-none"
-        onMouseDown={onDragStart}
-      >
+    <div className="flex h-full shrink-0 flex-col border-t bg-background">
+      {/* Header */}
+      <div className="flex h-8 shrink-0 items-center justify-between border-b px-3">
         <div className="flex items-center gap-2">
-          <GripHorizontal className="h-3 w-3 text-muted-foreground" />
           <span className="font-mono text-xs text-muted-foreground">
             terminal
           </span>
@@ -266,7 +202,6 @@ export const TerminalPanel = memo(function TerminalPanel({
           variant="ghost"
           size="icon-sm"
           className="h-5 w-5 text-muted-foreground hover:text-foreground"
-          onMouseDown={(e) => e.stopPropagation()}
           onClick={close}
         >
           <X className="h-3 w-3" />

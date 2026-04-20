@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, useState, useMemo, memo } from "react"
+import { useCallback, useEffect, useState, useMemo, memo } from "react"
 import {
   ChevronRight,
-  GripVertical,
   Loader2,
   X,
   Columns2,
@@ -51,10 +50,6 @@ import {
   useGitStashMutations,
   useGitRevertFile,
 } from "../mutations"
-
-const MIN_WIDTH = 300
-const DEFAULT_WIDTH = 440
-const MIN_CHAT_WIDTH = 200
 
 // ── Status helpers ──────────────────────────────────────────────────────────
 
@@ -661,12 +656,9 @@ interface DiffPanelProps {
 
 export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) {
   const { close, isFullscreen, setIsFullscreen } = useDiffPanel()
-  const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [mode, setMode] = useState<DiffMode>("inline")
   const [sortMode, setSortMode] = useState<SortMode>("name")
   const [stashInputOpen, setStashInputOpen] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const dragStartRef = useRef<{ x: number; w: number } | null>(null)
 
   const {
     data: statusRaw,
@@ -731,62 +723,12 @@ export const DiffPanel = memo(function DiffPanel({ sessionId }: DiffPanelProps) 
     [stash]
   )
 
-  const onDragStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      dragStartRef.current = { x: e.clientX, w: width }
-      document.body.style.userSelect = "none"
-      document.body.style.cursor = "col-resize"
-
-      const onMove = (ev: MouseEvent) => {
-        if (!dragStartRef.current) return
-        const delta = dragStartRef.current.x - ev.clientX
-        const parentWidth =
-          panelRef.current?.parentElement?.clientWidth ?? window.innerWidth
-        const newWidth = dragStartRef.current.w + delta
-        if (newWidth >= parentWidth - MIN_CHAT_WIDTH) {
-          setIsFullscreen(true)
-          setWidth(parentWidth)
-        } else {
-          setIsFullscreen(false)
-          setWidth(Math.max(MIN_WIDTH, Math.min(parentWidth - MIN_CHAT_WIDTH, newWidth)))
-        }
-      }
-
-      const onUp = () => {
-        dragStartRef.current = null
-        document.body.style.userSelect = ""
-        document.body.style.cursor = ""
-        window.removeEventListener("mousemove", onMove)
-        window.removeEventListener("mouseup", onUp)
-      }
-
-      window.addEventListener("mousemove", onMove)
-      window.addEventListener("mouseup", onUp)
-    },
-    [width, setIsFullscreen]
-  )
-
   const hasStaged = staged.length > 0
   const hasUnstaged = unstaged.length > 0
   const hasChanges = files.length > 0
 
   return (
-    <div
-      ref={panelRef}
-      className="relative flex h-full shrink-0 flex-col border-l border-border/60 bg-background"
-      style={isFullscreen ? { width: "100%" } : { width, maxWidth: "80%" }}
-    >
-      {/* Left-edge drag handle */}
-      {!isFullscreen && (
-        <div
-          className="group absolute inset-y-0 left-0 z-10 flex w-1.5 cursor-col-resize items-center justify-center transition-colors hover:bg-border/60"
-          onMouseDown={onDragStart}
-        >
-          <GripVertical className="h-4 w-3 text-muted-foreground/20 transition-colors group-hover:text-muted-foreground/60" />
-        </div>
-      )}
-
+    <div className="flex h-full shrink-0 flex-col border-l border-border/60 bg-background">
       {/* Header — title + status summary + controls */}
       <div className="flex h-10 min-w-0 shrink-0 items-center gap-2 border-b border-border/50 pr-1.5 pl-4">
         <div className="flex items-center gap-2">

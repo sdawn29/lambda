@@ -8,6 +8,11 @@ import { useTerminal } from "@/features/terminal"
 import { useUpdateAppSetting } from "@/features/settings/mutations"
 import { useUpdateThreadLastAccessed } from "@/features/workspace/mutations"
 import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/shared/ui/resizable"
 
 const DiffPanel = lazy(() =>
   import("@/features/git").then((module) => ({
@@ -68,38 +73,56 @@ function WorkspaceThreadRoute() {
 
   const cwd = foundWorkspace.path
 
+  if (diffFullscreen) {
+    return (
+      <Suspense fallback={<div className="h-full w-full bg-muted/10" />}>
+        <DiffPanel sessionId={foundThread.sessionId} />
+      </Suspense>
+    )
+  }
+
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 overflow-hidden border-t">
-        {!diffFullscreen && (
-          <ChatView
-            key={foundThread.id}
-            sessionId={foundThread.sessionId}
-            workspaceId={foundWorkspace.id}
-            threadId={foundThread.id}
-            initialModelId={foundThread.modelId}
-            initialIsStopped={foundThread.isStopped}
-          />
-        )}
-
-        {diffOpen && (
-          <Suspense
-            fallback={
-              <div className="w-110 shrink-0 border-l border-border/60 bg-muted/10" />
-            }
-          >
-            <DiffPanel sessionId={foundThread.sessionId} />
-          </Suspense>
-        )}
-      </div>
-
+    <ResizablePanelGroup orientation="vertical" className="h-full">
+      <ResizablePanel defaultSize={50} minSize={30}>
+        <ResizablePanelGroup orientation="horizontal">
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <ChatView
+              key={foundThread.id}
+              sessionId={foundThread.sessionId}
+              workspaceId={foundWorkspace.id}
+              threadId={foundThread.id}
+              initialModelId={foundThread.modelId}
+              initialIsStopped={foundThread.isStopped}
+            />
+          </ResizablePanel>
+          {diffOpen && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={50} minSize={30}>
+                <Suspense
+                  fallback={
+                    <div className="h-full border-l border-border/60 bg-muted/10" />
+                  }
+                >
+                  <DiffPanel sessionId={foundThread.sessionId} />
+                </Suspense>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </ResizablePanel>
       {terminalOpen && (
-        <Suspense
-          fallback={<div className="h-65 shrink-0 border-t bg-background" />}
-        >
-          <TerminalPanel cwd={cwd} />
-        </Suspense>
+        <>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={33.33} minSize={20}>
+            <Suspense
+              fallback={<div className="h-full border-t bg-background" />}
+            >
+              <TerminalPanel cwd={cwd} />
+            </Suspense>
+          </ResizablePanel>
+        </>
       )}
-    </div>
+    </ResizablePanelGroup>
   )
 }

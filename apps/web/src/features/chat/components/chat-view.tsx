@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { SparklesIcon, StopCircleIcon, ArrowDownIcon, Code2Icon, BugIcon, TestTubeIcon, PlugZapIcon } from "lucide-react"
+import {
+  SparklesIcon,
+  StopCircleIcon,
+  ArrowDownIcon,
+  Code2Icon,
+  BugIcon,
+  TestTubeIcon,
+  PlugZapIcon,
+} from "lucide-react"
 
 import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
@@ -53,7 +61,7 @@ export function ChatView({
   const showThinkingSetting = useShowThinkingSetting()
   const { data: models, isLoading: modelsLoading } = useModels()
   const { openConfigure } = useConfigureProvider()
-  const noProvider = !modelsLoading && (!models?.models?.length)
+  const noProvider = !modelsLoading && !models?.models?.length
   const {
     visibleMessages,
     hasConversationHistory,
@@ -214,7 +222,10 @@ export function ChatView({
   useShortcutHandler(SHORTCUT_ACTIONS.FOCUS_CHAT, () => {
     chatTextboxRef.current?.focus()
   })
-  useShortcutHandler(SHORTCUT_ACTIONS.STOP_GENERATION, isLoading ? handleStop : null)
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.STOP_GENERATION,
+    isLoading ? handleStop : null
+  )
   useShortcutHandler(SHORTCUT_ACTIONS.SCROLL_TO_BOTTOM, scrollToBottom)
 
   const handleSend = useCallback(
@@ -278,7 +289,8 @@ export function ChatView({
           <div className="flex shrink-0 items-center gap-3 border-b border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
             <PlugZapIcon className="h-4 w-4 shrink-0 text-amber-500" />
             <p className="min-w-0 flex-1 text-xs text-amber-600 dark:text-amber-400">
-              No model provider configured. Add an API key or sign in to start chatting.
+              No model provider configured. Add an API key or sign in to start
+              chatting.
             </p>
             <Button
               size="sm"
@@ -293,20 +305,30 @@ export function ChatView({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-15 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {visibleMessages.length === 0 && !isLoading && (
             <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-5 px-6 text-center select-none">
               <div className="flex flex-col items-center gap-3">
                 <div className="flex size-14 items-center justify-center rounded-2xl border border-border/40 bg-muted/50 shadow-sm">
-                  <span className="text-3xl font-light text-muted-foreground/40 leading-none select-none">λ</span>
+                  <span className="text-3xl leading-none font-light text-muted-foreground/40 select-none">
+                    λ
+                  </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-semibold text-foreground/80">
                     How can I help?
                   </p>
                   <p className="text-xs text-muted-foreground/60">
-                    Use <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px]">@</kbd> for files and <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px]">/</kbd> for commands
+                    Use{" "}
+                    <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px]">
+                      @
+                    </kbd>{" "}
+                    for files and{" "}
+                    <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px]">
+                      /
+                    </kbd>{" "}
+                    for commands
                   </p>
                 </div>
               </div>
@@ -389,7 +411,7 @@ export function ChatView({
           </div>
         )}
 
-        <div className="mx-auto w-full max-w-2xl px-6 pb-6">
+        <div className="absolute inset-x-0 bottom-16 z-10 mx-auto w-full max-w-2xl px-6 pb-6">
           <ChatTextbox
             ref={chatTextboxRef}
             onSend={handleSend}
