@@ -64,7 +64,7 @@
     "publish": {
       "provider": "github",
       "owner": "sdawn29",
-      "repo": "lambda"
+      "repo": "lamda"
     },
     "mac": {
       "icon": "assets/icon.icns",
