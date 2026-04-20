@@ -1071,7 +1071,10 @@ function UpdateStatusRow({
       )
     case "error":
       return (
-        <div className="flex items-center gap-2 text-xs text-destructive">
+        <div
+          role="alert"
+          className="flex items-center gap-2 text-xs text-destructive"
+        >
           <AlertTriangle className="h-3.5 w-3.5" />
           <span className="truncate">{status.message}</span>
         </div>

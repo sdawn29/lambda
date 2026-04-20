@@ -43,7 +43,6 @@ interface UseChatStreamResult {
   startUserPrompt: (text: string, thinkingLevel?: string) => void
   markStopped: () => void
   markSendFailed: () => void
-  clearError: (errorId: string) => void
 }
 
 interface AssistantDeltaEvent {
@@ -678,13 +677,23 @@ export function useChatStream({
   const visibleMessages = useMemo(() => {
     const base = messages ?? persistedMessages ?? cachedMessages
     const stored = sessionClientErrors.get(sessionId) ?? []
-    if (stored.length === 0) return base
-    const existingIds = new Set(
+
+    // Collect error IDs already in base to avoid duplicates
+    const baseErrorIds = new Set(
       base.filter((m): m is ErrorMessage => m.role === "error").map((m) => m.id)
     )
-    const toAdd = stored.filter((e) => !existingIds.has(e.id))
-    return toAdd.length > 0 ? [...base, ...toAdd] : base
-  }, [cachedMessages, messages, persistedMessages, sessionId])
+
+    // Session-level errors not yet in base
+    const sessionErrors = stored.filter((e) => !baseErrorIds.has(e.id))
+
+    // Pending error (retry/compaction banners) not yet in base
+    const pending = pendingError && !baseErrorIds.has(pendingError.id)
+      ? [pendingError]
+      : []
+
+    if (sessionErrors.length === 0 && pending.length === 0) return base
+    return [...base, ...sessionErrors, ...pending]
+  }, [cachedMessages, messages, persistedMessages, sessionId, pendingError])
 
   const startUserPrompt = useCallback(
     (text: string, thinkingLevel?: string) => {
@@ -706,24 +715,6 @@ export function useChatStream({
     setIsLoading(false)
   }, [])
 
-  const clearError = useCallback(
-    (errorId: string) => {
-      // Clear from pending error if it's the same
-      setPendingError((prev) => (prev?.id === errorId ? null : prev))
-      // Clear from session client errors
-      const stored = sessionClientErrors.get(sessionId) ?? []
-      const filtered = stored.filter((e) => e.id !== errorId)
-      if (filtered.length !== stored.length) {
-        if (filtered.length === 0) {
-          sessionClientErrors.delete(sessionId)
-        } else {
-          sessionClientErrors.set(sessionId, filtered)
-        }
-      }
-    },
-    [sessionId]
-  )
-
   return {
     visibleMessages,
     hasConversationHistory: visibleMessages.length > 0,
@@ -735,6 +726,5 @@ export function useChatStream({
     startUserPrompt,
     markStopped,
     markSendFailed,
-    clearError,
   }
 }

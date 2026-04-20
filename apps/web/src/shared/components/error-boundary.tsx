@@ -1,4 +1,8 @@
+import { AlertCircleIcon } from "lucide-react"
+
 import { Component, type ErrorInfo, type ReactNode } from "react"
+
+import { Button } from "@/shared/ui/button"
 
 interface Props {
   children: ReactNode
@@ -43,18 +47,24 @@ function DefaultErrorFallback({
   reset: () => void
 }) {
   return (
-    <div className="flex h-svh flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium">Something went wrong</p>
-        <p className="max-w-sm text-xs text-muted-foreground">{error.message}</p>
+    <div className="flex h-svh flex-col items-center justify-center gap-5 p-8 text-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-destructive/30 bg-destructive/10">
+          <AlertCircleIcon className="h-5 w-5 text-destructive" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">Something went wrong</p>
+          <p className="max-w-sm text-xs text-muted-foreground">{error.message}</p>
+        </div>
       </div>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={reset}
-        className="rounded border px-3 py-1.5 text-xs hover:bg-muted"
       >
         Try again
-      </button>
+      </Button>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { lazy, memo, Suspense, useMemo, useState } from "react"
 import {
+  AlertCircleIcon,
   BookOpenTextIcon,
   FileEditIcon,
   FilePlusIcon,
@@ -242,9 +243,12 @@ export const ToolCallBlock = memo(function ToolCallBlock({
               !isRead &&
               resultText &&
               (msg.status === "error" ? (
-                <pre className="max-h-48 overflow-auto break-all whitespace-pre-wrap text-destructive/70">
-                  {resultText}
-                </pre>
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
+                  <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
+                  <pre className="flex-1 overflow-auto break-all whitespace-pre-wrap text-xs text-destructive/80">
+                    {resultText}
+                  </pre>
+                </div>
               ) : (
                 <LivePre text={resultText} live={msg.status === "running"} />
               ))}
@@ -255,9 +259,12 @@ export const ToolCallBlock = memo(function ToolCallBlock({
 
             {/* Edit / read error */}
             {(isEdit || isRead) && msg.status === "error" && resultText && (
-              <pre className="max-h-48 overflow-auto break-all whitespace-pre-wrap text-destructive/70">
-                {resultText}
-              </pre>
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
+                <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
+                <pre className="flex-1 overflow-auto break-all whitespace-pre-wrap text-xs text-destructive/80">
+                  {resultText}
+                </pre>
+              </div>
             )}
           </div>
         </div>

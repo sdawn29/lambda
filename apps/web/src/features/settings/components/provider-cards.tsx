@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from "react"
 import {
+  AlertCircle,
   Check,
   Eye,
   EyeOff,
@@ -308,7 +309,8 @@ export function SubscriptionsCard() {
                       <p className="text-sm font-medium">{p.name}</p>
                       {showSignedIn && <SuccessBadge>Signed in</SuccessBadge>}
                       {isActive && loginState.status === "error" && (
-                        <span className="text-[10px] text-destructive">
+                        <span className="flex items-center gap-1 text-xs text-destructive">
+                          <AlertCircle className="h-3 w-3" />
                           {loginState.message}
                         </span>
                       )}
