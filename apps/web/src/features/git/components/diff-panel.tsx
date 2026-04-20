@@ -25,8 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
 import { useDiffPanel } from "../context"
+import { useGitStatus } from "../queries"
 import {
-  useGitStatus,
   useGitStage,
   useGitStageAll,
   useGitStashMutations,
@@ -62,16 +62,16 @@ export const DiffPanel = memo(function DiffPanel({
   const { staged, unstaged } = useMemo(() => {
     const all = (statusRaw ?? "")
       .split("\n")
-      .map((l) => l.trimEnd())
+      .map((l: string) => l.trimEnd())
       .filter(Boolean)
       .map(parseStatusLine)
     return {
       staged: applySortMode(
-        all.filter((f) => f.isStaged),
+        all.filter((f: ChangedFile) => f.isStaged),
         sortMode
       ),
       unstaged: applySortMode(
-        all.filter((f) => !f.isStaged),
+        all.filter((f: ChangedFile) => !f.isStaged),
         sortMode
       ),
     }
@@ -115,8 +115,12 @@ export const DiffPanel = memo(function DiffPanel({
 
   const handleStashConfirm = useCallback(
     async (message: string) => {
-      await stash.mutateAsync(message || undefined)
-      setStashInputOpen(false)
+      try {
+        await stash.mutateAsync(message || undefined)
+        setStashInputOpen(false)
+      } catch {
+        // keep input bar open on failure
+      }
     },
     [stash]
   )
@@ -220,7 +224,7 @@ export const DiffPanel = memo(function DiffPanel({
                 disabled={bulkWorking || !hasUnstaged}
                 className="h-6 w-6 text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
-                {bulkWorking ? (
+                {stageAll.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
                   <PackagePlus className="h-3 w-3" />
@@ -242,7 +246,11 @@ export const DiffPanel = memo(function DiffPanel({
                 disabled={bulkWorking || !hasStaged}
                 className="h-6 w-6 text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
-                <PackageMinus className="h-3 w-3" />
+                {unstageAll.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <PackageMinus className="h-3 w-3" />
+                )}
                 <span className="sr-only">Unstage all</span>
               </Button>
             }

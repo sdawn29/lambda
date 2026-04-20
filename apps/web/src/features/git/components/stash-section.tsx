@@ -1,8 +1,9 @@
 import { memo, useCallback, useMemo, useState } from "react"
 import { Archive, ChevronRight, Loader2 } from "lucide-react"
 import { StashEntryRow, parseStashList } from "./stash-entry-row"
-import { useGitStashList, useGitStashMutations } from "../queries"
+import { useGitStashList } from "../queries"
 import { cn } from "@/shared/lib/utils"
+import { useGitStashMutations } from "../mutations"
 
 export const StashSection = memo(function StashSection({
   sessionId,
@@ -20,14 +21,8 @@ export const StashSection = memo(function StashSection({
     (ref: string) => apply.mutateAsync(ref),
     [apply]
   )
-  const handlePop = useCallback(
-    (ref: string) => pop.mutateAsync(ref),
-    [pop]
-  )
-  const handleDrop = useCallback(
-    (ref: string) => drop.mutateAsync(ref),
-    [drop]
-  )
+  const handlePop = useCallback((ref: string) => pop.mutateAsync(ref), [pop])
+  const handleDrop = useCallback((ref: string) => drop.mutateAsync(ref), [drop])
 
   return (
     <div className="shrink-0 border-t border-border/50">
