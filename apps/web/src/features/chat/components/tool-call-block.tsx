@@ -159,17 +159,10 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   const isRead = isReadTool(normalizedToolName, msg.args)
   const readFilePath = isRead ? getReadFilePath(msg.args) : null
 
-  const defaultExpanded =
-    msg.status === "running" ||
-    (isEdit && diff !== null) ||
-    msg.status === "error"
-  const [userToggled, setUserToggled] = useState(false)
-  const [manualExpanded, setManualExpanded] = useState(false)
-  const expanded = userToggled ? manualExpanded : defaultExpanded
+  const [expanded, setExpanded] = useState(false)
 
   function toggle() {
-    setUserToggled(true)
-    setManualExpanded((e) => !e)
+    setExpanded((e) => !e)
   }
 
   const resultText = useMemo(() => getResultText(msg), [msg])
@@ -182,7 +175,11 @@ export const ToolCallBlock = memo(function ToolCallBlock({
         className="group flex w-full items-center gap-1.5 py-0.5 text-left transition-colors"
         onClick={toggle}
       >
-        <ToolGlyph toolName={msg.toolName} />
+        {msg.status === "running" ? (
+          <Loader2Icon className="h-3 w-3 animate-spin text-muted-foreground/40" />
+        ) : (
+          <ToolGlyph toolName={msg.toolName} />
+        )}
         <span
           className={cn(
             "shrink-0 leading-none text-muted-foreground/60 group-hover:text-muted-foreground/80",
@@ -195,12 +192,6 @@ export const ToolCallBlock = memo(function ToolCallBlock({
           <span className="min-w-0 flex-1 truncate leading-none text-muted-foreground/35 group-hover:text-muted-foreground/55">
             {summary}
           </span>
-        )}
-        {msg.status === "running" && (
-          <Loader2Icon className="h-3 w-3 shrink-0 animate-spin text-muted-foreground/40" />
-        )}
-        {msg.status === "done" && (
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-500/50" />
         )}
         {msg.status === "error" && (
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive/60" />
@@ -216,6 +207,10 @@ export const ToolCallBlock = memo(function ToolCallBlock({
       >
         <div className="overflow-hidden">
           <div className="mt-0.5 ml-1.5 border-l border-border/30 pl-4">
+            {/* Bash: command as first line */}
+            {normalizedToolName === "bash" && summary && (
+              <pre className="mb-1 whitespace-pre-wrap break-all text-muted-foreground/60">{`$ ${summary}`}</pre>
+            )}
             {/* Edit: show pre-computed diff from SDK */}
             {isEdit && diff !== null && (
               <DiffView

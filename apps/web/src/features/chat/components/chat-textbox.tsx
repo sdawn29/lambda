@@ -106,6 +106,17 @@ export const ChatTextbox = memo(
       models[0] ??
       null
 
+    const availableLevels = selectedModel?.thinkingLevels ?? []
+
+    React.useEffect(() => {
+      if (!availableLevels.length) return
+      if (!availableLevels.includes(thinkingLevel)) {
+        setThinkingLevel(
+          (availableLevels[availableLevels.length - 1] ?? "medium") as ThinkingLevel
+        )
+      }
+    }, [availableLevels])
+
     const grouped = React.useMemo(
       () =>
         Object.entries(
@@ -124,10 +135,21 @@ export const ChatTextbox = memo(
       sessionId,
       fileMentionOpen
     )
-    const { data: commandsData, isLoading: commandsLoading } = useSlashCommands(
-      sessionId,
-      slashCommandOpen
-    )
+    const {
+      data: commandsData,
+      isLoading: commandsLoading,
+      refetch: refetchSlashCommands,
+    } = useSlashCommands(sessionId, slashCommandOpen)
+
+    // Re-fetch skills / prompt-templates every time the slash-command dropdown
+    // opens (i.e. every time the user types "/" into the input).
+    const prevSlashCommandOpen = React.useRef(false)
+    React.useEffect(() => {
+      if (slashCommandOpen && !prevSlashCommandOpen.current) {
+        void refetchSlashCommands()
+      }
+      prevSlashCommandOpen.current = slashCommandOpen
+    }, [slashCommandOpen, refetchSlashCommands])
     const { data: contextUsage } = useContextUsage(sessionId)
 
     const mentionEntries2 = React.useMemo(() => {
@@ -161,8 +183,12 @@ export const ChatTextbox = memo(
       if (!canSend) return
       const text = richInputRef.current?.getValue() ?? ""
       if (!text.trim()) return
+      const safeLevel =
+        availableLevels.length && !availableLevels.includes(thinkingLevel)
+          ? ((availableLevels[availableLevels.length - 1] ?? "medium") as ThinkingLevel)
+          : thinkingLevel
       const effectiveThinkingLevel = selectedModel?.reasoning
-        ? thinkingLevel
+        ? safeLevel
         : undefined
       onSend?.(
         text,
@@ -383,7 +409,7 @@ export const ChatTextbox = memo(
                 <ThinkingCombobox
                   selected={thinkingLevel}
                   onSelect={setThinkingLevel}
-                  availableLevels={selectedModel.thinkingLevels}
+                  availableLevels={availableLevels}
                 />
               )}
             </div>

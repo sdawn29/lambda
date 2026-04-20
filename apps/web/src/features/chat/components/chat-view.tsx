@@ -336,6 +336,12 @@ export function ChatView({
               {visibleMessages.map((message, index) => {
                 const messageKey = messageKeys[index]
                 if (!messageKey) return null
+                if (
+                  message.role === "assistant" &&
+                  !message.content.trim() &&
+                  !message.thinking.trim()
+                )
+                  return null
                 return (
                   <div key={messageKey} className="pb-3">
                     <MessageRow

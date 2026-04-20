@@ -122,7 +122,11 @@ export function useSlashCommands(
     queryFn: () => fetchSlashCommands(sessionId!),
     enabled: enabled && !!sessionId,
     gcTime: 60 * 1000,
-    staleTime: 5 * 60 * 1000,
+    // staleTime: 0 ensures that every time the slash-command dropdown opens
+    // (enabled flips true) TanStack Query will immediately consider the cached
+    // data stale and issue a fresh network request to pick up any newly-added
+    // skills or prompt templates.
+    staleTime: 0,
   })
 }
 
