@@ -2,8 +2,11 @@ import { memo } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
+  AlertCircleIcon,
   ArrowDownIcon,
   ArrowUpIcon,
+  RotateCwIcon,
+  XIcon,
 } from "lucide-react"
 
 import { ToolCallBlock } from "./tool-call-block"
@@ -11,9 +14,10 @@ import { markdownComponents } from "./markdown-components"
 import { UserMessageContent } from "./user-message"
 import { ThinkingBlock } from "./thinking-block"
 import { CopyButton } from "@/shared/components/copy-button"
+import { Button } from "@/shared/ui/button"
 import { getProviderMeta } from "@/shared/lib/provider-meta"
 import type { SlashCommand } from "../api"
-import { type AssistantMessage, type ErrorMessage, type Message } from "../types"
+import { type AssistantMessage, type ErrorAction, type ErrorMessage, type Message } from "../types"
 
 function assistantCopyText(
   message: AssistantMessage,
@@ -177,16 +181,84 @@ export function estimateMessageSize(message: Message): number {
   return 104
 }
 
+function ErrorBlock({
+  message,
+  onAction,
+}: {
+  message: ErrorMessage
+  onAction?: (action: ErrorAction, id: string) => void
+}) {
+  const { action } = message
+  const canRetry = action?.type === "retry" && !!action.prompt
+  const showActions = !!onAction && !!action && action.type !== "continue"
+
+  return (
+    <div className="group flex animate-in flex-col duration-300 fade-in-0 slide-in-from-bottom-1">
+      <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3">
+        <div className="flex items-start gap-2.5">
+          <AlertCircleIcon className="mt-px h-4 w-4 shrink-0 text-destructive/60" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium leading-none text-destructive/90">
+              {message.title}
+              {message.retryCount != null && (
+                <span className="ml-2 text-xs font-normal text-destructive/50">
+                  attempt {message.retryCount}
+                </span>
+              )}
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-destructive/65">
+              {message.message}
+            </p>
+          </div>
+          {showActions && !canRetry && (
+            <button
+              type="button"
+              onClick={() => onAction({ type: "dismiss" }, message.id)}
+              className="shrink-0 text-destructive/40 transition-colors hover:text-destructive/70"
+              aria-label="Dismiss"
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {showActions && canRetry && (
+          <div className="mt-3 flex gap-2 pl-6.5">
+            <Button
+              size="xs"
+              variant="destructive"
+              onClick={() => onAction(action!, message.id)}
+            >
+              <RotateCwIcon />
+              Retry
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              className="text-muted-foreground/60 hover:text-foreground/80"
+              onClick={() => onAction({ type: "dismiss" }, message.id)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export interface MessageRowProps {
   message: Message
   commandsByName: ReadonlyMap<string, SlashCommand>
   showThinking: boolean
+  onAction?: (action: ErrorAction, id: string) => void
 }
 
 export const MessageRow = memo(function MessageRow({
   message,
   commandsByName,
   showThinking,
+  onAction,
 }: MessageRowProps) {
   if (message.role === "tool") {
     return <ToolCallBlock msg={message} />
@@ -213,22 +285,7 @@ export const MessageRow = memo(function MessageRow({
   }
 
   if (message.role === "error") {
-    const errorMsg = message as ErrorMessage
-    const assistantLikeMessage: AssistantMessage = {
-      role: "assistant",
-      content: `**${errorMsg.title}**\n\n${errorMsg.message}`,
-      thinking: "",
-      ...(errorMsg.retryCount !== undefined
-        ? { thinkingLevel: `Retry ${errorMsg.retryCount}` as AssistantMessage["thinkingLevel"] }
-        : {}),
-    }
-    return (
-      <AssistantMessageBlock
-        message={assistantLikeMessage}
-        showThinking={showThinking}
-        isError
-      />
-    )
+    return <ErrorBlock message={message as ErrorMessage} onAction={onAction} />
   }
 
   return <AssistantMessageBlock message={message} showThinking={showThinking} />
