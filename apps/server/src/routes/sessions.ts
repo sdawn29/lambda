@@ -78,7 +78,11 @@ sessions.post("/session/:id/prompt", async (c) => {
     }
     await entry.handle.prompt(body.text!);
   };
-  run().catch((err: unknown) => console.error(`[prompt:${id}]`, err));
+  run().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[prompt:${id}]`, err);
+    sessionEvents.emitError(id, message);
+  });
 
   return c.json({ accepted: true }, 202);
 });

@@ -50,6 +50,16 @@ export interface AssistantMessage {
   provider?: string
   thinkingLevel?: string
   responseTime?: number
+  errorMessage?: string
+}
+
+export interface ErrorMessage {
+  role: "error"
+  id: string
+  title: string
+  message: string
+  retryable?: boolean
+  retryCount?: number
 }
 
 export type TextMessage = UserMessage | AssistantMessage
@@ -63,7 +73,7 @@ export interface ToolMessage {
   result?: unknown
 }
 
-export type Message = TextMessage | ToolMessage
+export type Message = TextMessage | ToolMessage | ErrorMessage
 
 export function createAssistantMessage(
   value: Partial<
@@ -75,6 +85,7 @@ export function createAssistantMessage(
       | "provider"
       | "thinkingLevel"
       | "responseTime"
+      | "errorMessage"
     >
   > = {}
 ): AssistantMessage {
@@ -90,6 +101,24 @@ export function createAssistantMessage(
     ...(value.responseTime !== undefined
       ? { responseTime: value.responseTime }
       : {}),
+    ...(value.errorMessage !== undefined
+      ? { errorMessage: value.errorMessage }
+      : {}),
+  }
+}
+
+export function createErrorMessage(
+  title: string,
+  message: string,
+  options: { retryable?: boolean; retryCount?: number } = {}
+): ErrorMessage {
+  return {
+    role: "error",
+    id: crypto.randomUUID(),
+    title,
+    message,
+    ...(options.retryable !== undefined ? { retryable: options.retryable } : {}),
+    ...(options.retryCount !== undefined ? { retryCount: options.retryCount } : {}),
   }
 }
 

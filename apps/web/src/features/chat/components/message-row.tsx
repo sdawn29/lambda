@@ -1,7 +1,12 @@
 import { memo } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react"
+import {
+  AlertCircleIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  RefreshCwIcon,
+} from "lucide-react"
 
 import { ToolCallBlock } from "./tool-call-block"
 import { markdownComponents } from "./markdown-components"
@@ -75,8 +80,9 @@ function AssistantMessageBlock({
 }) {
   const hasThinking = showThinking && message.thinking.trim().length > 0
   const hasContent = message.content.length > 0
+  const hasError = !!message.errorMessage
 
-  if (!hasThinking && !hasContent) return null
+  if (!hasThinking && !hasContent && !hasError) return null
 
   const providerMeta = message.provider
     ? getProviderMeta(message.provider)
@@ -101,6 +107,13 @@ function AssistantMessageBlock({
           <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
             {message.content}
           </Markdown>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{message.errorMessage}</span>
         </div>
       )}
 
@@ -140,9 +153,8 @@ function AssistantMessageBlock({
 }
 
 export function getMessageKey(message: Message, index: number): string {
-  return message.role === "tool"
-    ? message.toolCallId
-    : `${message.role}-${index}`
+  if (message.role === "error") return message.id
+  return message.role === "tool" ? message.toolCallId : `${message.role}-${index}`
 }
 
 export function estimateMessageSize(message: Message): number {
@@ -152,6 +164,10 @@ export function estimateMessageSize(message: Message): number {
 
   if (message.role === "user") {
     return message.content.length > 220 ? 96 : 68
+  }
+
+  if (message.role === "error") {
+    return 80
   }
 
   const assistantLength = message.content.length + message.thinking.length
@@ -190,6 +206,32 @@ export const MessageRow = memo(function MessageRow({
           <CopyButton text={message.content} />
           <TokenCounter up={estimateTokens(message.content)} />
         </div>
+      </div>
+    )
+  }
+
+  if (message.role === "error") {
+    return (
+      <div className="group flex animate-in flex-col gap-2 duration-300 fade-in-0 slide-in-from-bottom-1">
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5">
+          {message.retryable ? (
+            <RefreshCwIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          ) : (
+            <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          )}
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-medium text-destructive">
+              {message.title}
+            </span>
+            <span className="text-sm text-destructive/80">{message.message}</span>
+            {message.retryable && message.retryCount !== undefined && (
+              <span className="text-xs text-muted-foreground">
+                Retry attempt {message.retryCount}
+              </span>
+            )}
+          </div>
+        </div>
+        <CopyButton text={`${message.title}: ${message.message}`} />
       </div>
     )
   }

@@ -361,7 +361,8 @@ export function ChatView({
                 if (
                   message.role === "assistant" &&
                   !message.content.trim() &&
-                  !message.thinking.trim()
+                  !message.thinking.trim() &&
+                  !message.errorMessage
                 )
                   return null
                 return (

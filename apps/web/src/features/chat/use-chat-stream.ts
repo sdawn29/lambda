@@ -10,6 +10,7 @@ import {
 import { useSetThreadStatus, useThreadStatus } from "./thread-status-context"
 import {
   createAssistantMessage,
+  createErrorMessage,
   type AssistantMessage,
   type Message,
   type ToolMessage,
@@ -147,6 +148,9 @@ function finalizeRunningTools(
   prev: Message[],
   runMessages: AgentEndMessage[]
 ): Message[] {
+  console.log("[session-events] finalizeRunningTools called with", runMessages.length, "messages")
+  console.log("[session-events] runMessages:", JSON.stringify(runMessages, null, 2))
+
   const toolResults = new Map(
     runMessages
       .filter(
@@ -293,6 +297,8 @@ export function useChatStream({
   )
   const [isStopped, setIsStopped] = useState(initialIsStopped)
   const [isCompacting, setIsCompacting] = useState(false)
+  const [pendingError, setPendingError] = useState<ErrorMessage | null>(null)
+  const autoRetryCountRef = useRef(0)
   const initialMessagesRef = useRef<Message[]>(cachedMessages)
   const latestVisibleMessagesRef = useRef<Message[]>(cachedMessages)
   const turnMetaRef = useRef<TurnMeta | null>(null)
@@ -319,6 +325,10 @@ export function useChatStream({
 
   const commitFinalMessages = useCallback(
     (finalMessages: Message[]) => {
+      if (pendingError) {
+        finalMessages = [...finalMessages, pendingError]
+        setPendingError(null)
+      }
       initialMessagesRef.current = finalMessages
       latestVisibleMessagesRef.current = finalMessages
       queryClient.setQueryData(messagesQueryKey(sessionId), finalMessages)
@@ -327,7 +337,7 @@ export function useChatStream({
       setIsCompacting(false)
       invalidatePersistedMessages()
     },
-    [invalidatePersistedMessages, queryClient, sessionId]
+    [invalidatePersistedMessages, queryClient, sessionId, pendingError]
   )
 
   const finishStreamingRun = useCallback(
@@ -360,6 +370,50 @@ export function useChatStream({
           ]
         }
         turnMetaRef.current = null
+      }
+
+      const assistantError = [...runMessages]
+        .reverse()
+        .find(
+          (msg): msg is Extract<AgentEndMessage, { role: "assistant" }> =>
+            msg.role === "assistant" &&
+            msg.stopReason === "error" &&
+            !!msg.errorMessage
+        )
+
+      if (assistantError?.errorMessage) {
+        let displayError = assistantError.errorMessage
+
+        // Try to parse if it's a JSON string containing an API error
+        try {
+          const parsed = JSON.parse(assistantError.errorMessage)
+          if (parsed?.error?.message) {
+            displayError = parsed.error.message
+          } else if (parsed?.error) {
+            displayError = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error)
+          }
+        } catch {
+          // Not JSON, use as-is
+        }
+
+        const lastAssistantIndex = finalMessages.reduceRight(
+          (found, msg, i) =>
+            found === -1 && msg.role === "assistant" ? i : found,
+          -1
+        )
+        if (lastAssistantIndex !== -1) {
+          const last = finalMessages[lastAssistantIndex] as AssistantMessage
+          finalMessages = [
+            ...finalMessages.slice(0, lastAssistantIndex),
+            { ...last, errorMessage: displayError },
+            ...finalMessages.slice(lastAssistantIndex + 1),
+          ]
+        } else {
+          finalMessages = [
+            ...finalMessages,
+            createAssistantMessage({ errorMessage: displayError }),
+          ]
+        }
       }
 
       commitFinalMessages(finalMessages)
@@ -487,19 +541,66 @@ export function useChatStream({
           },
           onAgentEnd: (data) => {
             if (!active) return
+            console.log("[session-events] agent_end received, messages:", JSON.stringify(data.messages, null, 2))
             finishStreamingRun(data.messages ?? [])
+          },
+          onMessageEnd: () => {
+            // informational - message completed
+          },
+          onTurnStart: () => {
+            // informational - turn started
+          },
+          onTurnEnd: () => {
+            // informational - turn ended
+          },
+          onAgentStart: () => {
+            // informational - agent started
+          },
+          onQueueUpdate: () => {
+            // informational - queue updated
+          },
+          onAutoRetryStart: ({ attempt, errorMessage }) => {
+            if (!active) return
+            autoRetryCountRef.current = attempt
+            setPendingError(
+              createErrorMessage(
+                "Retrying",
+                errorMessage,
+                { retryable: true, retryCount: attempt }
+              )
+            )
+          },
+          onAutoRetryEnd: ({ success, finalError }) => {
+            if (!active) return
+            autoRetryCountRef.current = 0
+            if (!success && finalError) {
+              setPendingError(
+                createErrorMessage("Retry Failed", finalError, {
+                  retryable: false,
+                })
+              )
+            } else {
+              setPendingError(null)
+            }
           },
           onCompactionStart: () => {
             if (!active) return
             setIsCompacting(true)
           },
-          onCompactionEnd: () => {
+          onCompactionEnd: ({ errorMessage, aborted }) => {
             if (!active) return
             setIsCompacting(false)
+            if (errorMessage && !aborted) {
+              setPendingError(
+                createErrorMessage("Compaction Failed", errorMessage)
+              )
+            } else {
+              setPendingError(null)
+            }
           },
           onSdkError: ({ message }) => {
             if (!active) return
-            console.error("[session-events]", message)
+            console.error("[session-events] sdk_error:", message)
             finishStreamingRun([
               {
                 role: "assistant",
@@ -515,6 +616,9 @@ export function useChatStream({
             console.error("[session-events] connection closed")
             setIsLoading(false)
             setIsCompacting(false)
+            setPendingError(
+              createErrorMessage("Connection Lost", "The connection to the server was lost. Please try again.")
+            )
             invalidatePersistedMessages()
           },
         })

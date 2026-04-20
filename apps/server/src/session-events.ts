@@ -37,6 +37,14 @@ type SessionEventRecord = {
   data: string;
 };
 
+type CompactionEndEvent = {
+  type: "compaction_end";
+  reason: "manual" | "threshold" | "overflow";
+  aborted: boolean;
+  willRetry: boolean;
+  errorMessage?: string;
+};
+
 type SessionEventSubscriber = {
   onEvent: (record: SessionEventRecord) => void;
   close: () => void;
@@ -83,6 +91,13 @@ class SessionEventHub {
 
   setNextThinkingLevel(level: string) {
     this.pendingThinkingLevel = level;
+  }
+
+  emitError(message: string) {
+    if (this.disposed) return;
+    const event: SessionEvent = { type: "sdk_error", message };
+    this.persist(event);
+    this.emit(event);
   }
 
   ensureStarted() {
@@ -182,6 +197,15 @@ class SessionEventHub {
       for await (const event of generator) {
         this.persist(event);
         this.emit(event);
+
+        if (event.type === "compaction_end") {
+          const { errorMessage, willRetry, aborted } = event as CompactionEndEvent;
+          // Only surface as sdk_error when compaction has permanently failed and there's
+          // no active run that will produce its own agent_end error event.
+          if (errorMessage && !willRetry && !aborted && !this.runInProgress) {
+            this.emitError(`Compaction failed: ${errorMessage}`);
+          }
+        }
       }
     } catch (error) {
       if (!this.disposed) {
@@ -339,6 +363,10 @@ class SessionEventRegistry {
   setNextThinkingLevel(sessionId: string, level: string) {
     const hub = this.hubs.get(sessionId);
     hub?.setNextThinkingLevel(level);
+  }
+
+  emitError(sessionId: string, message: string) {
+    this.hubs.get(sessionId)?.emitError(message);
   }
 
   async dispose(sessionId: string) {
