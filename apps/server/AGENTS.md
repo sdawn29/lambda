@@ -1,6 +1,6 @@
 # AGENTS.md — server
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-21
 
 ## Purpose
 
@@ -20,20 +20,25 @@ Hono API server that manages Pi coding agent sessions, handles workspace/thread 
 Hono server (default port 3001) with three layers:
 
 1. **Entry** (`index.ts`) — Resolves port, bootstraps persisted sessions, starts HTTP server, signals readiness via JSON on stdout
-2. **Routes** (`app.ts`) — All API endpoints: workspaces, threads, sessions, prompts, SSE event streams
-3. **Support** (`store.ts`, `message-buffer.ts`, `bootstrap.ts`, `port.ts`) — Session lifecycle, message persistence, port resolution
+2. **Routes** (`routes/`) — API endpoints organized by domain: workspaces, threads, sessions, git, auth, settings, health
+3. **Services** (`services/`) — Business logic for session management, terminal, and auth
 
-### Key Files
+### Directory Structure
 
+- `src/routes/` — Hono route handlers (workspaces, threads, sessions, git, auth, settings, health)
+- `src/services/` — Business logic layer (session-service, terminal-service, auth-service)
 - `src/index.ts` — Entry point; writes `{ready: true, port: N}` to stdout for Electron parent process
-- `src/app.ts` — Hono app with all route definitions
+- `src/app.ts` — Hono app setup with all routes registered
 - `src/store.ts` — In-memory session store mapping sessionId ↔ threadId ↔ ManagedSessionHandle
 - `src/message-buffer.ts` — Buffers streaming assistant text deltas before flushing to DB as a single message
 - `src/bootstrap.ts` — Re-creates Pi sessions for all persisted threads on server startup
 - `src/port.ts` — Port resolution: `PORT` env → `--port=N` argv → default `3001`
-- `build.mjs` — esbuild bundler that produces `dist/server.cjs`
+- `src/session-events.ts` — SSE event type definitions and builders
+- `src/thread-status-broadcaster.ts` — Broadcasts thread status changes to all connected clients
 
 ## API Endpoints
+
+### Routes (src/routes/)
 
 | Method   | Path                             | Description                                              |
 | -------- | -------------------------------- | -------------------------------------------------------- |
@@ -55,6 +60,12 @@ Hono server (default port 3001) with three layers:
 | `GET`    | `/session/:id/messages`          | Get persisted messages for session                       |
 | `GET`    | `/session/:id/events`            | SSE stream of agent events                               |
 | `DELETE` | `/reset`                         | Delete all workspaces and sessions (debug)               |
+
+### Services (src/services/)
+
+- `session-service.ts` — Manages Pi agent session lifecycle, prompt handling, event streaming
+- `terminal-service.ts` — Manages WebSocket terminal sessions via node-pty
+- `auth-service.ts` — Handles auth token resolution and storage
 
 ## Conventions
 

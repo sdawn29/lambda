@@ -1,6 +1,6 @@
 # AGENTS.md — desktop
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-21
 
 ## Purpose
 
@@ -30,6 +30,7 @@ Electron main process (`src/main.ts`) that:
 - `bootstrap.mjs` — Entry point that uses `tsx` to run TypeScript source directly during development
 - `src/main.ts` — Electron main process: window creation, server spawning, IPC handlers
 - `src/preload.ts` — Context bridge exposing `electronAPI` to the renderer
+- `src/open-with.ts` — "Open With" functionality: discovers installed code editors on macOS and opens workspaces in the selected editor
 
 ## IPC API
 
@@ -64,7 +65,7 @@ The `electronAPI` is exposed on `window.electronAPI` with methods:
 - `bootstrap.mjs` is the entry point in `package.json` `"main"` — this file uses `tsx/esm/api` to load `src/main.ts`
 - In production, the server is loaded from `process.resourcesPath/server/server.cjs` — this must be bundled during the build/packaging step
 - The preload script is written to a temp file at runtime (`/tmp/lamda-preload.js`) — this is a deliberate choice to avoid a build step
-- `titleBarStyle: "hiddenInset"` means the web app must implement its own title bar (see `web/src/components/title-bar.tsx`)
+- `titleBarStyle: "hiddenInset"` means the web app must implement its own title bar (see `web/src/features/layout/components/title-bar.tsx`)
 - Server has a 15-second startup timeout — if it doesn't signal ready, the app fails
 
 ## Related

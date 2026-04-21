@@ -1,6 +1,6 @@
 # AGENTS.md — db
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-21
 
 ## Purpose
 
@@ -24,10 +24,11 @@ Single-file database client (`client.ts`) that:
 ### Key Files
 
 - `src/client.ts` — Database initialization with inline schema migrations
-- `src/schema.ts` — Drizzle table definitions (workspaces, threads, messages)
+- `src/schema.ts` — Drizzle table definitions (workspaces, threads, messages, settings)
 - `src/queries/workspaces.ts` — Workspace CRUD operations
 - `src/queries/threads.ts` — Thread CRUD operations
 - `src/queries/messages.ts` — Message listing and insertion
+- `src/queries/settings.ts` — Key-value settings storage (get, upsert, delete, getAll)
 - `src/index.ts` — Barrel export of all public API
 
 ## Database Schema
@@ -37,6 +38,7 @@ Single-file database client (`client.ts`) that:
 | `workspaces` | `id` (TEXT PK), `name`, `path`, `created_at`                                                      |
 | `threads`    | `id` (TEXT PK), `workspace_id` (FK → workspaces), `title`, `created_at`                           |
 | `messages`   | `id` (TEXT PK), `thread_id` (FK → threads), `role` (user/assistant/tool), `content`, `created_at` |
+| `settings`   | `key` (TEXT PK), `value`                                                                          |
 
 All IDs are UUIDs. Timestamps are Unix epoch integers. Foreign keys cascade on delete.
 

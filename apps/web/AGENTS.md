@@ -1,10 +1,10 @@
 # AGENTS.md — web
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-21
 
 ## Purpose
 
-React web UI layer — the primary user interface for the lamda desktop app, providing chat interface, workspace management, and session controls.
+React web UI layer — the primary user interface for the lamda desktop app, providing chat interface, workspace management, diff panel, terminal, and settings.
 
 ## Quick Reference
 
@@ -18,46 +18,51 @@ React web UI layer — the primary user interface for the lamda desktop app, pro
 
 ## Architecture
 
-Single-page React app using Vite + TanStack Router for file-based routing. UI components use shadcn/ui (base-ui preset) with Tailwind CSS 4 for styling. Communicates with the Hono server via an API client layer.
+Single-page React app using Vite + TanStack Router for file-based routing. UI components use shadcn/ui (base-ui preset) with Tailwind CSS 4 for styling. Code is organized into feature modules.
 
 ### Key Directories
 
 - `src/routes/` — TanStack Router file-based routes
-- `src/components/` — React UI components (includes shadcn/ui in `ui/`)
-- `src/api/` — Server API client and data models
-- `src/queries/` — TanStack Query query definitions
-- `src/mutations/` — TanStack Query mutation definitions
-- `src/hooks/` — Custom React hooks
-- `src/lib/` — Utility functions
+- `src/features/` — Feature modules (chat, git, workspace, settings, terminal, layout, electron)
+- `src/shared/` — Shared UI components used across features
 - `src/types/` — TypeScript type definitions
+
+### Feature Modules
+
+Each feature module follows a consistent structure with `api.ts`, `queries.ts`, `mutations.ts`, `context.tsx`, and `components/` subdirectory:
+
+- `features/chat/` — Chat interface, message rendering, streaming, tool calls, thinking indicators
+- `features/git/` — Git diff panel, branch selector, staging, committing, stash management
+- `features/workspace/` — Workspace/sidebar management, thread creation, app sidebar
+- `features/settings/` — Settings modal, provider configuration
+- `features/terminal/` — xterm.js terminal panel
+- `features/layout/` — Title bar, open-with button
+- `features/electron/` — Electron-specific APIs (server port discovery)
 
 ## Key Files
 
 - `src/main.tsx` — React app entry point
 - `src/routes/__root.tsx` — Root route layout
-- `src/routes/index.tsx` — Main page route
+- `src/routes/index.tsx` — Main page route (redirects to last thread)
+- `src/routes/workspace.$threadId.tsx` — Thread view route
+- `src/routes/settings.tsx` — Settings page route
 - `src/routeTree.gen.ts` — Auto-generated route tree (do not edit manually)
-- `src/api/client.ts` — HTTP client for server communication
-- `src/components/chat-view.tsx` — Main chat interface component
-- `src/components/chat-textbox.tsx` — Chat input component
-- `src/components/app-sidebar.tsx` — Application sidebar navigation
-- `src/components/theme-provider.tsx` — Theme context provider
-- `src/components/title-bar.tsx` — Custom title bar (for Electron integration)
-- `src/components/branch-selector.tsx` — Git branch selection dropdown
-- `src/components/commit-dialog.tsx` — Git commit dialog modal
-- `src/components/diff-view.tsx` — Git diff rendering component
-- `src/components/diff-panel.tsx` — Side panel for diff display
-- `src/components/terminal-panel.tsx` — Terminal output panel
-- `src/components/tool-call-block.tsx` — Tool call rendering
-- `src/hooks/workspace-context.tsx` — Workspace context provider
+- `src/features/chat/components/chat-view.tsx` — Main chat interface
+- `src/features/chat/components/chat-textbox.tsx` — Chat input with model/branch selectors
+- `src/features/git/components/diff-panel.tsx` — Git diff side panel
+- `src/features/workspace/components/app-sidebar.tsx` — Application sidebar navigation
+- `src/features/terminal/components/terminal-panel.tsx` — Terminal output panel
+- `src/features/layout/components/title-bar.tsx` — Custom title bar (for Electron frameless window)
+- `src/shared/ui/` — shadcn/ui components
 
 ## Conventions
 
+- **Feature-based architecture** — Each feature (chat, git, workspace, etc.) is a self-contained module
 - **File-based routing** — Routes defined in `src/routes/` using TanStack Router conventions
-- **Component naming** — kebab-case for files (e.g., `chat-view.tsx`), PascalCase for exported components
-- **UI components** — shadcn/ui components live in `src/components/ui/` — regenerate via `npx shadcn` CLI
-- **Data fetching** — use TanStack Query via `queries/` and `mutations/` directories, not inline fetch calls
-- **Styling** — Tailwind CSS 4 with `@tailwindcss/vite` plugin; use `cn()` utility from `lib/utils` for conditional classes
+- **Component naming** — kebab-case for files, PascalCase for exported components
+- **UI components** — shadcn/ui components live in `src/shared/ui/` — regenerate via `npx shadcn` CLI
+- **Data fetching** — use TanStack Query via feature-level `queries.ts` and `mutations.ts`
+- **Styling** — Tailwind CSS 4 with `@tailwindcss/vite` plugin; use `cn()` utility for conditional classes
 - **React Compiler** — enabled via `babel-plugin-react-compiler` in Vite config
 
 ## Dependencies

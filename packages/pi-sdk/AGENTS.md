@@ -1,6 +1,6 @@
 # AGENTS.md — pi-sdk
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-21
 
 ## Purpose
 
@@ -23,13 +23,14 @@ Thin abstraction layer over the Pi coding agent SDK. Key responsibilities:
 
 ### Key Files
 
-- `src/index.ts` — Barrel exports: `createManagedSession`, `getAvailableModels`, `generateThreadTitle`, types
+- `src/index.ts` — Barrel exports: `createManagedSession`, `getAvailableModels`, `generateThreadTitle`, `generateCommitMessage`, types
 - `src/session.ts` — `createManagedSession()` — main factory for agent sessions
 - `src/types.ts` — TypeScript interfaces: `SdkConfig`, `ManagedSessionHandle`, `SessionEvent`, `ModelInfo`
 - `src/auth.ts` — Auth storage builder with fallback chain
 - `src/models.ts` — Model discovery from SDK's ModelRegistry
 - `src/stream.ts` — `sessionEventGenerator()` — converts SDK's subscribe API to async generator
 - `src/title.ts` — `generateThreadTitle()` — single-turn LLM call for naming threads
+- `src/commit-message.ts` — `generateCommitMessage()` — single-turn LLM call for generating conventional commit messages
 
 ## Public API
 
@@ -38,6 +39,7 @@ Thin abstraction layer over the Pi coding agent SDK. Key responsibilities:
 | `createManagedSession(config)`          | `Promise<ManagedSessionHandle>` | Creates a full agent session with prompt/abort/dispose/events   |
 | `getAvailableModels()`                  | `ModelInfo[]`                   | Returns all models registered in the SDK                        |
 | `generateThreadTitle(message, config?)` | `Promise<string>`               | LLM-generated thread title from first message                   |
+| `generateCommitMessage(diff, config?)`  | `Promise<string>`               | LLM-generated conventional commit message from git diff         |
 | `ManagedSessionHandle`                  | interface                       | Session control: `prompt()`, `abort()`, `dispose()`, `events()` |
 | `SdkConfig`                             | interface                       | Configuration: `anthropicApiKey`, `cwd`, `provider`, `model`    |
 | `SessionEvent`                          | union type                      | All events from the agent (SDK events + `sdk_error`)            |
