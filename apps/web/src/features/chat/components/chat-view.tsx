@@ -34,7 +34,8 @@ import { useModels } from "../queries"
 import { useConfigureProvider } from "@/features/settings"
 import { ThinkingIndicator } from "./thinking-indicator"
 import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
-import { useUpdateThreadModel,
+import {
+  useUpdateThreadModel,
   useUpdateThreadStopped,
 } from "@/features/workspace/mutations"
 import { useChatStream } from "../use-chat-stream"
@@ -92,7 +93,10 @@ export function ChatView({
     return { errors, messages }
   }, [visibleMessages])
 
-  const apiErrorIds = useMemo(() => new Set(apiErrors.map((e) => e.id)), [apiErrors])
+  const apiErrorIds = useMemo(
+    () => new Set(apiErrors.map((e) => e.id)),
+    [apiErrors]
+  )
   useApiErrorToasts({ visibleErrorIds: apiErrorIds, errors: apiErrors })
   const [gitError, setGitError] = useState<string | null>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
@@ -280,7 +284,6 @@ export function ChatView({
     ]
   )
 
-
   return (
     <>
       <AlertDialog
@@ -418,19 +421,19 @@ export function ChatView({
         </div>
 
         {showScrollButton && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-44 z-10 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-0 bottom-40 z-10 flex justify-center">
             <Button
-              size="icon"
+              size="sm"
               variant="secondary"
               onClick={scrollToBottom}
-              className="pointer-events-auto h-8 w-8 rounded-full shadow-md"
+              className="pointer-events-auto rounded-full shadow-md"
             >
-              <ArrowDownIcon className="h-4 w-4" />
+              <ArrowDownIcon className="h-4 w-4" /> Scroll to bottom
             </Button>
           </div>
         )}
 
-        <div className="mx-auto w-full max-w-2xl shrink-0 border-t border-border/40 bg-background px-6 py-4">
+        <div className="mx-auto w-full max-w-2xl shrink-0 bg-background px-6 py-2">
           <ChatTextbox
             ref={chatTextboxRef}
             onSend={handleSend}
