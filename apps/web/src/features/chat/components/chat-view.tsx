@@ -34,11 +34,11 @@ import { useModels } from "../queries"
 import { useConfigureProvider } from "@/features/settings"
 import { ThinkingIndicator } from "./thinking-indicator"
 import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
-import {
-  useUpdateThreadModel,
+import { useUpdateThreadModel,
   useUpdateThreadStopped,
 } from "@/features/workspace/mutations"
 import { useChatStream } from "../use-chat-stream"
+import { useApiErrorToasts } from "../hooks/use-api-error-toasts"
 
 // Persists scroll positions across thread switches (survives remounts, cleared on page reload)
 const threadScrollPositions = new Map<string, number>()
@@ -77,6 +77,23 @@ export function ChatView({
     threadId,
     initialIsStopped,
   })
+
+  // Separate error messages (show as toasts) from other messages
+  const { errors: apiErrors, messages: chatMessages } = useMemo(() => {
+    const errors: typeof visibleMessages = []
+    const messages: typeof visibleMessages = []
+    for (const msg of visibleMessages) {
+      if (msg.role === "error") {
+        errors.push(msg)
+      } else {
+        messages.push(msg)
+      }
+    }
+    return { errors, messages }
+  }, [visibleMessages])
+
+  const apiErrorIds = useMemo(() => new Set(apiErrors.map((e) => e.id)), [apiErrors])
+  useApiErrorToasts({ visibleErrorIds: apiErrorIds, errors: apiErrors })
   const [gitError, setGitError] = useState<string | null>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [selectedModelId, setSelectedModelId] = useState<string | null>(
@@ -114,8 +131,8 @@ export function ChatView({
   // Fix: use instant scrollTop assignment while loading so every update reliably
   // lands at the bottom; only use smooth scroll once the stream is stable.
   const messageKeys = useMemo(
-    () => visibleMessages.map(getMessageKey),
-    [visibleMessages]
+    () => chatMessages.map(getMessageKey),
+    [chatMessages]
   )
 
   const commandsByName = useMemo(
@@ -354,9 +371,9 @@ export function ChatView({
               </div>
             </div>
           )}
-          {visibleMessages.length > 0 && (
+          {chatMessages.length > 0 && (
             <div className="mx-auto w-full max-w-2xl px-6">
-              {visibleMessages.map((message, index) => {
+              {chatMessages.map((message, index) => {
                 const messageKey = messageKeys[index]
                 if (!messageKey) return null
                 if (

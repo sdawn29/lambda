@@ -10,6 +10,7 @@ import { DiffPanelProvider } from "@/features/git"
 import {
   ThreadStatusProvider,
   useGlobalThreadStatusWatcher,
+  ErrorToastProvider,
 } from "@/features/chat"
 import {
   ServerUnavailable,
@@ -24,6 +25,7 @@ import {
   ConfigureProviderModal,
 } from "@/features/settings"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
+import { Toaster } from "@/shared/ui/sonner"
 
 function RootLayoutInner() {
   const { isLoading } = useWorkspace()
@@ -38,6 +40,7 @@ function RootLayoutInner() {
 
   return (
     <TooltipProvider>
+      <ErrorToastProvider>
       <SidebarProvider className="h-svh flex-col">
         <TitleBar />
         <UpdateBanner />
@@ -48,6 +51,7 @@ function RootLayoutInner() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+      </ErrorToastProvider>
       {/* <TanStackRouterDevtools /> */}
     </TooltipProvider>
   )
@@ -121,6 +125,7 @@ function Root() {
   return (
     <ErrorBoundary>
       <RootLayoutGate />
+      <Toaster position="top-center" closeButton />
     </ErrorBoundary>
   )
 }
