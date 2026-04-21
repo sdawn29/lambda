@@ -40,6 +40,7 @@ function isStoredAssistantMessageContent(
 export interface UserMessage {
   role: "user"
   content: string
+  createdAt?: number
 }
 
 export interface AssistantMessage {
@@ -51,6 +52,7 @@ export interface AssistantMessage {
   thinkingLevel?: string
   responseTime?: number
   errorMessage?: string
+  createdAt?: number
 }
 
 export interface ErrorMessage {

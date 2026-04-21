@@ -17,7 +17,13 @@ import { CopyButton } from "@/shared/components/copy-button"
 import { Button } from "@/shared/ui/button"
 import { getProviderMeta } from "@/shared/lib/provider-meta"
 import type { SlashCommand } from "../api"
-import { type AssistantMessage, type ErrorAction, type ErrorMessage, type Message } from "../types"
+import {
+  type AssistantMessage,
+  type ErrorAction,
+  type ErrorMessage,
+  type Message,
+  type UserMessage,
+} from "../types"
 
 function assistantCopyText(
   message: AssistantMessage,
@@ -73,6 +79,27 @@ function TokenCounter({ up, down }: { up?: number; down?: number }) {
   )
 }
 
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp)
+  const hours = date.getHours()
+  const minutes = date.getMinutes().toString().padStart(2, "0")
+  const ampm = hours >= 12 ? "pm" : "am"
+  const displayHours = hours % 12 || 12
+  return `${displayHours}:${minutes} ${ampm}`
+}
+
+interface TimeStampProps {
+  timestamp: number
+}
+
+function TimeStamp({ timestamp }: TimeStampProps) {
+  return (
+    <span className="text-xs text-muted-foreground/40 tabular-nums">
+      {formatTime(timestamp)}
+    </span>
+  )
+}
+
 interface AssistantMessageBlockProps {
   message: AssistantMessage
   showThinking: boolean
@@ -123,9 +150,17 @@ function AssistantMessageBlock({
 
       <div className="flex items-center gap-3">
         {hasMeta && (
-          <div className={isError ? "flex items-center gap-1.5 text-xs text-destructive/60" : "flex items-center gap-1.5 text-xs text-muted-foreground"}>
+          <div
+            className={
+              isError
+                ? "flex items-center gap-1.5 text-xs text-destructive/60"
+                : "flex items-center gap-1.5 text-xs text-muted-foreground"
+            }
+          >
             {providerMeta && (
-              <span className="flex shrink-0 items-center">{providerMeta.icon}</span>
+              <span className="flex shrink-0 items-center">
+                {providerMeta.icon}
+              </span>
             )}
             {message.model && <span>{message.model}</span>}
             {thinkingLabel && (
@@ -150,6 +185,9 @@ function AssistantMessageBlock({
           }
           down={estimateTokens(message.content)}
         />
+        {message.createdAt != null && (
+          <TimeStamp timestamp={message.createdAt} />
+        )}
         <CopyButton text={assistantCopyText(message, showThinking)} />
       </div>
     </div>
@@ -158,7 +196,9 @@ function AssistantMessageBlock({
 
 export function getMessageKey(message: Message, index: number): string {
   if (message.role === "error") return message.id
-  return message.role === "tool" ? message.toolCallId : `${message.role}-${index}`
+  return message.role === "tool"
+    ? message.toolCallId
+    : `${message.role}-${index}`
 }
 
 export function estimateMessageSize(message: Message): number {
@@ -198,7 +238,7 @@ function ErrorBlock({
         <div className="flex items-start gap-2.5">
           <AlertCircleIcon className="mt-px h-4 w-4 shrink-0 text-destructive/60" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium leading-none text-destructive/90">
+            <p className="text-sm leading-none font-medium text-destructive/90">
               {message.title}
               {message.retryCount != null && (
                 <span className="ml-2 text-xs font-normal text-destructive/50">
@@ -279,6 +319,9 @@ export const MessageRow = memo(function MessageRow({
         <div className="flex items-center gap-2">
           <CopyButton text={message.content} />
           <TokenCounter up={estimateTokens(message.content)} />
+          {(message as UserMessage).createdAt != null && (
+            <TimeStamp timestamp={(message as UserMessage).createdAt!} />
+          )}
         </div>
       </div>
     )

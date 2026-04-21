@@ -61,9 +61,12 @@ function storedToMessage(m: StoredMessageDto): Message {
     }
   }
   if (m.role === "assistant") {
-    return createAssistantMessage(parseAssistantMessageContent(m.content))
+    return {
+      ...createAssistantMessage(parseAssistantMessageContent(m.content)),
+      createdAt: m.createdAt,
+    }
   }
-  return { role: "user", content: m.content }
+  return { role: "user", content: m.content, createdAt: m.createdAt }
 }
 
 export const messagesQueryKey = (sessionId: string) =>
