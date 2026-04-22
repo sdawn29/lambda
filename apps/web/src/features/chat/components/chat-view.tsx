@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import type { ErrorMessage, Message } from "../types"
 import {
   SparklesIcon,
   StopCircleIcon,
@@ -81,11 +82,11 @@ export function ChatView({
 
   // Separate error messages (show as toasts) from other messages
   const { errors: apiErrors, messages: chatMessages } = useMemo(() => {
-    const errors: typeof visibleMessages = []
-    const messages: typeof visibleMessages = []
+    const errors: ErrorMessage[] = []
+    const messages: Message[] = []
     for (const msg of visibleMessages) {
       if (msg.role === "error") {
-        errors.push(msg)
+        errors.push(msg as ErrorMessage)
       } else {
         messages.push(msg)
       }
@@ -329,7 +330,7 @@ export function ChatView({
           className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {visibleMessages.length === 0 && !isLoading && (
-            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-5 px-6 text-center select-none">
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-5 px-6 text-center select-none">
               <div className="flex flex-col items-center gap-3">
                 <div className="flex size-14 items-center justify-center rounded-2xl border border-border/40 bg-muted/50 shadow-sm">
                   <span className="text-3xl leading-none font-light text-muted-foreground/40 select-none">
@@ -375,7 +376,7 @@ export function ChatView({
             </div>
           )}
           {chatMessages.length > 0 && (
-            <div className="mx-auto w-full max-w-2xl px-6">
+            <div className="mx-auto w-full max-w-3xl px-6">
               {chatMessages.map((message, index) => {
                 const messageKey = messageKeys[index]
                 if (!messageKey) return null
@@ -398,7 +399,7 @@ export function ChatView({
               })}
             </div>
           )}
-          <div className="mx-auto w-full max-w-2xl px-6">
+          <div className="mx-auto w-full max-w-3xl px-6">
             {isLoading && <ThinkingIndicator className="py-0.5" />}
             {isCompacting && (
               <div className="flex animate-in duration-200 fade-in-0">
@@ -433,7 +434,7 @@ export function ChatView({
           </div>
         )}
 
-        <div className="mx-auto w-full max-w-2xl shrink-0 bg-background px-6 py-2">
+        <div className="mx-auto w-full max-w-3xl shrink-0 bg-background px-6 py-2">
           <ChatTextbox
             ref={chatTextboxRef}
             onSend={handleSend}
