@@ -135,11 +135,6 @@ export function ChatView({
   // which can flip pinnedRef to false and stop further scrolls entirely.
   // Fix: use instant scrollTop assignment while loading so every update reliably
   // lands at the bottom; only use smooth scroll once the stream is stable.
-  const messageKeys = useMemo(
-    () => chatMessages.map(getMessageKey),
-    [chatMessages]
-  )
-
   const commandsByName = useMemo(
     () =>
       new Map((commandsData ?? []).map((command) => [command.name, command])),
@@ -428,8 +423,6 @@ export function ChatView({
           {chatMessages.length > 0 && (
             <div className="mx-auto w-full max-w-3xl px-6">
               {chatMessages.map((message, index) => {
-                const messageKey = messageKeys[index]
-                if (!messageKey) return null
                 if (
                   message.role === "assistant" &&
                   !message.content.trim() &&
@@ -438,7 +431,7 @@ export function ChatView({
                 )
                   return null
                 return (
-                  <div key={messageKey} className="pb-3">
+                  <div key={getMessageKey(message, index)} className="pb-3">
                     <MessageRow
                       message={message}
                       commandsByName={commandsByName}

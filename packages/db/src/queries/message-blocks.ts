@@ -1,0 +1,273 @@
+import { randomUUID } from "node:crypto";
+import { eq, asc } from "drizzle-orm";
+import { db } from "../client.js";
+import { messageBlocks } from "../schema.js";
+
+/**
+ * Complete message block structure matching pi-agent's message format.
+ */
+export interface MessageBlock {
+  id: string;
+  threadId: string;
+  blockIndex: number;
+  role: "user" | "assistant" | "tool";
+  content: string | null;
+  thinking: string | null;
+  model: string | null;
+  provider: string | null;
+  thinkingLevel: string | null;
+  responseTime: number | null;
+  errorMessage: string | null;
+  toolCallId: string | null;
+  toolName: string | null;
+  toolArgs: string | null;
+  toolResult: string | null;
+  toolStatus: "running" | "done" | "error" | null;
+  toolDuration: number | null;
+  toolStartTime: number | null;
+  createdAt: number;
+}
+
+/**
+ * Convert database row to MessageBlock
+ */
+function toMessageBlock(row: MessageBlock): MessageBlock {
+  return row;
+}
+
+/**
+ * Get all message blocks for a thread, ordered by blockIndex
+ */
+export function listMessageBlocks(threadId: string): MessageBlock[] {
+  return db
+    .select()
+    .from(messageBlocks)
+    .where(eq(messageBlocks.threadId, threadId))
+    .orderBy(asc(messageBlocks.blockIndex))
+    .all()
+    .map(toMessageBlock);
+}
+
+/**
+ * Get the next block index for a thread
+ */
+function getNextBlockIndex(threadId: string): number {
+  const result = db
+    .select({ maxIndex: messageBlocks.blockIndex })
+    .from(messageBlocks)
+    .where(eq(messageBlocks.threadId, threadId))
+    .orderBy(asc(messageBlocks.blockIndex))
+    .limit(1)
+    .all();
+  
+  if (result.length === 0) return 0;
+  return (result[0].maxIndex ?? 0) + 1;
+}
+
+/**
+ * Insert a user message block
+ */
+export function insertUserBlock(
+  threadId: string,
+  content: string
+): string {
+  const id = randomUUID();
+  const blockIndex = getNextBlockIndex(threadId);
+  db.insert(messageBlocks)
+    .values({
+      id,
+      threadId,
+      blockIndex,
+      role: "user",
+      content,
+      createdAt: Date.now(),
+    })
+    .run();
+  return id;
+}
+
+/**
+ * Insert an assistant message block (starts the streaming block)
+ */
+export function insertAssistantStartBlock(threadId: string): string {
+  const id = randomUUID();
+  const blockIndex = getNextBlockIndex(threadId);
+  db.insert(messageBlocks)
+    .values({
+      id,
+      threadId,
+      blockIndex,
+      role: "assistant",
+      createdAt: Date.now(),
+    })
+    .run();
+  return id;
+}
+
+/**
+ * Insert a tool message block (for tool execution tracking)
+ */
+export function insertToolBlock(
+  threadId: string,
+  toolCallId: string,
+  toolName: string,
+  toolArgs: string
+): string {
+  const id = randomUUID();
+  const blockIndex = getNextBlockIndex(threadId);
+  db.insert(messageBlocks)
+    .values({
+      id,
+      threadId,
+      blockIndex,
+      role: "tool",
+      toolCallId,
+      toolName,
+      toolArgs,
+      toolStatus: "running",
+      toolStartTime: Date.now(),
+      createdAt: Date.now(),
+    })
+    .run();
+  return id;
+}
+
+/**
+ * Update an assistant block with streaming content deltas
+ */
+export function updateAssistantBlockContent(
+  blockId: string,
+  content: string,
+  thinking?: string,
+  model?: string,
+  provider?: string,
+  thinkingLevel?: string
+): void {
+  const updates: Partial<MessageBlock> = { content };
+  
+  if (thinking !== undefined) updates.thinking = thinking;
+  if (model !== undefined) updates.model = model;
+  if (provider !== undefined) updates.provider = provider;
+  if (thinkingLevel !== undefined) updates.thinkingLevel = thinkingLevel;
+  
+  const setClause: Record<string, unknown> = {};
+  if (updates.content !== undefined) setClause.content = updates.content;
+  if (updates.thinking !== undefined) setClause.thinking = updates.thinking;
+  if (updates.model !== undefined) setClause.model = updates.model;
+  if (updates.provider !== undefined) setClause.provider = updates.provider;
+  if (updates.thinkingLevel !== undefined) setClause.thinkingLevel = updates.thinkingLevel;
+  
+  db.update(messageBlocks)
+    .set(setClause)
+    .where(eq(messageBlocks.id, blockId))
+    .run();
+}
+
+/**
+ * Append text delta to assistant block content
+ */
+export function appendAssistantTextDelta(blockId: string, delta: string): void {
+  const existing = db
+    .select({ content: messageBlocks.content })
+    .from(messageBlocks)
+    .where(eq(messageBlocks.id, blockId))
+    .get();
+  
+  const newContent = (existing?.content ?? "") + delta;
+  db.update(messageBlocks)
+    .set({ content: newContent })
+    .where(eq(messageBlocks.id, blockId))
+    .run();
+}
+
+/**
+ * Append thinking delta to assistant block
+ */
+export function appendAssistantThinkingDelta(blockId: string, delta: string): void {
+  const existing = db
+    .select({ thinking: messageBlocks.thinking })
+    .from(messageBlocks)
+    .where(eq(messageBlocks.id, blockId))
+    .get();
+  
+  const newThinking = (existing?.thinking ?? "") + delta;
+  db.update(messageBlocks)
+    .set({ thinking: newThinking })
+    .where(eq(messageBlocks.id, blockId))
+    .run();
+}
+
+/**
+ * Finalize an assistant block with metadata
+ */
+export function finalizeAssistantBlock(
+  blockId: string,
+  metadata: {
+    responseTime?: number;
+    model?: string;
+    provider?: string;
+    thinkingLevel?: string;
+  }
+): void {
+  const setClause: Record<string, unknown> = {};
+  if (metadata.responseTime !== undefined) setClause.responseTime = metadata.responseTime;
+  if (metadata.model !== undefined) setClause.model = metadata.model;
+  if (metadata.provider !== undefined) setClause.provider = metadata.provider;
+  if (metadata.thinkingLevel !== undefined) setClause.thinkingLevel = metadata.thinkingLevel;
+  
+  db.update(messageBlocks)
+    .set(setClause)
+    .where(eq(messageBlocks.id, blockId))
+    .run();
+}
+
+/**
+ * Update a tool block with result
+ */
+export function updateToolBlockResult(
+  blockId: string,
+  result: {
+    status: "done" | "error";
+    result: string;
+    duration?: number;
+  }
+): void {
+  const updates: Record<string, unknown> = {
+    toolStatus: result.status,
+    toolResult: result.result,
+  };
+  if (result.duration !== undefined) {
+    updates.toolDuration = result.duration;
+  }
+  
+  db.update(messageBlocks)
+    .set(updates)
+    .where(eq(messageBlocks.id, blockId))
+    .run();
+}
+
+/**
+ * Get a message block by ID
+ */
+export function getMessageBlock(id: string): MessageBlock | undefined {
+  return db.select().from(messageBlocks).where(eq(messageBlocks.id, id)).get();
+}
+
+/**
+ * Delete all message blocks for a thread
+ */
+export function deleteThreadBlocks(threadId: string): void {
+  db.delete(messageBlocks).where(eq(messageBlocks.threadId, threadId)).run();
+}
+
+/**
+ * Get block count for a thread
+ */
+export function getBlockCount(threadId: string): number {
+  const result = db
+    .select({ count: messageBlocks.id })
+    .from(messageBlocks)
+    .where(eq(messageBlocks.threadId, threadId))
+    .all();
+  return result.length;
+}

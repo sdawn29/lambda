@@ -12,7 +12,8 @@
  * - Size management
  */
 
-import type { Message } from "../types"
+import type { Message, MessageBlock, ErrorMessage } from "../types"
+import { blocksToMessages } from "../types"
 
 const STORAGE_PREFIX = "lamda:chat:"
 const MAX_STORAGE_SIZE = 50 * 1024 * 1024 // 50MB limit
@@ -20,10 +21,11 @@ const MAX_THREADS_STORED = 50 // Max threads to cache
 const SYNC_DEBOUNCE_MS = 1000 // Debounce sync operations
 
 interface StoredThreadData {
-  messages: Message[]
+  blocks: MessageBlock[]
+  messages: Message[] // Derived from blocks for UI
   lastSyncedAt: number
   serverVersion: number
-  dirty: boolean // True if local changes not yet synced
+  dirty: boolean
 }
 
 interface SyncEngineState {
@@ -90,14 +92,18 @@ function cleanOldThreads(keepIds: Set<string>): void {
 
 // ── Thread Data Operations ─────────────────────────────────────────────────────
 
-export function saveThreadToStorage(
+/**
+ * Save blocks to localStorage
+ */
+export function saveBlocksToStorage(
   sessionId: string,
-  messages: Message[],
+  blocks: MessageBlock[],
   serverVersion: number = 0
 ): void {
   try {
     const data: StoredThreadData = {
-      messages,
+      blocks,
+      messages: blocksToMessages(blocks),
       lastSyncedAt: Date.now(),
       serverVersion,
       dirty: false,
@@ -108,7 +114,7 @@ export function saveThreadToStorage(
     // Update index
     const ids = getStoredThreadIds()
     if (!ids.includes(sessionId)) {
-      ids.unshift(sessionId) // Add to front (most recent)
+      ids.unshift(sessionId)
       setStoredThreadIds(ids)
     }
     
@@ -119,26 +125,129 @@ export function saveThreadToStorage(
       cleanOldThreads(idsToKeep)
     }
   } catch (e) {
-    console.warn("[chat-sync] Failed to save thread to storage:", sessionId, e)
-    // If quota exceeded, try to clean up
+    console.warn("[chat-sync] Failed to save blocks to storage:", sessionId, e)
     if (e instanceof DOMException && e.name === "QuotaExceededError") {
       cleanOldThreads(new Set())
       try {
         const data: StoredThreadData = {
-          messages,
+          blocks: [],
+          messages: [],
           lastSyncedAt: Date.now(),
           serverVersion,
           dirty: false,
         }
         localStorage.setItem(getStorageKey(sessionId), JSON.stringify(data))
       } catch {
-        console.error("[chat-sync] Still failed after cleanup, storage may be corrupted")
+        console.error("[chat-sync] Still failed after cleanup")
       }
     }
   }
 }
 
-export function loadThreadFromStorage(sessionId: string): StoredThreadData | null {
+/**
+ * Save messages to localStorage (converts to blocks first)
+ */
+export function saveMessagesToStorage(
+  sessionId: string,
+  messages: Message[],
+  serverVersion: number = 0
+): void {
+  // Convert messages back to blocks for storage
+  const blocks = messagesToBlocks(messages)
+  saveBlocksToStorage(sessionId, blocks, serverVersion)
+}
+
+/**
+ * Convert UI messages to blocks for storage
+ */
+function messagesToBlocks(messages: Message[]): MessageBlock[] {
+  return messages.map((msg, index) => {
+    // Handle error messages by converting them to assistant blocks
+    if (msg.role === "error") {
+      const errorMsg = msg as ErrorMessage
+      return {
+        id: crypto.randomUUID(),
+        threadId: "",
+        blockIndex: index,
+        role: "assistant" as const,
+        content: errorMsg.message,
+        thinking: null,
+        model: null,
+        provider: null,
+        thinkingLevel: null,
+        responseTime: null,
+        errorMessage: errorMsg.message,
+        toolCallId: null,
+        toolName: null,
+        toolArgs: null,
+        toolResult: null,
+        toolStatus: null,
+        toolDuration: null,
+        toolStartTime: null,
+        createdAt: Date.now(),
+      } as MessageBlock
+    }
+
+
+    // Build base block (non-error roles only)
+    const base: MessageBlock = {
+      id: crypto.randomUUID(),
+      threadId: "", // Will be set by server
+      blockIndex: index,
+      role: msg.role as "user" | "assistant" | "tool",
+      content: null,
+      thinking: null,
+      model: null,
+      provider: null,
+      thinkingLevel: null,
+      responseTime: null,
+      errorMessage: null,
+      toolCallId: null,
+      toolName: null,
+      toolArgs: null,
+      toolResult: null,
+      toolStatus: null,
+      toolDuration: null,
+      toolStartTime: null,
+      createdAt: Date.now(),
+    }
+
+    switch (msg.role) {
+      case "user":
+        return { ...base, content: msg.content, createdAt: msg.createdAt ?? Date.now() }
+      case "assistant":
+        return {
+          ...base,
+          content: msg.content,
+          thinking: msg.thinking || null,
+          model: msg.model ?? null,
+          provider: msg.provider ?? null,
+          thinkingLevel: msg.thinkingLevel ?? null,
+          responseTime: msg.responseTime ?? null,
+          errorMessage: msg.errorMessage ?? null,
+          createdAt: msg.createdAt ?? Date.now(),
+        }
+      case "tool":
+        return {
+          ...base,
+          toolCallId: msg.toolCallId,
+          toolName: msg.toolName,
+          toolArgs: typeof msg.args === "string" ? msg.args : JSON.stringify(msg.args),
+          toolResult: msg.result ? (typeof msg.result === "string" ? msg.result : JSON.stringify(msg.result)) : null,
+          toolStatus: msg.status,
+          toolDuration: msg.duration ?? null,
+          toolStartTime: msg.startTime ?? null,
+        }
+      default:
+        return base
+    }
+  })
+}
+
+/**
+ * Load blocks from localStorage
+ */
+export function loadBlocksFromStorage(sessionId: string): StoredThreadData | null {
   try {
     const raw = localStorage.getItem(getStorageKey(sessionId))
     if (!raw) return null
@@ -146,20 +255,26 @@ export function loadThreadFromStorage(sessionId: string): StoredThreadData | nul
     const data = JSON.parse(raw) as StoredThreadData
     
     // Validate structure
-    if (!Array.isArray(data.messages)) {
+    if (!Array.isArray(data.blocks)) {
       return null
     }
     
     return data
   } catch (e) {
-    console.warn("[chat-sync] Failed to load thread from storage:", sessionId, e)
+    console.warn("[chat-sync] Failed to load blocks from storage:", sessionId, e)
     return null
   }
 }
 
+export function loadThreadFromStorage(sessionId: string): { messages: Message[] } | null {
+  const stored = loadBlocksFromStorage(sessionId)
+  if (!stored) return null
+  return { messages: stored.messages }
+}
+
 export function markThreadDirty(sessionId: string): void {
   try {
-    const data = loadThreadFromStorage(sessionId)
+    const data = loadBlocksFromStorage(sessionId)
     if (data) {
       data.dirty = true
       localStorage.setItem(getStorageKey(sessionId), JSON.stringify(data))
@@ -221,7 +336,7 @@ type SyncListener = (state: SyncEngineState) => void
 class ChatSyncEngine {
   private listeners: Set<SyncListener> = new Set()
   private state: SyncEngineState = {
-    isOnline: navigator.onLine,
+    isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
     isSyncing: false,
     lastError: null,
   }
@@ -229,15 +344,15 @@ class ChatSyncEngine {
   private pendingSyncs: Map<string, Message[]> = new Map()
 
   constructor() {
-    // Listen for online/offline events
-    window.addEventListener("online", this.handleOnline)
-    window.addEventListener("offline", this.handleOffline)
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", this.handleOnline)
+      window.addEventListener("offline", this.handleOffline)
+    }
   }
 
   private handleOnline = () => {
     this.state = { ...this.state, isOnline: true }
     this.notifyListeners()
-    // Trigger sync for all dirty threads
     this.syncAllDirty()
   }
 
@@ -254,9 +369,7 @@ class ChatSyncEngine {
 
   subscribe(listener: SyncListener): () => void {
     this.listeners.add(listener)
-    // Immediately notify with current state
     listener(this.state)
-    // Return unsubscribe function
     return () => {
       this.listeners.delete(listener)
     }
@@ -269,10 +382,10 @@ class ChatSyncEngine {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /**
-   * Save messages to localStorage immediately
+   * Save messages to localStorage (converts to blocks)
    */
   saveMessages(sessionId: string, messages: Message[]): void {
-    saveThreadToStorage(sessionId, messages)
+    saveMessagesToStorage(sessionId, messages)
   }
 
   /**
@@ -301,19 +414,14 @@ class ChatSyncEngine {
    * Schedule a sync to server (debounced)
    */
   scheduleSync(sessionId: string, messages: Message[]): void {
-    // Cancel any pending sync for this session
     const existingTimeout = this.syncTimeouts.get(sessionId)
     if (existingTimeout) {
       clearTimeout(existingTimeout)
     }
 
-    // Store pending messages
     this.pendingSyncs.set(sessionId, messages)
-
-    // Mark as dirty
     markThreadDirty(sessionId)
 
-    // Schedule debounced sync
     const timeout = setTimeout(() => {
       this.syncTimeouts.delete(sessionId)
       this.pendingSyncs.delete(sessionId)
@@ -330,18 +438,12 @@ class ChatSyncEngine {
       this.state = { ...this.state, isSyncing: true }
       this.notifyListeners()
 
-      // Fetch latest from server
       const serverMessages = await fetchFn()
-
-      // Get local messages
-      const localData = loadThreadFromStorage(sessionId)
+      const localData = loadBlocksFromStorage(sessionId)
       const localMessages = localData?.messages ?? []
 
-      // Merge: prefer server for existing messages, keep local for new ones
       const merged = this.mergeMessages(localMessages, serverMessages)
-
-      // Save merged result
-      saveThreadToStorage(sessionId, merged)
+      saveMessagesToStorage(sessionId, merged)
 
       this.state = { ...this.state, isSyncing: false, lastError: null }
       this.notifyListeners()
@@ -361,9 +463,8 @@ class ChatSyncEngine {
     const ids = getStoredThreadIds()
 
     for (const sessionId of ids) {
-      const data = loadThreadFromStorage(sessionId)
+      const data = loadBlocksFromStorage(sessionId)
       if (data?.dirty) {
-        // Will be synced when fetchFn is provided
         console.log("[chat-sync] Dirty thread needs sync:", sessionId)
       }
     }
@@ -373,8 +474,6 @@ class ChatSyncEngine {
    * Merge local and server messages
    */
   private mergeMessages(_local: Message[], server: Message[]): Message[] {
-    // For now, prefer server messages (they're the source of truth)
-    // In the future, we could do smarter merging based on timestamps/IDs
     return server
   }
 
@@ -403,8 +502,10 @@ class ChatSyncEngine {
   }
 
   destroy(): void {
-    window.removeEventListener("online", this.handleOnline)
-    window.removeEventListener("offline", this.handleOffline)
+    if (typeof window !== "undefined") {
+      window.removeEventListener("online", this.handleOnline)
+      window.removeEventListener("offline", this.handleOffline)
+    }
     this.listeners.clear()
     this.syncTimeouts.forEach((timeout) => clearTimeout(timeout))
     this.syncTimeouts.clear()

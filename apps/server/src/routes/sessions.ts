@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { join, relative } from "path";
 import { readdir } from "fs/promises";
-import { insertWorkspace, insertThread, insertMessage, listMessages } from "@lamda/db";
+import { insertWorkspace, insertThread, insertUserBlock, listMessageBlocks } from "@lamda/db";
 import { store } from "../store.js";
 import { sessionEvents, SESSION_SSE_RETRY_MS } from "../session-events.js";
 import {
@@ -76,7 +76,9 @@ sessions.post("/session/:id/prompt", async (c) => {
   if (!body.text) return c.json({ error: "text is required" }, 400);
 
   ensureSessionEventHub(id, entry);
-  insertMessage(entry.threadId, "user", body.text);
+
+  // Store user message as a block in the database
+  insertUserBlock(entry.threadId, body.text);
 
   // Fire and forget — events arrive via GET /session/:id/events
   const text = body.text;
@@ -122,7 +124,9 @@ sessions.post("/session/:id/steer", async (c) => {
   if (!body.text) return c.json({ error: "text is required" }, 400);
 
   ensureSessionEventHub(id, entry);
-  insertMessage(entry.threadId, "user", body.text);
+
+  // Store user message as a block in the database
+  insertUserBlock(entry.threadId, body.text);
 
   // Fire and forget
   entry.handle.steer(body.text).catch((err: unknown) => {
@@ -147,7 +151,9 @@ sessions.post("/session/:id/follow-up", async (c) => {
   if (!body.text) return c.json({ error: "text is required" }, 400);
 
   ensureSessionEventHub(id, entry);
-  insertMessage(entry.threadId, "user", body.text);
+
+  // Store user message as a block in the database
+  insertUserBlock(entry.threadId, body.text);
 
   // Fire and forget
   entry.handle.followUp(body.text).catch((err: unknown) => {
@@ -194,12 +200,17 @@ sessions.post("/session/:id/compact", async (c) => {
   }
 });
 
+/**
+ * Get all message blocks for a session's thread.
+ * Returns complete message data including thinking, tool calls, etc.
+ */
 sessions.get("/session/:id/messages", (c) => {
   const id = c.req.param("id");
   const threadId = store.getThreadId(id);
   if (!threadId) return c.json({ error: "Session not found" }, 404);
-  const msgs = listMessages(threadId);
-  return c.json({ messages: msgs });
+  
+  const blocks = listMessageBlocks(threadId);
+  return c.json({ blocks });
 });
 
 sessions.get("/session/:id/events", async (c) => {

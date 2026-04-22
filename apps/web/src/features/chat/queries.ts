@@ -7,8 +7,7 @@ import {
   fetchContextUsage,
   fetchThinkingLevels,
 } from "./api"
-import { createAssistantMessage, parseAssistantMessageContent, type StoredMessageDto } from "./types"
-import type { Message } from "./types"
+import { blocksToMessages, type MessageBlock, type Message } from "./types"
 import { getChatSyncEngine, loadThreadFromStorage } from "./hooks/use-chat-sync-engine"
 
 export type { WorkspaceEntry } from "./api"
@@ -31,7 +30,6 @@ export const chatKeys = {
     [...chatSessionKey(sessionId), "context-usage"] as const,
   thinkingLevels: (sessionId: string) =>
     [...chatSessionKey(sessionId), "thinking-levels"] as const,
-  // Meta keys for streaming state (replaces module-level Maps)
   scroll: (sessionId: string) =>
     [...chatSessionKey(sessionId), "meta", "scroll"] as const,
   errors: (sessionId: string) =>
@@ -40,42 +38,15 @@ export const chatKeys = {
     [...chatSessionKey(sessionId), "meta", "pendingError"] as const,
 }
 
-// ── Messages ──────────────────────────────────────────────────────────────────
-
-export function storedToMessage(m: StoredMessageDto): Message {
-  if (m.role === "tool") {
-    const data = JSON.parse(m.content) as {
-      toolCallId: string
-      toolName: string
-      args: unknown
-      result: unknown
-      status: "running" | "done" | "error"
-      startTime?: number
-      duration?: number
-    }
-    return {
-      role: "tool",
-      toolCallId: data.toolCallId,
-      toolName: data.toolName,
-      args: data.args,
-      result: data.result,
-      status: data.status,
-      startTime: data.startTime,
-      duration: data.duration,
-    }
-  }
-  if (m.role === "assistant") {
-    return {
-      ...createAssistantMessage(parseAssistantMessageContent(m.content)),
-      createdAt: m.createdAt,
-    }
-  }
-  return { role: "user", content: m.content, createdAt: m.createdAt }
-}
+// ── Messages ─────────────────────────────────────────────────────────────────
 
 export const messagesQueryKey = (sessionId: string) =>
   chatKeys.messages(sessionId)
 
+/**
+ * Fetch messages from server and convert blocks to UI messages.
+ * Uses the new block-based message storage.
+ */
 export function useMessages(sessionId: string) {
   const queryClient = useQueryClient()
   const syncEngine = getChatSyncEngine()
@@ -83,33 +54,34 @@ export function useMessages(sessionId: string) {
   return useQuery({
     queryKey: messagesQueryKey(sessionId),
     queryFn: async (): Promise<Message[]> => {
-      // Fetch from server
-      const { messages: stored } = await listMessages(sessionId)
-      const serverMessages = stored.map(storedToMessage)
+      // Fetch blocks from server
+      const { blocks } = await listMessages(sessionId)
+      
+      // Convert blocks to UI messages
+      const serverMessages = blocksToMessages(blocks as MessageBlock[])
 
-      // Save to localStorage for next time
+      // Save to localStorage for instant loading
       syncEngine.saveMessages(sessionId, serverMessages)
 
-      // Update query cache with server data
+      // Update query cache
       queryClient.setQueryData(messagesQueryKey(sessionId), serverMessages)
 
       return serverMessages
     },
-    // Load initial data from localStorage immediately (no network)
+    // Load from localStorage first (instant, no network)
     initialData: () => {
-      const localData = loadThreadFromStorage(sessionId)
-      return localData?.messages ?? undefined
+      const stored = loadThreadFromStorage(sessionId)
+      return stored?.messages ?? undefined
     },
-    // Keep messages cached for a long time
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnMount: false, // Use cached data
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    gcTime: 30 * 60 * 1000,
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     enabled: !!sessionId,
   })
 }
 
-// ── Models ────────────────────────────────────────────────────────────────────
+// ── Models ─────────────────────────────────────────────────────────────────
 
 export const modelsQueryKey = chatKeys.models
 
@@ -122,7 +94,7 @@ export function useModels() {
   })
 }
 
-// ── Workspace files ───────────────────────────────────────────────────────────
+// ── Workspace files ─────────────────────────────────────────────────────────
 
 export const workspaceFilesQueryKey = (sessionId: string) =>
   chatKeys.workspaceFiles(sessionId)
@@ -141,7 +113,7 @@ export function useWorkspaceFiles(
   })
 }
 
-// ── Slash commands ────────────────────────────────────────────────────────────
+// ── Slash commands ────────────────────────────────────────────────────────
 
 export function useSlashCommands(
   sessionId: string | undefined,
@@ -152,15 +124,11 @@ export function useSlashCommands(
     queryFn: () => fetchSlashCommands(sessionId!),
     enabled: enabled && !!sessionId,
     gcTime: 60 * 1000,
-    // staleTime: 0 ensures that every time the slash-command dropdown opens
-    // (enabled flips true) TanStack Query will immediately consider the cached
-    // data stale and issue a fresh network request to pick up any newly-added
-    // skills or prompt templates.
     staleTime: 0,
   })
 }
 
-// ── Thinking levels ───────────────────────────────────────────────────────────
+// ── Thinking levels ────────────────────────────────────────────────────────
 
 export function useThinkingLevels(sessionId: string | undefined) {
   return useQuery({
@@ -172,7 +140,7 @@ export function useThinkingLevels(sessionId: string | undefined) {
   })
 }
 
-// ── Context usage ─────────────────────────────────────────────────────────────
+// ── Context usage ─────────────────────────────────────────────────────────
 
 export function useContextUsage(sessionId: string | undefined) {
   return useQuery({

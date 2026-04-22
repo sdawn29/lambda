@@ -1,5 +1,5 @@
 import { apiFetch, getServerUrl } from "@/shared/lib/client"
-import type { StoredMessageDto } from "./types"
+import type { MessageBlock, StoredMessageDto } from "./types"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ export interface PromptOptions {
   expandPromptTemplates?: boolean
 }
 
-// ── Session ───────────────────────────────────────────────────────────────────
+// ── Session ────────────────────────────────────────────────────────────────────
 
 export interface CreateSessionBody {
   anthropicApiKey?: string
@@ -122,9 +122,33 @@ export function followUp(
   })
 }
 
-// ── Messages ──────────────────────────────────────────────────────────────────
+// ── Messages ─────────────────────────────────────────────────────────────────
 
+/**
+ * Response from /session/:id/messages endpoint.
+ * Returns complete message blocks with all data fields.
+ */
+export interface SessionMessagesResponse {
+  blocks: MessageBlock[]
+}
+
+/**
+ * Fetch all message blocks for a session.
+ * Returns complete message data including thinking, tool calls, model info, etc.
+ */
 export function listMessages(
+  sessionId: string
+): Promise<SessionMessagesResponse> {
+  return apiFetch<SessionMessagesResponse>(
+    `/session/${sessionId}/messages`
+  )
+}
+
+/**
+ * Legacy message list endpoint for backward compatibility.
+ * @deprecated Use listMessages instead.
+ */
+export function listLegacyMessages(
   sessionId: string
 ): Promise<{ messages: StoredMessageDto[] }> {
   return apiFetch<{ messages: StoredMessageDto[] }>(
@@ -202,7 +226,7 @@ export function initializeGitRepository(
   )
 }
 
-// ── Models ────────────────────────────────────────────────────────────────────
+// ── Models ─────────────────────────────────────────────────────────────────
 
 export interface Model {
   id: string
@@ -220,7 +244,7 @@ export function fetchModels(signal?: AbortSignal): Promise<ModelsResponse> {
   return apiFetch<ModelsResponse>("/models", { signal })
 }
 
-// ── Slash commands ────────────────────────────────────────────────────────────
+// ── Slash commands ─────────────────────────────────────────────────────────
 
 export interface SlashCommand {
   name: string
@@ -237,7 +261,7 @@ export async function fetchSlashCommands(
   return data.commands
 }
 
-// ── Context usage ─────────────────────────────────────────────────────────────
+// ── Context usage ──────────────────────────────────────────────────────────
 
 export function fetchThinkingLevels(
   sessionId: string
@@ -267,7 +291,7 @@ export function compactSession(sessionId: string): Promise<{ ok: boolean }> {
   })
 }
 
-// ── Workspace files ───────────────────────────────────────────────────────────
+// ── Workspace files ────────────────────────────────────────────────────────
 
 export type WorkspaceEntry = { path: string; type: "file" | "dir" }
 

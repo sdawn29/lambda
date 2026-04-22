@@ -6,8 +6,7 @@ import { subscribeToSessionEvents, type AgentEndMessage } from "../session-event
 import {
   messagesQueryKey,
 } from "../queries"
-import { createAssistantMessage } from "../types"
-import { createErrorMessage } from "../types"
+import { createAssistantMessage, createErrorMessage } from "../types"
 import type { Message } from "../types"
 
 interface TurnMeta {
@@ -15,6 +14,7 @@ interface TurnMeta {
   model?: string
   provider?: string
   thinkingLevel?: string
+  blockId?: string
 }
 
 interface AssistantDeltaEvent {
@@ -44,6 +44,7 @@ interface ToolMessageUpdate {
   result?: unknown
   duration?: number
   startTime?: number
+  toolBlockId?: string
 }
 
 function upsertToolMessage(
@@ -241,6 +242,7 @@ export function useSessionStream({
             }
             pendingThinkingLevelRef.current = null
 
+            // Create assistant message for streaming UI
             queryClient.setQueryData<Message[]>(
               messagesQueryKey(sessionId),
               (prev) => [...(prev ?? []), createAssistantMessage()]

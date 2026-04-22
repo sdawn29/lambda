@@ -19,7 +19,6 @@ export type { UseVisibleMessagesOptions } from "./hooks/use-visible-messages"
 export {
   getChatSyncEngine,
   useChatSyncEngine,
-  saveThreadToStorage,
   loadThreadFromStorage,
   clearThreadFromStorage,
   getAllStoredThreadIds,
@@ -27,7 +26,6 @@ export {
 export type {
   AssistantMessage,
   Message,
-  TextMessage,
   ToolMessage,
   ErrorMessage,
 } from "./types"

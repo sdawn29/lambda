@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Folder, ChevronRight, ChevronDown, File, RefreshCw } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useDiffPanel } from "@/features/git"
+import { apiFetch } from "@/shared/lib/client"
 
 interface TreeNode {
   name: string
@@ -16,9 +17,7 @@ interface FileTreeProps {
 
 async function fetchDirectory(path: string): Promise<TreeNode[]> {
   try {
-    const response = await fetch(`/api/directory?path=${encodeURIComponent(path)}`)
-    if (!response.ok) return []
-    return response.json()
+    return await apiFetch<TreeNode[]>(`/directory?path=${encodeURIComponent(path)}`)
   } catch {
     return []
   }

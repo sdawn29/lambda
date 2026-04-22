@@ -1,9 +1,10 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useWorkspaces } from "@/features/workspace"
-import { messagesQueryKey, storedToMessage } from "../queries"
+import { messagesQueryKey } from "../queries"
 import { listMessages } from "../api"
 import { getChatSyncEngine, loadThreadFromStorage } from "./use-chat-sync-engine"
+import { blocksToMessages, type MessageBlock } from "../types"
 import type { Message } from "../types"
 
 interface UsePrefetchThreadsMessagesOptions {
@@ -41,8 +42,8 @@ export function usePrefetchThreadsMessages({
           // Sync with server in background (non-blocking)
           void (async () => {
             try {
-              const { messages: stored } = await listMessages(sessionId)
-              const serverMessages = stored.map(storedToMessage)
+              const { blocks } = await listMessages(sessionId)
+              const serverMessages = blocksToMessages(blocks as MessageBlock[])
               syncEngine.saveMessages(sessionId, serverMessages)
               queryClient.setQueryData(messagesQueryKey(sessionId), serverMessages)
             } catch (e) {
@@ -64,8 +65,8 @@ export function usePrefetchThreadsMessages({
         void queryClient.prefetchQuery({
           queryKey: messagesQueryKey(sessionId),
           queryFn: async () => {
-            const { messages: stored } = await listMessages(sessionId)
-            const messages = stored.map(storedToMessage)
+            const { blocks } = await listMessages(sessionId)
+            const messages = blocksToMessages(blocks as MessageBlock[])
             // Save to localStorage for next time
             syncEngine.saveMessages(sessionId, messages)
             return messages

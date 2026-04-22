@@ -69,8 +69,31 @@ function createDb() {
       model_id         TEXT,
       is_stopped       INTEGER NOT NULL DEFAULT 0,
       is_archived      INTEGER NOT NULL DEFAULT 0,
+      is_pinned        INTEGER NOT NULL DEFAULT 0,
       last_accessed_at INTEGER,
       created_at       INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS message_blocks (
+      id              TEXT PRIMARY KEY,
+      thread_id       TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      block_index     INTEGER NOT NULL,
+      role            TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool')),
+      content         TEXT,
+      thinking        TEXT,
+      model           TEXT,
+      provider        TEXT,
+      thinking_level  TEXT,
+      response_time   INTEGER,
+      error_message   TEXT,
+      tool_call_id    TEXT,
+      tool_name       TEXT,
+      tool_args       TEXT,
+      tool_result     TEXT,
+      tool_status     TEXT CHECK(tool_status IN ('running', 'done', 'error')),
+      tool_duration   INTEGER,
+      tool_start_time INTEGER,
+      created_at      INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS messages (
@@ -82,12 +105,8 @@ function createDb() {
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS workspaces_path_unique ON workspaces(path);
+    CREATE INDEX IF NOT EXISTS message_blocks_thread_idx ON message_blocks(thread_id, block_index);
   `);
-
-  // Incremental migrations
-  try { sqlite.exec(`ALTER TABLE threads ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`) } catch {}
-  try { sqlite.exec(`ALTER TABLE threads ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
-
 
   return db;
 }

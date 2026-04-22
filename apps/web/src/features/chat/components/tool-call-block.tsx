@@ -198,7 +198,8 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   const isRead = isReadTool(normalizedToolName, msg.args)
   const readFilePath = isRead ? getReadFilePath(msg.args) : null
 
-  const [expanded, setExpanded] = useState(isEdit)
+  // Auto-expand running tools so users can see progress
+  const [expanded, setExpanded] = useState(isEdit || msg.status === "running")
   const [copied, setCopied] = useState(false)
 
   function toggle(e: React.MouseEvent) {
@@ -217,10 +218,16 @@ export const ToolCallBlock = memo(function ToolCallBlock({
 
   const resultText = getResultText(msg)
   const summary = argsSummary(msg.args)
-  const hasBody =
-    (isEdit && diff !== null) ||
-    (isRead && readFilePath && resultText) ||
-    (!isEdit && !isRead && resultText)
+  
+  // For edit tools, always show diff when available, otherwise show args/edits info
+  const showEditContent = isEdit && (diff !== null || msg.status !== 'running')
+  // For read tools, show content when we have text or are running
+  const showReadContent = isRead && (resultText !== null || msg.status === 'running')
+  // For other tools, show when we have result or are running
+  const showOtherContent = !isEdit && !isRead && (resultText !== null || msg.status === 'running')
+  
+  // Content is visible when expanded and we have something to show
+  const hasBody = showEditContent || showReadContent || showOtherContent
 
   return (
     <div
@@ -281,52 +288,37 @@ export const ToolCallBlock = memo(function ToolCallBlock({
       >
         <div className="overflow-hidden">
           <div className="border-t border-border/30 px-3 py-2">
-            {/* Running placeholder */}
-            {msg.status === "running" && !hasBody && (
-              <span className="text-muted-foreground/40">Running…</span>
+            {/* Running state: show appropriate placeholder */}
+            {msg.status === "running" && (
+              <span className="text-muted-foreground/40">
+                {isEdit ? "Editing…" : isRead ? "Reading…" : "Running…"}
+              </span>
             )}
 
-            {/* Edit: show pre-computed diff from SDK */}
-            {isEdit && diff !== null && (
-              <DiffView
-                diff={diff}
-                filePath={(msg.args as { path?: string }).path}
-              />
-            )}
+            {/* Done state: show content */}
+            {msg.status === "done" && (
+              <>
+                {/* Edit: show pre-computed diff from SDK */}
+                {isEdit && diff !== null && (
+                  <DiffView
+                    diff={diff}
+                    filePath={(msg.args as { path?: string }).path}
+                  />
+                )}
 
-            {/* Edit running — no diff yet */}
-            {isEdit && diff === null && msg.status === "running" && (
-              <span className="text-muted-foreground/40">Editing…</span>
-            )}
+                {/* Read tool: syntax-highlighted file content */}
+                {isRead && readFilePath && resultText && (
+                  <ReadView
+                    text={resultText}
+                    filePath={readFilePath}
+                    live={false}
+                  />
+                )}
 
-            {/* Read tool: syntax-highlighted file content */}
-            {isRead && readFilePath && resultText && msg.status !== "error" && (
-              <ReadView
-                text={resultText}
-                filePath={readFilePath}
-                live={msg.status === "running"}
-              />
-            )}
-
-            {isRead && !resultText && msg.status === "running" && (
-              <span className="text-muted-foreground/40">Reading…</span>
-            )}
-
-            {/* Non-edit, non-read tools or error fallback */}
-            {!isEdit &&
-              !isRead &&
-              resultText &&
-              (msg.status === "error" ? (
-                <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
-                  <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
-                  <pre className="flex-1 overflow-auto break-all whitespace-pre-wrap text-xs text-destructive/80">
-                    {resultText}
-                  </pre>
-                </div>
-              ) : (
-                <div className="group/copy relative">
-                  <LivePre text={resultText} live={msg.status === "running"} />
-                  {msg.status !== "running" && (
+                {/* Other tools: show result */}
+                {!isEdit && !isRead && resultText && (
+                  <div className="group/copy relative">
+                    <LivePre text={resultText} live={false} />
                     <button
                       type="button"
                       onClick={handleCopy}
@@ -342,20 +334,17 @@ export const ToolCallBlock = memo(function ToolCallBlock({
                         <CopyIcon className="h-3 w-3" />
                       )}
                     </button>
-                  )}
-                </div>
-              ))}
-
-            {!isEdit && !isRead && !resultText && msg.status === "running" && (
-              <span className="text-muted-foreground/40">Running…</span>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Edit / read error */}
-            {(isEdit || isRead) && msg.status === "error" && resultText && (
+            {/* Error state: show error message */}
+            {msg.status === "error" && (
               <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
                 <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
                 <pre className="flex-1 overflow-auto break-all whitespace-pre-wrap text-xs text-destructive/80">
-                  {resultText}
+                  {resultText ?? "Tool execution failed"}
                 </pre>
               </div>
             )}

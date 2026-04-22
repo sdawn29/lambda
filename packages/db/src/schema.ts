@@ -28,6 +28,37 @@ export const threads = sqliteTable("threads", {
   createdAt: integer("created_at").notNull(),
 })
 
+/**
+ * Message blocks - stores each message as a complete block with all data.
+ * This replaces the old messages table which only stored content as string.
+ */
+export const messageBlocks = sqliteTable("message_blocks", {
+  id: text("id").primaryKey(),
+  threadId: text("thread_id")
+    .notNull()
+    .references(() => threads.id, { onDelete: "cascade" }),
+  blockIndex: integer("block_index").notNull(),
+  role: text("role", { enum: ["user", "assistant", "tool"] }).notNull(),
+  content: text("content"),
+  thinking: text("thinking"),
+  model: text("model"),
+  provider: text("provider"),
+  thinkingLevel: text("thinking_level"),
+  responseTime: integer("response_time"),
+  errorMessage: text("error_message"),
+  toolCallId: text("tool_call_id"),
+  toolName: text("tool_name"),
+  toolArgs: text("tool_args"),
+  toolResult: text("tool_result"),
+  toolStatus: text("tool_status", { enum: ["running", "done", "error"] }),
+  toolDuration: integer("tool_duration"),
+  toolStartTime: integer("tool_start_time"),
+  createdAt: integer("created_at").notNull(),
+})
+
+/**
+ * @deprecated Legacy messages table - kept for migration reference
+ */
 export const messages = sqliteTable("messages", {
   id: text("id").primaryKey(),
   threadId: text("thread_id")

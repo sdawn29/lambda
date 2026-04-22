@@ -5,7 +5,6 @@ export { usePrefetchThreadsMessages } from "./use-prefetch-messages"
 export {
   getChatSyncEngine,
   useChatSyncEngine,
-  saveThreadToStorage,
   loadThreadFromStorage,
   clearThreadFromStorage,
   getAllStoredThreadIds,
