@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("get-open-with-app-icon", appId),
   openWorkspaceWithApp: (workspacePath: string, appId?: string) =>
     ipcRenderer.invoke("open-workspace-with-app", { workspacePath, appId }),
+  openFileWithApp: (filePath: string, appId?: string) =>
+    ipcRenderer.invoke("open-file-with-app", { filePath, appId }),
   openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
   getFullscreen: () => ipcRenderer.invoke("get-fullscreen"),
   onFullscreenChange: (callback: (isFullscreen: boolean) => void) => {

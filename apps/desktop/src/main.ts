@@ -11,7 +11,10 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import {
+  getInstalledEditorApps,
   getOpenWithAppIcon,
   listOpenWithApps,
   openWorkspaceWithApp,
@@ -431,6 +434,33 @@ app.whenReady().then(async () => {
       await openWorkspaceWithApp(workspacePath, payload?.appId);
     },
   );
+
+  ipcMain.handle("open-file-with-app", async (_event, payload: { filePath?: string; appId?: string } | undefined) => {
+    const filePath = payload?.filePath?.trim();
+    if (!filePath) {
+      throw new Error("A file path is required.");
+    }
+
+    const execFileAsync = promisify(execFile);
+
+    if (process.platform !== "darwin") {
+      await shell.openPath(filePath);
+      return;
+    }
+
+    // On macOS, use the open command with the specific app
+    if (payload?.appId) {
+      const editorApps = await getInstalledEditorApps();
+      const editorApp = editorApps.find((app) => app.id === payload.appId);
+      if (editorApp) {
+        await execFileAsync("open", ["-a", editorApp.appPath, filePath]);
+        return;
+      }
+    }
+
+    // No specific app, open with default
+    await shell.openPath(filePath);
+  });
 
   ipcMain.handle("open-external", (_event, url: string) => {
     shell.openExternal(url);

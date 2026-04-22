@@ -271,7 +271,7 @@ async function loadInstalledEditorApps(): Promise<InstalledOpenWithApp[]> {
   );
 }
 
-async function getInstalledEditorApps(
+export async function getInstalledEditorApps(
   forceRefresh = false,
 ): Promise<InstalledOpenWithApp[]> {
   if (process.platform !== "darwin") {

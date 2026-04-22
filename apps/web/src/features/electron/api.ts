@@ -82,6 +82,19 @@ export async function openWorkspaceWithApp(
   return true
 }
 
+export async function openFileWithApp(
+  filePath: string,
+  appId?: string
+): Promise<boolean> {
+  const electronAPI = getElectronAPI()
+  if (!electronAPI?.openFileWithApp) {
+    return false
+  }
+
+  await electronAPI.openFileWithApp(filePath, appId)
+  return true
+}
+
 export async function openExternal(url: string): Promise<boolean> {
   const electronAPI = getElectronAPI()
   if (!electronAPI?.openExternal) {

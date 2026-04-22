@@ -46,6 +46,7 @@ import { type DiffMode } from "./diff-view"
 import { StashInputBar } from "./stash-input-bar"
 import { StashSection } from "./stash-section"
 import { FilesSection } from "./files-section"
+import { FileHeader } from "./file-header"
 import { SORT_OPTIONS, type SortMode, applySortMode } from "./sort-utils"
 import { cn } from "@/shared/lib/utils"
 import { useTheme } from "@/shared/components/theme-provider"
@@ -60,6 +61,7 @@ const PrismCode = lazy(() =>
 
 interface DiffPanelProps {
   sessionId: string
+  openWithAppId?: string | null
 }
 
 // ─── Source Control Content ───────────────────────────────────────────────────
@@ -353,35 +355,14 @@ const SourceControlContent = memo(function SourceControlContent({
   )
 })
 
-// ─── File Header ───────────────────────────────────────────────────────────────
-
-const FileHeader = ({ pathParts }: { pathParts: string[] }) => {
-  return (
-    <div className="scrollbar-none flex min-w-0 items-center overflow-x-auto px-2 py-1 font-mono text-xs">
-      {pathParts.map((part, i) => (
-        <span key={i} className="flex shrink-0 items-center">
-          {i > 0 && <span className="mx-1 text-muted-foreground/50">›</span>}
-          <span
-            className={
-              i === pathParts.length - 1
-                ? "font-medium text-foreground"
-                : "text-muted-foreground"
-            }
-          >
-            {part}
-          </span>
-        </span>
-      ))}
-    </div>
-  )
-}
-
 // ─── File Content ─────────────────────────────────────────────────────────────
 
 const FileContent = memo(function FileContent({
   filePath,
+  openWithAppId,
 }: {
   filePath: string
+  openWithAppId?: string | null
 }) {
   const [content, setContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -443,7 +424,7 @@ const FileContent = memo(function FileContent({
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/50">
-          <FileHeader pathParts={pathParts} />
+          <FileHeader pathParts={pathParts} filePath={filePath} openWithAppId={openWithAppId} />
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -459,7 +440,7 @@ const FileContent = memo(function FileContent({
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/50">
-          <FileHeader pathParts={pathParts} />
+          <FileHeader pathParts={pathParts} filePath={filePath} openWithAppId={openWithAppId} />
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="mx-3 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/8 px-3 py-2.5 text-xs text-destructive">
@@ -474,7 +455,7 @@ const FileContent = memo(function FileContent({
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border/50">
-        <FileHeader pathParts={pathParts} />
+        <FileHeader pathParts={pathParts} filePath={filePath} openWithAppId={openWithAppId} />
       </div>
       <div
         className="file-viewer-code min-h-0 flex-1 overflow-auto"
@@ -506,15 +487,17 @@ const FileContent = memo(function FileContent({
 function TabContent({
   tab,
   sessionId,
+  openWithAppId,
 }: {
   tab: DiffPanelTab
   sessionId: string
+  openWithAppId?: string | null
 }) {
   if (tab.type === "source-control") {
     return <SourceControlContent sessionId={sessionId} />
   }
   if (tab.type === "file" && tab.filePath) {
-    return <FileContent filePath={tab.filePath} />
+    return <FileContent filePath={tab.filePath} openWithAppId={openWithAppId} />
   }
   return (
     <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -527,6 +510,7 @@ function TabContent({
 
 export const DiffPanel = memo(function DiffPanel({
   sessionId,
+  openWithAppId,
 }: DiffPanelProps) {
   const {
     close,
@@ -682,7 +666,7 @@ export const DiffPanel = memo(function DiffPanel({
       {/* Tab content */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab ? (
-          <TabContent tab={activeTab} sessionId={sessionId} />
+          <TabContent tab={activeTab} sessionId={sessionId} openWithAppId={openWithAppId} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">

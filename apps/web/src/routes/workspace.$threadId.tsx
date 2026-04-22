@@ -84,7 +84,10 @@ function WorkspaceThreadRoute() {
   if (diffFullscreen) {
     return (
       <Suspense fallback={<div className="h-full w-full bg-muted/10" />}>
-        <DiffPanel sessionId={foundThread.sessionId} />
+        <DiffPanel
+          sessionId={foundThread.sessionId}
+          openWithAppId={foundWorkspace.openWithAppId}
+        />
       </Suspense>
     )
   }
@@ -113,7 +116,10 @@ function WorkspaceThreadRoute() {
                       <div className="h-full border-l border-border/60 bg-muted/10" />
                     }
                   >
-                    <DiffPanel sessionId={foundThread.sessionId} />
+                    <DiffPanel
+                      sessionId={foundThread.sessionId}
+                      openWithAppId={foundWorkspace.openWithAppId}
+                    />
                   </Suspense>
                 </ResizablePanel>
               </>
