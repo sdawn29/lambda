@@ -39,7 +39,10 @@ import { useElectronFullscreen, useElectronPlatform } from "@/features/electron"
 import { CommitDialog } from "@/features/git"
 import { useGitDiffStat } from "@/features/git/queries"
 import { OpenWithButton } from "./open-with-button"
-import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
+import {
+  useShortcutHandler,
+  useShortcutBinding,
+} from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 
@@ -123,11 +126,26 @@ export function TitleBar() {
   const canGoForward = useSyncExternalStore(subscribe, getSnapshot, () => false)
 
   useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR, toggleSidebar)
-  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL, isSettings ? null : toggleDiff)
-  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_TERMINAL, isSettings ? null : toggleTerminal)
-  useShortcutHandler(SHORTCUT_ACTIONS.RENAME_THREAD, activeThread ? startRename : null)
-  useShortcutHandler(SHORTCUT_ACTIONS.NAVIGATE_BACK, canGoBack ? () => router.history.back() : null)
-  useShortcutHandler(SHORTCUT_ACTIONS.NAVIGATE_FORWARD, canGoForward ? () => router.history.forward() : null)
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL,
+    isSettings ? null : toggleDiff
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.TOGGLE_TERMINAL,
+    isSettings ? null : toggleTerminal
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.RENAME_THREAD,
+    activeThread ? startRename : null
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.NAVIGATE_BACK,
+    canGoBack ? () => router.history.back() : null
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.NAVIGATE_FORWARD,
+    canGoForward ? () => router.history.forward() : null
+  )
 
   const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
   const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
@@ -185,7 +203,10 @@ export function TitleBar() {
       >
         <Tooltip>
           <TooltipTrigger render={<SidebarTrigger />} />
-          <TooltipContent>Toggle sidebar <ShortcutKbd binding={sidebarBinding} className="ml-1" /></TooltipContent>
+          <TooltipContent>
+            Toggle sidebar{" "}
+            <ShortcutKbd binding={sidebarBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -201,7 +222,9 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Go back <ShortcutKbd binding={backBinding} className="ml-1" /></TooltipContent>
+          <TooltipContent>
+            Go back <ShortcutKbd binding={backBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -217,7 +240,9 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" /></TooltipContent>
+          <TooltipContent>
+            Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
       </div>
 
@@ -258,10 +283,10 @@ export function TitleBar() {
                   if (e.key === "Enter") commitRename()
                   if (e.key === "Escape") setIsRenaming(false)
                 }}
-                className="min-w-0 w-48 bg-transparent text-sm font-medium outline-none"
+                className="w-48 min-w-0 bg-transparent text-sm font-medium outline-none"
               />
             ) : (
-              <span className="min-w-0 max-w-xs truncate text-sm font-medium">
+              <span className="max-w-xs min-w-0 truncate text-sm font-medium">
                 {activeThread.title}
               </span>
             )}
@@ -279,7 +304,10 @@ export function TitleBar() {
                   <DropdownMenuItem onClick={startRename}>
                     <Pencil className="mr-2 h-4 w-4" />
                     Rename
-                    <ShortcutKbd binding={renameBinding} className="ml-auto pl-2" />
+                    <ShortcutKbd
+                      binding={renameBinding}
+                      className="ml-auto pl-2"
+                    />
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -316,6 +344,30 @@ export function TitleBar() {
         {!isSettings && (
           <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
         )}
+        <div className="px-1"></div>
+        {!isSettings && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleTerminal}
+                  aria-pressed={terminalOpen}
+                  data-active={terminalOpen}
+                  className={activeTitleBarButtonClassName}
+                >
+                  <TerminalSquare />
+                  <span className="sr-only">Toggle terminal</span>
+                </Button>
+              }
+            />
+            <TooltipContent>
+              Toggle terminal{" "}
+              <ShortcutKbd binding={terminalBinding} className="ml-1" />
+            </TooltipContent>
+          </Tooltip>
+        )}
         {!isSettings && (
           <Tooltip>
             <TooltipTrigger
@@ -345,29 +397,13 @@ export function TitleBar() {
                 </Button>
               }
             />
-            <TooltipContent>Toggle diff panel <ShortcutKbd binding={diffBinding} className="ml-1" /></TooltipContent>
+            <TooltipContent>
+              Toggle diff panel{" "}
+              <ShortcutKbd binding={diffBinding} className="ml-1" />
+            </TooltipContent>
           </Tooltip>
         )}
-        {!isSettings && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleTerminal}
-                  aria-pressed={terminalOpen}
-                  data-active={terminalOpen}
-                  className={activeTitleBarButtonClassName}
-                >
-                  <TerminalSquare />
-                  <span className="sr-only">Toggle terminal</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Toggle terminal <ShortcutKbd binding={terminalBinding} className="ml-1" /></TooltipContent>
-          </Tooltip>
-        )}
+
         <Tooltip>
           <TooltipTrigger
             render={

@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react"
-import { Archive, ChevronRight, Loader2 } from "lucide-react"
+import { ChevronRight, Loader2 } from "lucide-react"
 import { StashEntryRow, parseStashList } from "./stash-entry-row"
 import { useGitStashList } from "../queries"
 import { cn } from "@/shared/lib/utils"
@@ -25,10 +25,10 @@ export const StashSection = memo(function StashSection({
   const handleDrop = useCallback((ref: string) => drop.mutateAsync(ref), [drop])
 
   return (
-    <div className="shrink-0 border-t border-border/50">
+    <div className="border-b border-border/40">
       <button
         onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/40"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-muted/40"
       >
         <ChevronRight
           className={cn(
@@ -36,8 +36,7 @@ export const StashSection = memo(function StashSection({
             !collapsed && "rotate-90"
           )}
         />
-        <Archive className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-        <span className="flex-1 text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+        <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
           Stashes
         </span>
         {isLoading && (
@@ -53,7 +52,7 @@ export const StashSection = memo(function StashSection({
       {!collapsed && (
         <div className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
           {!isLoading && stashes.length === 0 && (
-            <p className="px-4 py-3 text-xs text-muted-foreground/40">
+            <p className="px-4 py-2.5 text-xs text-muted-foreground/40">
               No stashes
             </p>
           )}

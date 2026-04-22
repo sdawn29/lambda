@@ -291,7 +291,8 @@ const SourceControlContent = memo(function SourceControlContent({
         </Tooltip>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {stashInputOpen && (
           <StashInputBar
             onConfirm={handleStashConfirm}
@@ -344,9 +345,10 @@ const SourceControlContent = memo(function SourceControlContent({
             onRevert={handleRevert}
           />
         )}
-      </div>
 
-      <StashSection sessionId={sessionId} />
+        <StashSection sessionId={sessionId} />
+        </div>
+      </div>
     </>
   )
 })
