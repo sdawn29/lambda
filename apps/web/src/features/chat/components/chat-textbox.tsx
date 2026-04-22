@@ -424,7 +424,7 @@ export const ChatTextbox = memo(
                         size="icon-sm"
                         onClick={onStop}
                         aria-label="Stop generation"
-                        className="animate-in bg-destructive duration-150 fade-in-0 zoom-in-90 hover:bg-destructive/90"
+                        className="rounded-full animate-in bg-destructive duration-150 fade-in-0 zoom-in-90 hover:bg-destructive/90 aspect-square"
                       >
                         <div className="h-2.5 w-2.5 rounded-sm bg-white" />
                       </Button>
@@ -441,7 +441,7 @@ export const ChatTextbox = memo(
                         onClick={handleSend}
                         disabled={!canSend}
                         aria-label="Send message"
-                        className="animate-in duration-150 fade-in-0 zoom-in-90"
+                        className="rounded-full animate-in duration-150 fade-in-0 zoom-in-90 aspect-square"
                       >
                         <ArrowUpIcon />
                       </Button>

@@ -9,7 +9,6 @@ import {
   Loader2,
   MoreHorizontal,
   Pin,
-  PinOff,
   Plus,
   Settings,
   Trash2,
@@ -60,6 +59,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/shared/ui/alert-dialog"
+import { cn } from "@/shared/lib/utils"
 
 function relativeTime(ts: number, now = Date.now()): string {
   const diff = Math.floor((now - ts) / 1000)
@@ -124,15 +124,11 @@ function ThreadRow({
               )}
             </span>
             <button
-              className="absolute inset-0 hidden items-center justify-center rounded p-0.5 hover:bg-accent group-hover/thread:flex"
+              className="absolute inset-0 flex items-center justify-center rounded p-0.5 text-muted-foreground/30 transition-colors hover:text-muted-foreground/80"
               onClick={handlePinToggle}
               title={thread.isPinned ? "Unpin thread" : "Pin thread"}
             >
-              {thread.isPinned ? (
-                <PinOff className="h-3 w-3 text-muted-foreground/60" />
-              ) : (
-                <Pin className="h-3 w-3 text-muted-foreground/50 opacity-0 group-hover/thread:opacity-100" />
-              )}
+              <Pin className="h-3 w-3" />
             </button>
           </span>
           <span className="truncate">{thread.title}</span>
