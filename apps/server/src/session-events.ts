@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, getMessageBlock, type MessageBlock } from "@lamda/db";
+import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, listRunningToolBlocks } from "@lamda/db";
 import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
 import { threadStatusBroadcaster } from "./thread-status-broadcaster.js";
 
@@ -76,7 +76,10 @@ class SessionEventHub {
     private readonly sessionId: string,
     private readonly threadId: string,
     private readonly handle: ManagedSessionHandle,
-  ) {}
+  ) {
+    // Start consuming immediately so we don't miss any events
+    this.ensureStarted();
+  }
 
   setNextThinkingLevel(level: string) {
     this.pendingThinkingLevel = level;
@@ -154,12 +157,27 @@ class SessionEventHub {
   private getReplayEvents(lastEventId?: string): SessionEventRecord[] {
     const parsedLastEventId = parseEventId(lastEventId);
     if (parsedLastEventId === null) {
-      return this.runInProgress ? [...this.currentRunEvents] : [];
+      if (this.runInProgress) {
+        // Include running tool blocks from DB for new subscribers
+        const toolBlocks = listRunningToolBlocks(this.threadId);
+        const toolEvents: SessionEventRecord[] = toolBlocks
+          .filter((b) => b.role === "tool" && b.toolStatus === "running")
+          .map((block) => ({
+            id: 0,
+            event: {
+              type: "tool_execution_start",
+              toolCallId: block.toolCallId ?? "",
+              toolName: block.toolName ?? "",
+              args: block.toolArgs ? JSON.parse(block.toolArgs) : {},
+            } as any,
+            data: "",
+          }));
+        return [...this.currentRunEvents, ...toolEvents];
+      }
+      return [];
     }
-
     const currentRunStartId = this.currentRunEvents[0]?.id;
     const currentRunEndId = this.currentRunEvents.at(-1)?.id;
-
     if (
       currentRunStartId !== undefined &&
       currentRunEndId !== undefined &&
@@ -171,7 +189,6 @@ class SessionEventHub {
             (record) => record.id > parsedLastEventId,
           );
     }
-
     return this.recentEvents.filter((record) => record.id > parsedLastEventId);
   }
 

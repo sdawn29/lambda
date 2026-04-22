@@ -1,13 +1,13 @@
 import { useEffect, useRef, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { openSessionEventSource } from "../api"
+import { openSessionEventSource, listRunningTools } from "../api"
 import { subscribeToSessionEvents, type AgentEndMessage } from "../session-events"
 import {
   messagesQueryKey,
 } from "../queries"
-import { createAssistantMessage, createErrorMessage } from "../types"
-import type { Message } from "../types"
+import { createAssistantMessage, createErrorMessage, blockToMessage } from "../types"
+import type { Message, ToolMessage } from "../types"
 
 interface TurnMeta {
   startTime: number
@@ -59,6 +59,53 @@ function upsertToolMessage(
   const next = [...prev]
   next[index] = updater(next[index])
   return next
+}
+
+/**
+ * Merge running tools into the message list.
+ * Running tools from the server are inserted at the correct position
+ * (after the assistant message but before any subsequent messages).
+ */
+function mergeRunningTools(
+  messages: Message[],
+  runningTools: Message[]
+): Message[] {
+  if (runningTools.length === 0) return messages
+  
+  // Filter out any existing running tools with the same toolCallId
+  const existingRunningToolIds = new Set(
+    messages
+      .filter((m): m is ToolMessage => m.role === "tool" && m.status === "running")
+      .map((m) => m.toolCallId)
+  )
+  
+  const newRunningTools = runningTools.filter(
+    (m): m is ToolMessage => 
+      m.role === "tool" && 
+      !existingRunningToolIds.has(m.toolCallId)
+  )
+  
+  if (newRunningTools.length === 0) return messages
+  
+  // Find the position to insert running tools
+  // They should appear after the last assistant message and before any user message or final tool
+  const lastAssistantIndex = messages.reduceRight(
+    (found, msg, i) => found === -1 && msg.role === "assistant" ? i : found,
+    -1
+  )
+  
+  if (lastAssistantIndex === -1) {
+    // No assistant message yet, append to end
+    return [...messages, ...newRunningTools]
+  }
+  
+  // Insert after assistant message, before next message
+  const insertIndex = lastAssistantIndex + 1
+  return [
+    ...messages.slice(0, insertIndex),
+    ...newRunningTools,
+    ...messages.slice(insertIndex)
+  ]
 }
 
 function appendAssistantDelta(
@@ -174,18 +221,23 @@ export function useSessionStream({
               upsertToolMessage(
                 msgs ?? [],
                 update.toolCallId,
-                (existing) => ({
-                  role: "tool" as const,
-                  toolCallId: update.toolCallId,
-                  toolName: update.toolName ?? (existing as Message | undefined)?.role === "tool"
-                    ? (existing as Message & { toolName: string }).toolName
-                    : "tool",
-                  args: update.args ?? (existing as Message & { args: unknown })?.args ?? {},
-                  status: update.status,
-                  result: update.result ?? (existing as Message & { result?: unknown })?.result,
-                  duration: update.duration ?? (existing as Message & { duration?: number })?.duration,
-                  startTime: update.startTime ?? (existing as Message & { startTime?: number })?.startTime,
-                })
+                (existing) => {
+                  // Safely get existing tool properties
+                  const existingTool = existing?.role === "tool" 
+                    ? existing as ToolMessage 
+                    : null
+                  
+                  return {
+                    role: "tool" as const,
+                    toolCallId: update.toolCallId,
+                    toolName: update.toolName ?? existingTool?.toolName ?? "tool",
+                    args: update.args ?? existingTool?.args ?? {},
+                    status: update.status,
+                    result: update.result ?? existingTool?.result,
+                    duration: update.duration ?? existingTool?.duration,
+                    startTime: update.startTime ?? existingTool?.startTime,
+                  } as ToolMessage
+                }
               ),
             prev ?? []
           )
@@ -232,6 +284,29 @@ export function useSessionStream({
         eventSource = es
 
         return subscribeToSessionEvents(es, {
+          // Restore running tools on connect
+          onAgentStart: () => {
+            // Fetch and inject running tools from server on initial connect
+            void (async () => {
+              try {
+                const { runningTools: blocks } = await listRunningTools(sessionId)
+                if (blocks.length === 0) return
+                
+                const tools = blocks
+                  .map((block) => blockToMessage(block))
+                  .filter((msg): msg is ToolMessage => msg.role === "tool" && msg.status === "running")
+                
+                if (tools.length > 0) {
+                  queryClient.setQueryData<Message[]>(
+                    messagesQueryKey(sessionId),
+                    (prev) => mergeRunningTools(prev ?? [], tools)
+                  )
+                }
+              } catch (e) {
+                console.warn("[session-stream] Failed to fetch running tools:", e)
+              }
+            })()
+          },
           onMessageStart: (data) => {
             if (!active || data.message?.role !== "assistant") return
             onMessageStart?.()
@@ -399,7 +474,6 @@ export function useSessionStream({
           onMessageEnd: () => {},
           onTurnStart: () => {},
           onTurnEnd: () => {},
-          onAgentStart: () => {},
           onQueueUpdate: () => {},
           onAutoRetryStart: ({ attempt, errorMessage }) => {
             if (!active) return

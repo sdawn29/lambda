@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { join, relative } from "path";
 import { readdir } from "fs/promises";
-import { insertWorkspace, insertThread, insertUserBlock, listMessageBlocks } from "@lamda/db";
+import { insertWorkspace, insertThread, insertUserBlock, listMessageBlocks, listRunningToolBlocks } from "@lamda/db";
 import { store } from "../store.js";
 import { sessionEvents, SESSION_SSE_RETRY_MS } from "../session-events.js";
 import {
@@ -211,6 +211,19 @@ sessions.get("/session/:id/messages", (c) => {
   
   const blocks = listMessageBlocks(threadId);
   return c.json({ blocks });
+});
+
+/**
+ * Get running tool blocks for a session's thread.
+ * Returns tool blocks that are currently running (for state restoration).
+ */
+sessions.get("/session/:id/running-tools", (c) => {
+  const id = c.req.param("id");
+  const threadId = store.getThreadId(id);
+  if (!threadId) return c.json({ error: "Session not found" }, 404);
+  
+  const runningTools = listRunningToolBlocks(threadId);
+  return c.json({ runningTools });
 });
 
 sessions.get("/session/:id/events", async (c) => {

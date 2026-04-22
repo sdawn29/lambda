@@ -145,6 +145,26 @@ export function listMessages(
 }
 
 /**
+ * Response from /session/:id/running-tools endpoint.
+ * Returns tool blocks that are currently running.
+ */
+export interface RunningToolsResponse {
+  runningTools: MessageBlock[]
+}
+
+/**
+ * Fetch running tool blocks for a session.
+ * Used to restore tool state on page reload/reconnect.
+ */
+export function listRunningTools(
+  sessionId: string
+): Promise<RunningToolsResponse> {
+  return apiFetch<RunningToolsResponse>(
+    `/session/${sessionId}/running-tools`
+  )
+}
+
+/**
  * Legacy message list endpoint for backward compatibility.
  * @deprecated Use listMessages instead.
  */

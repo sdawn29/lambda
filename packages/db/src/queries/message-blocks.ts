@@ -271,3 +271,18 @@ export function getBlockCount(threadId: string): number {
     .all();
   return result.length;
 }
+
+/**
+ * Get running tool blocks for a thread.
+ * Used to restore tool states on reconnect/reload.
+ */
+export function listRunningToolBlocks(threadId: string): MessageBlock[] {
+  return db
+    .select()
+    .from(messageBlocks)
+    .where(eq(messageBlocks.threadId, threadId))
+    .orderBy(asc(messageBlocks.blockIndex))
+    .all()
+    .map(toMessageBlock)
+    .filter((block) => block.role === "tool" && block.toolStatus === "running");
+}
