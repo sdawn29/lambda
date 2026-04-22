@@ -123,6 +123,16 @@ export const markdownComponents: Components = {
     return <CodeBlock className={className}>{children}</CodeBlock>
   },
   // ── Links ───────────────────────────────────────────────────────────────────
+  // ── Headings ─────────────────────────────────────────────────────────────
+  // Render all heading levels as h4 to keep the chat UI compact.
+  h1: ({ children }) => <h4>{children}</h4>,
+  h2: ({ children }) => <h4>{children}</h4>,
+  h3: ({ children }) => <h4>{children}</h4>,
+  h4: ({ children }) => <h4>{children}</h4>,
+  h5: ({ children }) => <h4>{children}</h4>,
+  h6: ({ children }) => <h4>{children}</h4>,
+
+  // ── Links ───────────────────────────────────────────────────────────────────
   a: ({ href, children }) => (
     <a href={href} target="_blank" rel="noreferrer">
       {children}
