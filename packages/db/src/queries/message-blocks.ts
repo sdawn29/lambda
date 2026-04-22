@@ -10,7 +10,7 @@ export interface MessageBlock {
   id: string;
   threadId: string;
   blockIndex: number;
-  role: "user" | "assistant" | "tool";
+  role: "user" | "assistant" | "tool" | "abort";
   content: string | null;
   thinking: string | null;
   model: string | null;
@@ -285,4 +285,24 @@ export function listRunningToolBlocks(threadId: string): MessageBlock[] {
     .all()
     .map(toMessageBlock)
     .filter((block) => block.role === "tool" && block.toolStatus === "running");
+}
+
+/**
+ * Insert an abort message block.
+ * This marks when a user aborted the current agent operation.
+ */
+export function insertAbortBlock(threadId: string): string {
+  const id = randomUUID();
+  const blockIndex = getNextBlockIndex(threadId);
+  db.insert(messageBlocks)
+    .values({
+      id,
+      threadId,
+      blockIndex,
+      role: "abort",
+      content: null,
+      createdAt: Date.now(),
+    })
+    .run();
+  return id;
 }

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { join, relative } from "path";
 import { readdir } from "fs/promises";
-import { insertWorkspace, insertThread, insertUserBlock, listMessageBlocks, listRunningToolBlocks } from "@lamda/db";
+import { insertWorkspace, insertThread, insertUserBlock, insertAbortBlock, listMessageBlocks, listRunningToolBlocks } from "@lamda/db";
 import { store } from "../store.js";
 import { sessionEvents, SESSION_SSE_RETRY_MS } from "../session-events.js";
 import {
@@ -48,6 +48,10 @@ sessions.post("/session/:id/abort", async (c) => {
   const id = c.req.param("id");
   const entry = store.get(id);
   if (!entry) return c.json({ error: "Not found" }, 404);
+  
+  // Insert abort block before calling abort
+  insertAbortBlock(entry.threadId);
+  
   await entry.handle.abort();
   return c.json({ aborted: true });
 });

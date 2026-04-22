@@ -78,7 +78,7 @@ function createDb() {
       id              TEXT PRIMARY KEY,
       thread_id       TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
       block_index     INTEGER NOT NULL,
-      role            TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool')),
+      role            TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool', 'abort')),
       content         TEXT,
       thinking        TEXT,
       model           TEXT,
@@ -107,6 +107,53 @@ function createDb() {
     CREATE UNIQUE INDEX IF NOT EXISTS workspaces_path_unique ON workspaces(path);
     CREATE INDEX IF NOT EXISTS message_blocks_thread_idx ON message_blocks(thread_id, block_index);
   `);
+
+  // Migration: Update message_blocks CHECK constraint to include 'abort' role
+  // SQLite doesn't support ALTER TABLE for CHECK constraints, so we need to recreate
+  try {
+    const result = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='message_blocks'").get() as { sql: string } | undefined;
+    if (result && !result.sql.includes("'abort'")) {
+      // Check constraint doesn't include 'abort', need to migrate
+      const columns = [
+        'id', 'thread_id', 'block_index', 'role', 'content', 'thinking',
+        'model', 'provider', 'thinking_level', 'response_time', 'error_message',
+        'tool_call_id', 'tool_name', 'tool_args', 'tool_result', 'tool_status',
+        'tool_duration', 'tool_start_time', 'created_at'
+      ];
+      const colList = columns.join(', ');
+      
+      // Create new table with updated constraint
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS message_blocks_new (
+          id              TEXT PRIMARY KEY,
+          thread_id       TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          block_index     INTEGER NOT NULL,
+          role            TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool', 'abort')),
+          content         TEXT,
+          thinking        TEXT,
+          model           TEXT,
+          provider        TEXT,
+          thinking_level  TEXT,
+          response_time   INTEGER,
+          error_message   TEXT,
+          tool_call_id    TEXT,
+          tool_name       TEXT,
+          tool_args       TEXT,
+          tool_result     TEXT,
+          tool_status     TEXT CHECK(tool_status IN ('running', 'done', 'error')),
+          tool_duration   INTEGER,
+          tool_start_time INTEGER,
+          created_at      INTEGER NOT NULL
+        );
+        INSERT INTO message_blocks_new (${colList}) SELECT ${colList} FROM message_blocks;
+        DROP TABLE message_blocks;
+        ALTER TABLE message_blocks_new RENAME TO message_blocks;
+      `);
+    }
+  } catch (e) {
+    // Migration may fail if table already has correct schema or on first run
+    // This is expected and safe to ignore
+  }
 
   return db;
 }

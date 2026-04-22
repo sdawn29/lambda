@@ -21,6 +21,7 @@ import {
   type ErrorMessage,
   type Message,
   type UserMessage,
+  type AbortMessage,
 } from "../types"
 
 function assistantCopyText(
@@ -159,7 +160,7 @@ function AssistantMessageBlock({
 }
 
 export function getMessageKey(message: Message, index: number): string {
-  if (message.role === "error") return message.id
+  if (message.role === "error" || message.role === "abort") return message.id
   return message.role === "tool"
     ? message.toolCallId
     : `${message.role}-${index}`
@@ -258,6 +259,18 @@ export interface MessageRowProps {
   onAction?: (action: ErrorAction, id: string) => void
 }
 
+function AbortBlock({ message }: { message: AbortMessage }) {
+  return (
+    <div className="flex items-center gap-3 py-3">
+      <div className="flex-1 h-px bg-border" />
+      <div className="shrink-0 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive/80">
+        Operation Aborted
+      </div>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  )
+}
+
 export const MessageRow = memo(function MessageRow({
   message,
   commandsByName,
@@ -266,6 +279,10 @@ export const MessageRow = memo(function MessageRow({
 }: MessageRowProps) {
   if (message.role === "tool") {
     return <ToolCallBlock msg={message} />
+  }
+
+  if (message.role === "abort") {
+    return <AbortBlock message={message} />
   }
 
   if (message.role === "user") {

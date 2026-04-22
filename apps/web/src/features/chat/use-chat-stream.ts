@@ -7,7 +7,7 @@
  * - Streaming status (isLoading, isStopped, isCompacting)
  * - Error handling (pending errors)
  */
-import { useCallback, useState, useMemo, useRef, useEffect } from "react"
+import { useCallback, useState, useMemo, useEffect, startTransition } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSessionStream } from "./hooks/use-session-stream"
@@ -72,7 +72,9 @@ export function useChatStream({
   // Reset loading state when sessionId changes (i.e., when switching threads)
   // This ensures that stale loading states don't persist across threads
   useEffect(() => {
-    setIsLoadingInternal(false)
+    startTransition(() => {
+      setIsLoadingInternal(false)
+    })
   }, [sessionId])
 
   const hasLoadedMessages = messages.length > 0 || isLoading
@@ -83,7 +85,7 @@ export function useChatStream({
 
   // Add user message immediately to cache (optimistic update)
   const startUserPrompt = useCallback(
-    (text: string, thinkingLevel?: string) => {
+    (text: string, _thinkingLevel?: string) => {
       setIsStopped(false)
       setIsLoadingInternal(true) // Immediately show loading state
 
@@ -117,21 +119,30 @@ export function useChatStream({
   // Track when this thread last reported loading to handle SSE reconnection
   // If isLoadingInternal has been true for too long without being cleared, assume the
   // agent has finished (handles edge cases where agent_end wasn't received)
-  const lastLoadingTimeRef = useRef<number | null>(null)
+  const LOADING_TIMEOUT_MS = 5 * 60 * 1000
+  const [isTimedOut, setIsTimedOut] = useState(false)
 
   useEffect(() => {
-    if (isLoadingInternal) {
-      lastLoadingTimeRef.current = Date.now()
-    } else {
-      lastLoadingTimeRef.current = null
+    if (!isLoadingInternal) {
+      startTransition(() => {
+        setIsTimedOut(false)
+      })
+      return
     }
-  }, [isLoadingInternal])
 
-  // Safety: if loading for more than 5 minutes without progress, assume finished
-  // This handles edge cases like SSE disconnection without agent_end
-  const LOADING_TIMEOUT_MS = 5 * 60 * 1000
-  const isTimedOut = lastLoadingTimeRef.current !== null &&
-    Date.now() - lastLoadingTimeRef.current > LOADING_TIMEOUT_MS
+    const startTime = Date.now()
+    
+    const checkTimeout = () => {
+      startTransition(() => {
+        setIsTimedOut(Date.now() - startTime > LOADING_TIMEOUT_MS)
+      })
+    }
+
+    // Check immediately and then every second
+    checkTimeout()
+    const interval = setInterval(checkTimeout, 1000)
+    return () => clearInterval(interval)
+  }, [isLoadingInternal, LOADING_TIMEOUT_MS])
 
   // isLoading is true only if this thread's SSE reports loading
   // Each ChatView has its own sessionId, so only the thread with active SSE shows loading

@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import type { ErrorMessage, Message } from "../types"
 import {
   SparklesIcon,
-  StopCircleIcon,
   ArrowDownIcon,
   Code2Icon,
   BugIcon,
@@ -70,7 +69,6 @@ export function ChatView({
     visibleMessages,
     hasConversationHistory,
     isLoading,
-    isStopped,
     isCompacting,
     startUserPrompt,
     markStopped,
@@ -453,14 +451,6 @@ export function ChatView({
                 <Badge variant="secondary" className="gap-1">
                   <SparklesIcon />
                   Compacting context…
-                </Badge>
-              </div>
-            )}
-            {isStopped && !isLoading && (
-              <div className="flex animate-in duration-200 fade-in-0">
-                <Badge variant="destructive" className="gap-1">
-                  <StopCircleIcon />
-                  Interrupted
                 </Badge>
               </div>
             )}

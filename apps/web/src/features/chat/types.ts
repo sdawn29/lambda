@@ -103,9 +103,17 @@ export function createErrorMessage(
   }
 }
 
+// ── Abort Messages ─────────────────────────────────────────────────────────────
+
+export interface AbortMessage {
+  role: "abort"
+  id: string
+  createdAt?: number
+}
+
 // ── Union Type ─────────────────────────────────────────────────────────────────
 
-export type Message = UserMessage | AssistantMessage | ToolMessage | ErrorMessage
+export type Message = UserMessage | AssistantMessage | ToolMessage | ErrorMessage | AbortMessage
 
 // ── Database Block Types ─────────────────────────────────────────────────────
 
@@ -117,7 +125,7 @@ export interface MessageBlock {
   id: string
   threadId: string
   blockIndex: number
-  role: "user" | "assistant" | "tool"
+  role: "user" | "assistant" | "tool" | "abort"
   content: string | null
   thinking: string | null
   model: string | null
@@ -205,6 +213,13 @@ export function blockToMessage(block: MessageBlock): Message {
         result,
         duration: block.toolDuration ?? undefined,
         startTime: block.toolStartTime ?? undefined,
+      }
+
+    case "abort":
+      return {
+        role: "abort",
+        id: block.id,
+        createdAt: block.createdAt,
       }
 
     default:
