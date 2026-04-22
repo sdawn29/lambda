@@ -107,7 +107,6 @@ export function ChatView({
   )
   const updateThreadModel = useUpdateThreadModel()
   const updateThreadStopped = useUpdateThreadStopped()
-  const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(false)
   const initialScrollDoneRef = useRef(false)
@@ -219,11 +218,10 @@ export function ChatView({
     const el = scrollContainerRef.current
     if (!el) return
     const frame = requestAnimationFrame(() => {
-      if (isLoading) {
-        el.scrollTop = el.scrollHeight
-      } else {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-      }
+      // Always use instant scrollTop assignment for reliability.
+      // scrollIntoView with smooth behavior can be interrupted by DOM
+      // updates mid-animation, leaving the view short of the true bottom.
+      el.scrollTop = el.scrollHeight
     })
 
     return () => cancelAnimationFrame(frame)
@@ -459,7 +457,6 @@ export function ChatView({
               </div>
             )}
           </div>
-          <div ref={bottomRef} />
         </div>
 
         {showScrollButton && (
