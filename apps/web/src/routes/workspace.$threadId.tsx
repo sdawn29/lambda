@@ -41,12 +41,23 @@ function WorkspaceThreadRoute() {
   const { threadId } = Route.useParams()
   const { workspaces, isLoading } = useWorkspace()
   const navigate = useNavigate()
-  const { isOpen: diffOpen, isFullscreen: diffFullscreen } = useDiffPanel()
+  const { isOpen: diffOpen, isFullscreen: diffFullscreen, setCurrentWorkspace } = useDiffPanel()
   const { isOpen: terminalOpen } = useTerminal()
   const { isOpen: fileTreeOpen } = useFileTree()
   const updateSetting = useUpdateAppSetting()
   const updateLastAccessed = useUpdateThreadLastAccessed()
   const setThreadStatus = useSetThreadStatus()
+
+  // Find current workspace
+  const foundWorkspace = workspaces.find((ws) =>
+    ws.threads.some((t) => t.id === threadId)
+  )
+  const foundThread = foundWorkspace?.threads.find((t) => t.id === threadId)
+
+  // Set current workspace when entering a workspace
+  useEffect(() => {
+    setCurrentWorkspace(foundWorkspace?.path ?? null)
+  }, [foundWorkspace?.path, setCurrentWorkspace])
 
   useEffect(() => {
     updateSetting.mutate({
@@ -57,17 +68,6 @@ function WorkspaceThreadRoute() {
     setThreadStatus(threadId, "idle")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId])
-
-  let foundWorkspace = null
-  let foundThread = null
-  for (const ws of workspaces) {
-    const thread = ws.threads.find((t) => t.id === threadId)
-    if (thread) {
-      foundWorkspace = ws
-      foundThread = thread
-      break
-    }
-  }
 
   useEffect(() => {
     if (!isLoading && !foundThread) {
@@ -91,9 +91,9 @@ function WorkspaceThreadRoute() {
 
   return (
     <ResizablePanelGroup orientation="vertical" className="h-full border-t">
-      <ResizablePanel defaultSize={50} minSize={30}>
+      <ResizablePanel defaultSize={50} minSize={50}>
         <ResizablePanelGroup orientation="horizontal">
-          <ResizablePanel defaultSize={50} minSize={30}>
+          <ResizablePanel defaultSize={50} minSize={50}>
             <ChatView
               sessionId={foundThread.sessionId}
               workspaceId={foundWorkspace.id}
@@ -105,7 +105,7 @@ function WorkspaceThreadRoute() {
           {diffOpen && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={50} minSize={25}>
+              <ResizablePanel defaultSize={50} minSize={50}>
                 <Suspense
                   fallback={
                     <div className="h-full border-l border-border/60 bg-muted/10" />
