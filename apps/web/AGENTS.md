@@ -1,10 +1,10 @@
 # AGENTS.md — web
 
-> Auto-generated context for coding agents. Last updated: 2026-04-21
+> Auto-generated context for coding agents. Last updated: 2026-04-22
 
 ## Purpose
 
-React web UI layer — the primary user interface for the lamda desktop app, providing chat interface, workspace management, diff panel, terminal, and settings.
+React web UI layer — the primary user interface for the lamda desktop app, providing chat interface, workspace management, diff panel, terminal, file browser, and settings.
 
 ## Quick Reference
 
@@ -14,7 +14,7 @@ React web UI layer — the primary user interface for the lamda desktop app, pro
 | Build     | `npm run build -w web`       |
 | Lint      | `npm run lint -w web`        |
 | Typecheck | `npm run check-types -w web` |
-| Preview   | `npm run preview -w web`     |
+| Preview   | `npm run preview -w web`    |
 
 ## Architecture
 
@@ -23,7 +23,7 @@ Single-page React app using Vite + TanStack Router for file-based routing. UI co
 ### Key Directories
 
 - `src/routes/` — TanStack Router file-based routes
-- `src/features/` — Feature modules (chat, git, workspace, settings, terminal, layout, electron)
+- `src/features/` — Feature modules (chat, git, workspace, settings, terminal, layout, electron, file-tree)
 - `src/shared/` — Shared UI components used across features
 - `src/types/` — TypeScript type definitions
 
@@ -38,13 +38,23 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - `features/terminal/` — xterm.js terminal panel
 - `features/layout/` — Title bar, open-with button
 - `features/electron/` — Electron-specific APIs (server port discovery)
+- `features/file-tree/` — File browser with directory listing via server API
+
+### Routes (src/routes/)
+
+| File                  | Route                  | Purpose                                   |
+| --------------------- | ---------------------- | ----------------------------------------- |
+| `__root.tsx`          | `/`                    | Root layout with sidebar, workspace list  |
+| `index.tsx`           | `/`                    | Redirects to last active thread           |
+| `workspace.$threadId` | `/workspace/:threadId` | Main workspace view with chat/diff/tree   |
+| `settings.tsx`        | `/settings`            | Settings page route                       |
 
 ## Key Files
 
 - `src/main.tsx` — React app entry point
-- `src/routes/__root.tsx` — Root route layout
-- `src/routes/index.tsx` — Main page route (redirects to last thread)
-- `src/routes/workspace.$threadId.tsx` — Thread view route
+- `src/routes/__root.tsx` — Root route layout with sidebar and workspace navigation
+- `src/routes/index.tsx` — Redirects to last thread or workspace list
+- `src/routes/workspace.$threadId.tsx` — Thread view with ChatView, DiffPanel, TerminalPanel, FileTree
 - `src/routes/settings.tsx` — Settings page route
 - `src/routeTree.gen.ts` — Auto-generated route tree (do not edit manually)
 - `src/features/chat/components/chat-view.tsx` — Main chat interface
@@ -53,6 +63,7 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - `src/features/workspace/components/app-sidebar.tsx` — Application sidebar navigation
 - `src/features/terminal/components/terminal-panel.tsx` — Terminal output panel
 - `src/features/layout/components/title-bar.tsx` — Custom title bar (for Electron frameless window)
+- `src/features/file-tree/components/file-tree.tsx` — File browser with lazy loading
 - `src/shared/ui/` — shadcn/ui components
 
 ## Conventions
@@ -64,6 +75,7 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - **Data fetching** — use TanStack Query via feature-level `queries.ts` and `mutations.ts`
 - **Styling** — Tailwind CSS 4 with `@tailwindcss/vite` plugin; use `cn()` utility for conditional classes
 - **React Compiler** — enabled via `babel-plugin-react-compiler` in Vite config
+- **Lazy loading** — Heavy components (DiffPanel, TerminalPanel, FileTree) use `React.lazy()` with Suspense
 
 ## Dependencies
 
@@ -76,6 +88,10 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - `lucide-react` — Icon library
 - `class-variance-authority` — Component variant management
 - `@xterm/xterm` + `@xterm/addon-fit` — Terminal emulation
+- `react-resizable-panels` — Resizable panel layout for chat/diff/terminal
+- `cmdk` — Command menu component
+- `sonner` — Toast notifications
+- `next-themes` — Theme management
 
 ## Gotchas
 
@@ -84,6 +100,8 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - Tailwind CSS 4 uses a different config approach than v3 — check `index.css` for theme configuration
 - The `title-bar` component is designed for Electron frameless window integration
 - xterm.js requires the fit addon to properly resize in the terminal panel
+- FileTree fetches directory contents from `/api/directory` endpoint; requires server to support this route
+- Heavy components (DiffPanel, TerminalPanel, FileTree) are lazily loaded with Suspense for code splitting
 
 ## Related
 

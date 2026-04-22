@@ -1,6 +1,6 @@
 # AGENTS.md — db
 
-> Auto-generated context for coding agents. Last updated: 2026-04-21
+> Auto-generated context for coding agents. Last updated: 2026-04-22
 
 ## Purpose
 
@@ -35,10 +35,10 @@ Single-file database client (`client.ts`) that:
 
 | Table        | Columns                                                                                           |
 | ------------ | ------------------------------------------------------------------------------------------------- |
-| `workspaces` | `id` (TEXT PK), `name`, `path`, `created_at`                                                      |
-| `threads`    | `id` (TEXT PK), `workspace_id` (FK → workspaces), `title`, `created_at`                           |
+| `workspaces` | `id` (TEXT PK), `name`, `path`, `open_with_app_id`, `created_at`                                   |
+| `threads`    | `id` (TEXT PK), `workspace_id` (FK → workspaces), `title`, `session_file`, `model_id`, `is_stopped`, `is_archived`, `is_pinned`, `last_accessed_at`, `created_at` |
 | `messages`   | `id` (TEXT PK), `thread_id` (FK → threads), `role` (user/assistant/tool), `content`, `created_at` |
-| `settings`   | `key` (TEXT PK), `value`                                                                          |
+| `settings`   | `key` (TEXT PK), `value`                                                                         |
 
 All IDs are UUIDs. Timestamps are Unix epoch integers. Foreign keys cascade on delete.
 
@@ -60,6 +60,7 @@ All IDs are UUIDs. Timestamps are Unix epoch integers. Foreign keys cascade on d
 - **No migration system** — adding a new column requires manually updating the `CREATE TABLE` statement in `client.ts` and considering backward compatibility
 - **Synchronous by design** — all DB operations block the event loop; acceptable for a single-user desktop app but would need refactoring for server use
 - **No connection pooling** — single SQLite connection; fine for desktop but not for concurrent access
+- **Threads have extended metadata** — `isStopped`, `isArchived`, `isPinned` flags plus `sessionFile` path and `modelId` for session persistence
 
 ## Related
 

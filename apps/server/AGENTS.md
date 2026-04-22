@@ -1,17 +1,17 @@
 # AGENTS.md — server
 
-> Auto-generated context for coding agents. Last updated: 2026-04-21
+> Auto-generated context for coding agents. Last updated: 2026-04-22
 
 ## Purpose
 
-Hono API server that manages Pi coding agent sessions, handles workspace/thread CRUD, and streams agent events to the web UI via SSE.
+Hono API server that manages Pi coding agent sessions, handles workspace/thread CRUD, provides file system access, and streams agent events to the web UI via SSE.
 
 ## Quick Reference
 
 | Action    | Command                                |
 | --------- | -------------------------------------- |
 | Dev       | `npm run dev -w @lamda/server`         |
-| Build     | `npm run build -w @lamda/server`       |
+| Build     | `npm run build -w @lamda/server`        |
 | Start     | `npm run start -w @lamda/server`       |
 | Typecheck | `npm run check-types -w @lamda/server` |
 
@@ -20,12 +20,12 @@ Hono API server that manages Pi coding agent sessions, handles workspace/thread 
 Hono server (default port 3001) with three layers:
 
 1. **Entry** (`index.ts`) — Resolves port, bootstraps persisted sessions, starts HTTP server, signals readiness via JSON on stdout
-2. **Routes** (`routes/`) — API endpoints organized by domain: workspaces, threads, sessions, git, auth, settings, health
+2. **Routes** (`routes/`) — API endpoints organized by domain: workspaces, threads, sessions, git, auth, settings, health, directory, file
 3. **Services** (`services/`) — Business logic for session management, terminal, and auth
 
 ### Directory Structure
 
-- `src/routes/` — Hono route handlers (workspaces, threads, sessions, git, auth, settings, health)
+- `src/routes/` — Hono route handlers (workspaces, threads, sessions, git, auth, settings, health, directory, file)
 - `src/services/` — Business logic layer (session-service, terminal-service, auth-service)
 - `src/index.ts` — Entry point; writes `{ready: true, port: N}` to stdout for Electron parent process
 - `src/app.ts` — Hono app setup with all routes registered
@@ -40,26 +40,28 @@ Hono server (default port 3001) with three layers:
 
 ### Routes (src/routes/)
 
-| Method   | Path                             | Description                                              |
-| -------- | -------------------------------- | -------------------------------------------------------- |
-| `GET`    | `/health`                        | Health check with uptime                                 |
-| `GET`    | `/models`                        | List available AI models                                 |
-| `POST`   | `/title`                         | Generate a thread title from a message                   |
-| `GET`    | `/workspaces`                    | List all workspaces with their threads                   |
-| `POST`   | `/workspace`                     | Create workspace + initial thread + Pi session           |
-| `DELETE` | `/workspace/:id`                 | Delete workspace and all associated sessions             |
-| `POST`   | `/workspace/:workspaceId/thread` | Create new thread + Pi session in workspace              |
-| `DELETE` | `/thread/:id`                    | Delete thread and its session                            |
+| Method   | Path                              | Description                                              |
+| -------- | --------------------------------- | -------------------------------------------------------- |
+| `GET`    | `/health`                         | Health check with uptime                                 |
+| `GET`    | `/models`                         | List available AI models                                 |
+| `POST`   | `/title`                          | Generate a thread title from a message                   |
+| `GET`    | `/workspaces`                     | List all workspaces with their threads                   |
+| `POST`   | `/workspace`                      | Create workspace + initial thread + Pi session            |
+| `DELETE` | `/workspace/:id`                 | Delete workspace and all associated sessions              |
+| `POST`   | `/workspace/:workspaceId/thread` | Create new thread + Pi session in workspace                |
+| `DELETE` | `/thread/:id`                     | Delete thread and its session                             |
 | `PATCH`  | `/thread/:id/title`              | Update thread title                                      |
-| `POST`   | `/session`                       | Legacy: create standalone session                        |
-| `DELETE` | `/session/:id`                   | Delete session                                           |
-| `POST`   | `/session/:id/prompt`            | Send user prompt to agent (returns 202, fire-and-forget) |
-| `GET`    | `/session/:id/branch`            | Get current git branch for session's cwd                 |
+| `POST`   | `/session`                        | Legacy: create standalone session                        |
+| `DELETE` | `/session/:id`                    | Delete session                                           |
+| `POST`   | `/session/:id/prompt`            | Send user prompt to agent (returns 202, fire-and-forget)  |
+| `GET`    | `/session/:id/branch`            | Get current git branch for session's cwd                  |
 | `GET`    | `/session/:id/branches`          | List all git branches for session's cwd                  |
 | `POST`   | `/session/:id/checkout`          | Checkout a git branch                                    |
 | `GET`    | `/session/:id/messages`          | Get persisted messages for session                       |
 | `GET`    | `/session/:id/events`            | SSE stream of agent events                               |
-| `DELETE` | `/reset`                         | Delete all workspaces and sessions (debug)               |
+| `DELETE` | `/reset`                          | Delete all workspaces and sessions (debug)               |
+| `GET`    | `/directory`                     | List directory contents for file browser                 |
+| `GET`    | `/file`                          | Read file contents for preview                           |
 
 ### Services (src/services/)
 
@@ -82,6 +84,9 @@ Hono server (default port 3001) with three layers:
 - `@lamda/pi-sdk` — Pi coding agent session management
 - `@lamda/db` — Database queries for persistence
 - `@lamda/git` — Git operations (branch detection)
+- `node-pty` — PTY for terminal emulation
+- `ws` — WebSocket support for terminal
+- `@types/ws` — TypeScript types for WebSocket
 - `tsx` — TypeScript execution in development
 - `esbuild` — Production bundler
 
@@ -92,6 +97,7 @@ Hono server (default port 3001) with three layers:
 - **Message buffering**: Assistant text deltas are accumulated in `messageBuffer` and only flushed to the DB on `agent_end` or stream abort. This prevents partial messages in the database.
 - **Session bootstrap is non-fatal**: On startup, individual session creation failures are logged but don't crash the server.
 - **Build script** uses `build.mjs` (custom esbuild config), not `tsc` — the output is a single CJS bundle.
+- **Directory endpoint** (`/directory`) is used by the web UI's file browser feature to load workspace directory trees
 
 ## Related
 

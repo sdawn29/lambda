@@ -1,6 +1,6 @@
 # AGENTS.md — desktop
 
-> Auto-generated context for coding agents. Last updated: 2026-04-21
+> Auto-generated context for coding agents. Last updated: 2026-04-22
 
 ## Purpose
 
