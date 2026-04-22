@@ -9,8 +9,6 @@ export {
   useSessionStream,
   useVisibleMessages,
   useScrollMeta,
-  usePrefetchMessages,
-  prefetchSessionMessages,
 } from "./hooks"
 export type { PendingError } from "./hooks/use-scroll-meta"
 export type {

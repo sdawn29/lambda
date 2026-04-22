@@ -87,7 +87,6 @@ function WorkspaceThreadRoute() {
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize={50} minSize={30}>
             <ChatView
-              key={foundThread.id}
               sessionId={foundThread.sessionId}
               workspaceId={foundWorkspace.id}
               threadId={foundThread.id}

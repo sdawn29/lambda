@@ -1,66 +1,50 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { listMessages } from "../api"
+import { useWorkspaces } from "@/features/workspace"
 import { messagesQueryKey, storedToMessage } from "../queries"
-import type { Workspace } from "@/features/workspace"
+import { listMessages } from "../api"
+import type { Message } from "../types"
 
-interface UsePrefetchMessagesOptions {
-  threadId: string
-  workspaces: Workspace[]
+interface UsePrefetchThreadsMessagesOptions {
+  /** Only prefetch when this thread is active (optional) */
+  activeThreadId?: string | null
 }
 
 /**
- * Prefetches messages for a thread when the component mounts.
- * This ensures messages are in the cache before the chat view renders,
- * eliminating loading spinners on subsequent visits.
+ * Prefetches messages for all threads in the workspace context.
+ * 
+ * This hook should be used at the app root level to ensure all thread messages
+ * are cached when the user views the sidebar, making thread switches instant.
  */
-export function usePrefetchMessages({
-  threadId,
-  workspaces,
-}: UsePrefetchMessagesOptions) {
+export function usePrefetchThreadsMessages({
+  activeThreadId,
+}: UsePrefetchThreadsMessagesOptions = {}) {
+  const { data: workspaces = [] } = useWorkspaces()
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!threadId) return
+    for (const workspace of workspaces) {
+      for (const thread of workspace.threads) {
+        if (!thread.sessionId) continue
 
-    // Find the thread's session ID
-    let sessionId: string | null = null
-    for (const ws of workspaces) {
-      const thread = ws.threads.find((t) => t.id === threadId)
-      if (thread?.sessionId) {
-        sessionId = thread.sessionId
-        break
+        // Skip if already cached with data
+        const cachedData = queryClient.getQueryData<Message[]>(
+          messagesQueryKey(thread.sessionId)
+        )
+        if (cachedData && cachedData.length > 0) {
+          continue
+        }
+
+        // Start prefetch in background
+        void queryClient.prefetchQuery({
+          queryKey: messagesQueryKey(thread.sessionId),
+          queryFn: async () => {
+            const { messages: stored } = await listMessages(thread.sessionId!)
+            return stored.map(storedToMessage)
+          },
+          staleTime: 30 * 60 * 1000,
+        })
       }
     }
-
-    if (!sessionId) return
-
-    // Prefetch messages if not already cached
-    void queryClient.prefetchQuery({
-      queryKey: messagesQueryKey(sessionId),
-      queryFn: async () => {
-        const { messages: stored } = await listMessages(sessionId!)
-        return stored.map(storedToMessage)
-      },
-      staleTime: 5 * 60 * 1000,
-    })
-  }, [threadId, workspaces, queryClient])
-}
-
-/**
- * Prefetch messages for a specific session.
- * Call this when navigating to a workspace to warm the cache.
- */
-export function prefetchSessionMessages(
-  queryClient: ReturnType<typeof useQueryClient>,
-  sessionId: string
-) {
-  void queryClient.prefetchQuery({
-    queryKey: messagesQueryKey(sessionId),
-    queryFn: async () => {
-      const { messages: stored } = await listMessages(sessionId)
-      return stored.map(storedToMessage)
-    },
-    staleTime: 5 * 60 * 1000,
-  })
+  }, [workspaces, queryClient, activeThreadId])
 }

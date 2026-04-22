@@ -42,7 +42,6 @@ import {
 } from "@/features/workspace/mutations"
 import { useChatStream } from "../use-chat-stream"
 import { useApiErrorToasts } from "../hooks/use-api-error-toasts"
-import { usePrefetchMessages } from "../hooks/use-prefetch-messages"
 
 interface ChatViewProps {
   sessionId: string
@@ -63,11 +62,7 @@ export function ChatView({
   const showThinkingSetting = useShowThinkingSetting()
   const { data: models, isLoading: modelsLoading } = useModels()
   const { openConfigure } = useConfigureProvider()
-  const { workspaces } = useWorkspace()
   const noProvider = !modelsLoading && !models?.models?.length
-
-  // Prefetch messages for smooth initial render
-  usePrefetchMessages({ threadId, workspaces })
 
   const {
     visibleMessages,
@@ -149,6 +144,22 @@ export function ChatView({
       new Map((commandsData ?? []).map((command) => [command.name, command])),
     [commandsData]
   )
+
+  // ── Reset scroll state when thread changes ───────────────────────────────────
+  // When threadId changes (without remounting), reset scroll state and scroll to bottom.
+  useEffect(() => {
+    initialScrollDoneRef.current = false
+    pinnedRef.current = true
+    setShowScrollButton(false)
+    
+    const frame = requestAnimationFrame(() => {
+      const el = scrollContainerRef.current
+      if (!el) return
+      el.scrollTop = el.scrollHeight
+    })
+    
+    return () => cancelAnimationFrame(frame)
+  }, [threadId])
 
   // ── Scroll position persistence via query cache ───────────────────────────────
   // Scroll positions are stored in TanStack Query cache instead of a module-level Map.

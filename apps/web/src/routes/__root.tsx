@@ -12,6 +12,7 @@ import {
   useGlobalThreadStatusWatcher,
   ErrorToastProvider,
 } from "@/features/chat"
+import { usePrefetchThreadsMessages } from "@/features/chat/hooks"
 import {
   ServerUnavailable,
   useElectronServerStatus,
@@ -33,6 +34,9 @@ function RootLayoutInner() {
     threadId?: string
   }
   useGlobalThreadStatusWatcher(activeThreadId)
+  
+  // Prefetch all thread messages in the background for instant thread switching
+  usePrefetchThreadsMessages({ activeThreadId })
 
   if (isLoading) {
     return
