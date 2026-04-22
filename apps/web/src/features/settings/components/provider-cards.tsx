@@ -51,6 +51,7 @@ import {
   useUpdateProviders,
 } from "../mutations"
 import { cn } from "@/shared/lib/utils"
+import { getProviderMeta } from "@/shared/lib/provider-meta"
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,17 @@ function SuccessBadge({ children }: { children: string }) {
       {children}
     </Badge>
   )
+}
+
+function ProviderIcon({
+  providerId,
+  className,
+}: {
+  providerId: string
+  className?: string
+}) {
+  const { icon } = getProviderMeta(providerId)
+  return <span className={cn("flex shrink-0", className)}>{icon}</span>
 }
 
 // ── Subscriptions (OAuth) ─────────────────────────────────────────────────────
@@ -306,6 +318,7 @@ export function SubscriptionsCard() {
                   {i > 0 && <Separator />}
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
+                      <ProviderIcon providerId={p.id} className="h-4 w-4" />
                       <p className="text-sm font-medium">{p.name}</p>
                       {showSignedIn && <SuccessBadge>Signed in</SuccessBadge>}
                       {isActive && loginState.status === "error" && (
@@ -611,6 +624,7 @@ export function ApiKeysCard() {
                       )}
                     >
                       <div className="flex items-center gap-2">
+                        <ProviderIcon providerId={id} className="h-4 w-4" />
                         <p className="text-sm">{label}</p>
                         {hasKey && <SuccessBadge>Configured</SuccessBadge>}
                       </div>

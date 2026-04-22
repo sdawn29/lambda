@@ -180,6 +180,102 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
         </svg>
       ),
     },
+    cerebras: {
+      label: "Cerebras",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-orange-500"
+          aria-hidden
+        >
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7z" />
+        </svg>
+      ),
+    },
+    zai: {
+      label: "ZAI",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-violet-500"
+          aria-hidden
+        >
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        </svg>
+      ),
+    },
+    "opencode-zen": {
+      label: "OpenCode Zen",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-cyan-500"
+          aria-hidden
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V2h7v5h5v11z" />
+        </svg>
+      ),
+    },
+    "opencode-go": {
+      label: "OpenCode Go",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-emerald-500"
+          aria-hidden
+        >
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+        </svg>
+      ),
+    },
+    huggingface: {
+      label: "Hugging Face",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-orange-400"
+          aria-hidden
+        >
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.38.6.1.82-.26.82-.58v-2.04c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.23 1.84 1.23 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02.01 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.82.57C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z" />
+        </svg>
+      ),
+    },
+    fireworks: {
+      label: "Fireworks",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-red-500"
+          aria-hidden
+        >
+          <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+        </svg>
+      ),
+    },
+    "kimi-for-coding": {
+      label: "Kimi For Coding",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-blue-500"
+          aria-hidden
+        >
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+        </svg>
+      ),
+    },
+    minimax: {
+      label: "MiniMax",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0 fill-current text-pink-500"
+          aria-hidden
+        >
+          <path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 16L4 14l8-4 8 4-8 4z" />
+        </svg>
+      ),
+    },
   }
 
 export function getProviderMeta(providerId: string) {
