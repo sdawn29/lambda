@@ -18,7 +18,6 @@ import {
   Database,
   ChevronRight,
   Eye,
-  EyeOff,
   RefreshCw,
   Download,
 } from "lucide-react"
@@ -28,6 +27,7 @@ import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
 import { Toggle } from "@/shared/ui/toggle"
+import { Switch } from "@/shared/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -691,10 +691,10 @@ function ChatPreferencesCard() {
     }
   }, [persistedPhrasesRaw, phrasesValue])
 
-  const handleToggle = (pressed: boolean) => {
+  const handleToggle = (checked: boolean) => {
     updateSetting.mutate({
       key: APP_SETTINGS_KEYS.SHOW_THINKING,
-      value: pressed ? "1" : "0",
+      value: checked ? "1" : "0",
     })
   }
 
@@ -731,20 +731,11 @@ function ChatPreferencesCard() {
               emits thinking deltas.
             </FieldDescription>
           </FieldContent>
-          <Toggle
-            pressed={showThinking}
-            onPressedChange={handleToggle}
-            variant="outline"
+          <Switch
+            checked={showThinking}
+            onCheckedChange={handleToggle}
             aria-label="Show model thinking"
-            className="min-w-24 justify-center"
-          >
-            {showThinking ? (
-              <Eye data-icon="inline-start" />
-            ) : (
-              <EyeOff data-icon="inline-start" />
-            )}
-            {showThinking ? "Visible" : "Hidden"}
-          </Toggle>
+          />
         </Field>
 
         <Separator />
