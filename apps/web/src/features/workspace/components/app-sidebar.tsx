@@ -44,7 +44,6 @@ import {
 import { useOpenPath, useOpenWorkspaceWithApp } from "@/features/electron"
 import { Button } from "@/shared/ui/button"
 import { useWorkspace, useCreateWorkspaceAction } from "../context"
-import { usePinThread, useUnpinThread } from "../mutations"
 import { useThreadStatus } from "@/features/chat"
 import type { Thread } from "../context"
 import { useSettingsModal } from "@/features/settings"
@@ -70,7 +69,7 @@ function relativeTime(ts: number, now = Date.now()): string {
 }
 
 function useNow() {
-  const { data = Date.now() } = useQuery({
+  const { data = 0 } = useQuery({
     queryKey: ["now"],
     queryFn: () => Date.now(),
     refetchInterval: 60_000,
@@ -124,7 +123,10 @@ function ThreadRow({
               )}
             </span>
             <button
-              className="absolute inset-0 flex items-center justify-center rounded p-0.5 text-muted-foreground/30 transition-colors hover:text-muted-foreground/80"
+              className={cn(
+                "absolute inset-0 flex items-center justify-center rounded p-0.5 transition-colors hover:text-muted-foreground/80",
+                !thread.isPinned && "invisible text-muted-foreground/30 group-hover/thread:visible"
+              )}
               onClick={handlePinToggle}
               title={thread.isPinned ? "Unpin thread" : "Pin thread"}
             >
@@ -243,12 +245,7 @@ export function AppSidebar() {
         {/* Pinned threads section */}
         {pinnedThreads.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>
-              <span className="flex items-center gap-1.5">
-                <Pin className="h-3 w-3" />
-                Pinned
-              </span>
-            </SidebarGroupLabel>
+            <SidebarGroupLabel>Pinned</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {pinnedThreads.map((thread) => (
