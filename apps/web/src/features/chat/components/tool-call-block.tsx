@@ -198,8 +198,8 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   const isRead = isReadTool(normalizedToolName, msg.args)
   const readFilePath = isRead ? getReadFilePath(msg.args) : null
 
-  // Auto-expand running tools so users can see progress
-  const [expanded, setExpanded] = useState(isEdit || msg.status === "running")
+  // All tools start collapsed; edit tools are expanded
+  const [expanded, setExpanded] = useState(isEdit)
   const [copied, setCopied] = useState(false)
 
   function toggle(e: React.MouseEvent) {

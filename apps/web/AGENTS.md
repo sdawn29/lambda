@@ -1,6 +1,6 @@
 # AGENTS.md — web
 
-> Auto-generated context for coding agents. Last updated: 2026-04-23
+> Auto-generated context for coding agents. Last updated: 2026-04-24
 
 ## Purpose
 
@@ -115,6 +115,7 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - xterm.js requires the fit addon to properly resize in the terminal panel
 - FileTree fetches directory contents from `/api/directory` endpoint; requires server to support this route
 - Heavy components (DiffPanel, TerminalPanel, FileTree) are lazily loaded with Suspense for code splitting
+- ToolCallBlock: All tools start collapsed by default (only edit tools auto-expand)
 
 ## Related
 
