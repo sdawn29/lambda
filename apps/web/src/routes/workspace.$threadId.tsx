@@ -92,7 +92,7 @@ function WorkspaceThreadRoute() {
             {diffOpen && (
               <>
                 <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={50} minSize={50}>
+                <ResizablePanel defaultSize={35} minSize={35}>
                   <Suspense
                     fallback={
                       <div className="h-full border-l border-border/60 bg-muted/10" />
@@ -110,7 +110,7 @@ function WorkspaceThreadRoute() {
 
           {/* Right: File Tree panel (flex, not resizable) */}
           {fileTreeOpen && (
-            <div className="h-full w-64 shrink-0 border-l border-border/60">
+            <div className="h-full w-2xs shrink-0 border-l border-border/60">
               <FileTree workspacePath={foundWorkspace.path} />
             </div>
           )}
