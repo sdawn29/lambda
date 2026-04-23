@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
+import { FileSearchModal } from "@/features/file-tree"
 import { useDiffPanel, type DiffPanelTab } from "../context"
 import { useGitStatus } from "../queries"
 import {
@@ -363,7 +364,7 @@ const FileContent = memo(function FileContent({
   // Extract relative path from workspace
   const relativePath = workspacePath
     ? filePath.startsWith(workspacePath)
-      ? filePath.slice(workspacePath.length).replace(/^[\/\\]+/, "")
+      ? filePath.slice(workspacePath.length).replace(/^[/\\]+/, "")
       : filePath
     : filePath
   const pathParts = relativePath.split(/[/\\]/).filter(Boolean)
@@ -544,6 +545,7 @@ export const DiffPanel = memo(function DiffPanel({
     currentWorkspacePath,
   } = useDiffPanel()
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [fileSearchOpen, setFileSearchOpen] = useState(false)
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
 
   const activeTab = useMemo(
@@ -568,19 +570,25 @@ export const DiffPanel = memo(function DiffPanel({
   }, [activeTabId, pendingTabId, clearPendingTab])
 
   const handleAddFileTab = useCallback(() => {
-    const filePath = window.prompt("Enter file path to open:")
-    if (filePath) {
-      const fileName = filePath.split(/[/\\]/).pop() || filePath
-      addTab({
-        title: fileName,
-        type: "file",
-        filePath,
-      })
-    }
     setShowAddMenu(false)
+    setFileSearchOpen(true)
+  }, [])
+
+  const handleFileSelect = useCallback((filePath: string) => {
+    const fileName = filePath.split(/[/\\]/).pop() || filePath
+    addTab({ title: fileName, type: "file", filePath })
   }, [addTab])
 
   return (
+    <>
+    {currentWorkspacePath && (
+      <FileSearchModal
+        open={fileSearchOpen}
+        onOpenChange={setFileSearchOpen}
+        rootPath={currentWorkspacePath}
+        onSelect={handleFileSelect}
+      />
+    )}
     <div className="flex h-full w-full flex-col bg-background">
       {/* Tab bar */}
       <div className="flex h-8 shrink-0 items-stretch border-b">
@@ -650,7 +658,7 @@ export const DiffPanel = memo(function DiffPanel({
               <Plus className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-44">
-              <DropdownMenuItem onSelect={handleAddFileTab}>
+              <DropdownMenuItem onClick={handleAddFileTab}>
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Open File
               </DropdownMenuItem>
@@ -713,5 +721,6 @@ export const DiffPanel = memo(function DiffPanel({
         )}
       </div>
     </div>
+    </>
   )
 })
