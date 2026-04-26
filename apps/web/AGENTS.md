@@ -118,6 +118,13 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - Heavy components (DiffPanel, TerminalPanel, FileTree) are lazily loaded with Suspense for code splitting
 - ToolCallBlock: All tools start collapsed by default (only edit tools auto-expand)
 
+## Feature Module Deep Dives
+
+For complex feature modules with significant internal structure:
+
+- [**Chat Feature**](src/features/chat/AGENTS.md) — Real-time messaging, streaming, error handling (34 files, ~5000 LOC)
+- [**Git Feature**](src/features/git/AGENTS.md) — Diff rendering, staging, branching, commits (26 files, ~2400 LOC)
+
 ## Related
 
 - [apps/desktop](../desktop/AGENTS.md) — Electron shell that loads this web app

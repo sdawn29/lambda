@@ -55,7 +55,15 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     groq: {
       label: "Groq",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <circle cx="11" cy="11" r="7" />
           <path d="M16 16l5 5" />
         </svg>
@@ -72,7 +80,15 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     openrouter: {
       label: "OpenRouter",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <path d="M3 7h11l-3-3M3 7l3 3" />
           <path d="M21 17H10l3 3M21 17l-3-3" />
         </svg>
@@ -128,7 +144,15 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     deepseek: {
       label: "DeepSeek",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <path d="M3 14c2-3 5-3 7-1.5s5 1.5 7-1.5c1 3-1 7-5 8.5-3.5 1.3-7-1-9-6z" />
           <circle cx="16" cy="9" r="0.8" fill="currentColor" stroke="none" />
         </svg>
@@ -153,7 +177,15 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     cerebras: {
       label: "Cerebras",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <circle cx="6" cy="6" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="18" cy="6" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="6" cy="18" r="1.6" fill="currentColor" stroke="none" />
@@ -174,7 +206,14 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     "opencode-zen": {
       label: "OpenCode Zen",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          aria-hidden
+        >
           <path d="M19.5 12a7.5 7.5 0 1 1-3.2-6.15" />
           <circle cx="18" cy="6" r="1.2" fill="currentColor" stroke="none" />
         </svg>
@@ -183,7 +222,15 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     "opencode-go": {
       label: "OpenCode Go",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v5l3 3" />
         </svg>
@@ -192,7 +239,15 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     huggingface: {
       label: "Hugging Face",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg
+          viewBox="0 0 24 24"
+          className={ICON_STROKE_CLASS}
+          fill="none"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <circle cx="12" cy="12" r="9" />
           <circle cx="9" cy="10.5" r="1.1" fill="currentColor" stroke="none" />
           <circle cx="15" cy="10.5" r="1.1" fill="currentColor" stroke="none" />
@@ -219,8 +274,31 @@ const PROVIDER_META: Record<string, { label: string; icon: React.ReactNode }> =
     minimax: {
       label: "MiniMax",
       icon: (
-        <svg viewBox="0 0 24 24" className={ICON_STROKE_CLASS} fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M3 18V6l4.5 7L12 6l4.5 7L21 6v12" />
+        <svg
+          height="1em"
+          // style={{flex:"none",line-height: }}
+          viewBox="0 0 24 24"
+          width="1em"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <title>Minimax</title>
+          <defs>
+            <linearGradient
+              id="lobe-icons-minimax-_R_0_"
+              x1="0%"
+              x2="100.182%"
+              y1="50.057%"
+              y2="50.057%"
+            >
+              <stop offset="0%" stop-color="#E2167E"></stop>
+              <stop offset="100%" stop-color="#FE603C"></stop>
+            </linearGradient>
+          </defs>
+          <path
+            d="M16.278 2c1.156 0 2.093.927 2.093 2.07v12.501a.74.74 0 00.744.709.74.74 0 00.743-.709V9.099a2.06 2.06 0 012.071-2.049A2.06 2.06 0 0124 9.1v6.561a.649.649 0 01-.652.645.649.649 0 01-.653-.645V9.1a.762.762 0 00-.766-.758.762.762 0 00-.766.758v7.472a2.037 2.037 0 01-2.048 2.026 2.037 2.037 0 01-2.048-2.026v-12.5a.785.785 0 00-.788-.753.785.785 0 00-.789.752l-.001 15.904A2.037 2.037 0 0113.441 22a2.037 2.037 0 01-2.048-2.026V18.04c0-.356.292-.645.652-.645.36 0 .652.289.652.645v1.934c0 .263.142.506.372.638.23.131.514.131.744 0a.734.734 0 00.372-.638V4.07c0-1.143.937-2.07 2.093-2.07zm-5.674 0c1.156 0 2.093.927 2.093 2.07v11.523a.648.648 0 01-.652.645.648.648 0 01-.652-.645V4.07a.785.785 0 00-.789-.78.785.785 0 00-.789.78v14.013a2.06 2.06 0 01-2.07 2.048 2.06 2.06 0 01-2.071-2.048V9.1a.762.762 0 00-.766-.758.762.762 0 00-.766.758v3.8a2.06 2.06 0 01-2.071 2.049A2.06 2.06 0 010 12.9v-1.378c0-.357.292-.646.652-.646.36 0 .653.29.653.646V12.9c0 .418.343.757.766.757s.766-.339.766-.757V9.099a2.06 2.06 0 012.07-2.048 2.06 2.06 0 012.071 2.048v8.984c0 .419.343.758.767.758.423 0 .766-.339.766-.758V4.07c0-1.143.937-2.07 2.093-2.07z"
+            fill="url(#lobe-icons-minimax-_R_0_)"
+            fill-rule="nonzero"
+          ></path>
         </svg>
       ),
     },
