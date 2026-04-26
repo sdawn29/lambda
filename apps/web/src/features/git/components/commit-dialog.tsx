@@ -119,9 +119,9 @@ function FileAccordionItem({
         />
         <StatusBadge code={file.statusCode} />
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
-          <span className="shrink-0 text-xs font-medium text-foreground/85">{fileName}</span>
+          <span className="shrink-0 text-xs font-medium text-foreground">{fileName}</span>
           {dirPath && (
-            <span className="truncate font-mono text-[10px] text-muted-foreground/40">
+            <span className="truncate font-mono text-[10px] text-muted-foreground/75">
               {dirPath}
             </span>
           )}
@@ -142,7 +142,7 @@ function FileAccordionItem({
               className="rounded-none border-x-0 border-b-0"
             />
           ) : (
-            <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground/60">
+            <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
               <FileText className="size-3" />
               No diff available
             </div>
@@ -186,7 +186,7 @@ function AutoTextarea({
       autoFocus={autoFocus}
       rows={3}
       className={cn(
-        "w-full resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/35",
+        "w-full resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/70",
         className
       )}
     />
@@ -202,7 +202,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center gap-2 px-3 py-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         {label}
       </span>
       <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground">
@@ -391,11 +391,11 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
               {!loading && staged.length === 0 && (
                 <div className="flex flex-col gap-1 px-4 py-3">
-                  <p className="text-xs text-muted-foreground/70">
+                  <p className="text-xs text-muted-foreground">
                     No staged files.
                   </p>
                   {hasUnstagedOnly && (
-                    <p className="text-[11px] text-muted-foreground/45">
+                    <p className="text-[11px] text-muted-foreground/80">
                       Stage files from the diff panel to include them in this commit.
                     </p>
                   )}
@@ -450,7 +450,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                   render={
                     <button
                       onClick={handleConfigure}
-                      className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground"
+                      className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Settings2 className="size-3" />
                       Configure
@@ -468,7 +468,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                       disabled={generating || staged.length === 0}
                       className={cn(
                         "flex items-center gap-1.5 rounded px-1.5 py-1 text-[11px] transition-colors",
-                        "text-muted-foreground/60 hover:bg-muted hover:text-foreground",
+                        "text-muted-foreground hover:bg-muted hover:text-foreground",
                         "disabled:pointer-events-none disabled:opacity-35"
                       )}
                     >
@@ -504,7 +504,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border/40 px-4 py-2.5">
-          <span className="text-[11px] text-muted-foreground/40">
+          <span className="text-[11px] text-muted-foreground">
             {staged.length > 0
               ? `${staged.length} file${staged.length === 1 ? "" : "s"} staged`
               : "Nothing staged"}
