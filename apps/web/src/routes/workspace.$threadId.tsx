@@ -103,7 +103,10 @@ function WorkspaceThreadRoute() {
             </div>
             {fileTreeOpen && (
               <div className="h-full w-56 shrink-0 border-l border-border/60">
-                <FileTree workspacePath={foundWorkspace.path} />
+                <FileTree
+                  workspaceId={foundWorkspace.id}
+                  workspacePath={foundWorkspace.path}
+                />
               </div>
             )}
           </div>
@@ -142,7 +145,10 @@ function WorkspaceThreadRoute() {
             {/* Right: File Tree panel (flex, not resizable) */}
             {fileTreeOpen && (
               <div className="h-full w-56 shrink-0 border-l border-border/60">
-                <FileTree workspacePath={foundWorkspace.path} />
+                <FileTree
+                  workspaceId={foundWorkspace.id}
+                  workspacePath={foundWorkspace.path}
+                />
               </div>
             )}
           </div>

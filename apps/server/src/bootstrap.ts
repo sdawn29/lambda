@@ -37,8 +37,6 @@ export async function bootstrapSessions(): Promise<void> {
 
   // Start file indexing for all workspaces (non-blocking)
   for (const ws of workspaceList) {
-    workspaceIndexer.startIndexing(ws.id, ws.path).catch((err) =>
-      console.error(`[bootstrap] indexing failed for workspace ${ws.id}:`, err)
-    );
+    workspaceIndexer.startIndexing(ws.id, ws.path);
   }
 }

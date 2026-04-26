@@ -1,81 +1,150 @@
-import { useCallback, useState, useEffect } from "react"
-import { File, ChevronRight, ChevronDown, Folder, RefreshCw } from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  RefreshCw,
+} from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { Skeleton } from "@/shared/ui/skeleton"
+import { getFileIcon } from "@/shared/ui/file-icon"
 import { useDiffPanel } from "@/features/git"
-import { useDirectoryEntries } from "../queries"
-import type { DirectoryEntry } from "../queries"
-
-interface TreeNode extends DirectoryEntry {
-  children?: TreeNode[]
-}
+import {
+  useWorkspaceIndex,
+  type WorkspaceFileEntry,
+} from "@/features/workspace/queries"
+import { triggerWorkspaceReindex } from "@/features/workspace/api"
 
 interface FileTreeProps {
+  workspaceId: string
   workspacePath: string
+}
+
+interface TreeNode {
+  name: string
+  relativePath: string
+  isDirectory: boolean
+  children: TreeNode[]
+}
+
+function buildTree(entries: WorkspaceFileEntry[]): TreeNode[] {
+  const root: TreeNode = {
+    name: "",
+    relativePath: "",
+    isDirectory: true,
+    children: [],
+  }
+  const dirs = new Map<string, TreeNode>()
+  dirs.set("", root)
+
+  function ensureDir(relativePath: string): TreeNode {
+    const cached = dirs.get(relativePath)
+    if (cached) return cached
+    const segments = relativePath.split("/")
+    const name = segments[segments.length - 1] ?? relativePath
+    const parent = ensureDir(segments.slice(0, -1).join("/"))
+    const node: TreeNode = {
+      name,
+      relativePath,
+      isDirectory: true,
+      children: [],
+    }
+    parent.children.push(node)
+    dirs.set(relativePath, node)
+    return node
+  }
+
+  // Pre-create directory nodes so files can attach to them in any order.
+  for (const entry of entries) {
+    if (entry.isDirectory) ensureDir(entry.relativePath)
+  }
+
+  for (const entry of entries) {
+    if (entry.isDirectory) continue
+    const segments = entry.relativePath.split("/")
+    const parent = ensureDir(segments.slice(0, -1).join("/"))
+    parent.children.push({
+      name: entry.name,
+      relativePath: entry.relativePath,
+      isDirectory: false,
+      children: [],
+    })
+  }
+
+  function sort(node: TreeNode) {
+    node.children.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+    for (const child of node.children) {
+      if (child.isDirectory) sort(child)
+    }
+  }
+  sort(root)
+
+  return root.children
 }
 
 function TreeItem({
   node,
-  depth = 0,
-  onSelect,
+  depth,
+  expanded,
+  onToggleDir,
+  onSelectFile,
 }: {
   node: TreeNode
-  depth?: number
-  onSelect?: (path: string) => void
+  depth: number
+  expanded: Set<string>
+  onToggleDir: (relativePath: string) => void
+  onSelectFile: (relativePath: string) => void
 }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [children, setChildren] = useState<TreeNode[]>([])
-  const isDirectory = node.type === "directory"
+  const isExpanded = node.isDirectory && expanded.has(node.relativePath)
 
-  const { data: childEntries } = useDirectoryEntries(
-    isExpanded && isDirectory && children.length === 0 ? node.path : null
-  )
-
-  useEffect(() => {
-    if (childEntries && childEntries.length > 0) {
-      setChildren(childEntries)
-    }
-  }, [childEntries])
-
-  const toggleExpand = useCallback(() => {
-    if (isDirectory) {
-      setIsExpanded((prev) => !prev)
+  const handleClick = useCallback(() => {
+    if (node.isDirectory) {
+      onToggleDir(node.relativePath)
     } else {
-      onSelect?.(node.path)
+      onSelectFile(node.relativePath)
     }
-  }, [isDirectory, node.path, onSelect])
+  }, [node.isDirectory, node.relativePath, onToggleDir, onSelectFile])
+
+  const Icon = node.isDirectory
+    ? isExpanded
+      ? FolderOpen
+      : Folder
+    : getFileIcon(node.name)
 
   return (
     <div>
       <button
-        onClick={toggleExpand}
-        className="flex w-full items-center gap-1 px-2 py-0.5 text-xs"
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        type="button"
+        onClick={handleClick}
+        className="flex w-full items-center gap-1 rounded-sm px-2 py-0.5 text-left text-xs hover:bg-accent"
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        {isDirectory ? (
+        {node.isDirectory ? (
           isExpanded ? (
-            <ChevronDown className="size-3 shrink-0" />
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronRight className="size-3 shrink-0" />
+            <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
           )
         ) : (
           <span className="size-3 shrink-0" />
         )}
-        {isDirectory ? (
-          <Folder className="size-4 shrink-0" />
-        ) : (
-          <File className="size-4 shrink-0" />
-        )}
+        <Icon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate">{node.name}</span>
       </button>
-      {isExpanded && children.length > 0 && (
+      {isExpanded && node.children.length > 0 && (
         <div>
-          {children.map((child) => (
+          {node.children.map((child) => (
             <TreeItem
-              key={child.path}
+              key={child.relativePath}
               node={child}
               depth={depth + 1}
-              onSelect={onSelect}
+              expanded={expanded}
+              onToggleDir={onToggleDir}
+              onSelectFile={onSelectFile}
             />
           ))}
         </div>
@@ -85,15 +154,15 @@ function TreeItem({
 }
 
 const SKELETON_ROWS = [
-  { indent: 0, width: "w-24", isDir: true },
+  { indent: 0, width: "w-24" },
   { indent: 1, width: "w-20" },
   { indent: 1, width: "w-28" },
   { indent: 1, width: "w-16" },
-  { indent: 0, width: "w-20", isDir: true },
+  { indent: 0, width: "w-20" },
   { indent: 1, width: "w-24" },
   { indent: 1, width: "w-32" },
   { indent: 0, width: "w-16" },
-  { indent: 0, width: "w-28", isDir: true },
+  { indent: 0, width: "w-28" },
   { indent: 1, width: "w-20" },
   { indent: 1, width: "w-24" },
   { indent: 1, width: "w-16" },
@@ -106,10 +175,10 @@ function FileTreeSkeleton() {
         <div
           key={i}
           className="flex items-center gap-1 py-0.5"
-          style={{ paddingLeft: `${row.indent * 16 + 8}px` }}
+          style={{ paddingLeft: `${row.indent * 12 + 8}px` }}
         >
           <Skeleton className="size-3 shrink-0 rounded-sm" />
-          <Skeleton className="size-4 shrink-0 rounded-sm" />
+          <Skeleton className="size-3.5 shrink-0 rounded-sm" />
           <Skeleton className={`h-2.5 rounded-sm ${row.width}`} />
         </div>
       ))}
@@ -117,25 +186,51 @@ function FileTreeSkeleton() {
   )
 }
 
-export function FileTree({ workspacePath }: FileTreeProps) {
-  const { data: entries = [], isLoading, refetch, isFetching } = useDirectoryEntries(workspacePath)
-  const diffPanelContext = useDiffPanel()
+export function FileTree({ workspaceId, workspacePath }: FileTreeProps) {
+  const { data: entries = [], isLoading, isFetching } = useWorkspaceIndex(workspaceId)
+  const diffPanel = useDiffPanel()
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const [refreshing, setRefreshing] = useState(false)
 
-  function handleFileSelect(filePath: string) {
-    const fileName = filePath.split(/[/\\]/).pop() || filePath
+  const tree = useMemo(() => buildTree(entries), [entries])
 
-    // Open diff panel if not already open
-    if (!diffPanelContext.isOpen) {
-      diffPanelContext.open()
-    }
-
-    // Add the file tab
-    diffPanelContext.addTab({
-      title: fileName,
-      type: "file",
-      filePath,
+  const handleToggleDir = useCallback((relativePath: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(relativePath)) {
+        next.delete(relativePath)
+      } else {
+        next.add(relativePath)
+      }
+      return next
     })
-  }
+  }, [])
+
+  const handleSelectFile = useCallback(
+    (relativePath: string) => {
+      const filePath = `${workspacePath}/${relativePath}`
+      const name = relativePath.split("/").pop() || relativePath
+      if (!diffPanel.isOpen) diffPanel.open()
+      diffPanel.addTab({ title: name, type: "file", filePath })
+    },
+    [diffPanel, workspacePath]
+  )
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      await triggerWorkspaceReindex(workspaceId)
+    } catch {
+      // SSE will eventually invalidate the cache; nothing to surface here.
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refreshing, workspaceId])
+
+  const showSkeleton = isLoading && entries.length === 0
+  const isEmpty = !isLoading && entries.length === 0
+  const showSpinner = refreshing || isFetching
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -144,22 +239,29 @@ export function FileTree({ workspacePath }: FileTreeProps) {
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
+          onClick={handleRefresh}
+          disabled={showSpinner}
         >
-          <RefreshCw className={`size-3 ${isFetching ? "animate-spin" : ""}`} />
+          <RefreshCw className={`size-3 ${showSpinner ? "animate-spin" : ""}`} />
           <span className="sr-only">Refresh</span>
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-1">
-        {isLoading ? (
+        {showSkeleton ? (
           <FileTreeSkeleton />
-        ) : entries.length === 0 ? (
-          <div className="p-2 text-[10px] text-muted-foreground">No files found</div>
+        ) : isEmpty ? (
+          <div className="p-2 text-[10px] text-muted-foreground">No files indexed</div>
         ) : (
           <div className="animate-in fade-in duration-150">
-            {entries.map((node) => (
-              <TreeItem key={node.path} node={node} onSelect={handleFileSelect} />
+            {tree.map((node) => (
+              <TreeItem
+                key={node.relativePath}
+                node={node}
+                depth={0}
+                expanded={expanded}
+                onToggleDir={handleToggleDir}
+                onSelectFile={handleSelectFile}
+              />
             ))}
           </div>
         )}

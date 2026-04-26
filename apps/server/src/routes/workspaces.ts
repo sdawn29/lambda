@@ -8,7 +8,6 @@ import {
   deleteWorkspace,
   deleteAllWorkspaces,
   updateWorkspaceOpenWithApp,
-  listWorkspaceFileEntries,
 } from "@lamda/db";
 import { store } from "../store.js";
 import { sessionEvents } from "../session-events.js";
@@ -73,9 +72,7 @@ workspaces.post("/workspace", async (c) => {
     model: body.model,
   });
 
-  workspaceIndexer.startIndexing(workspaceId, body.path).catch((err) =>
-    console.error("[workspace-indexer] failed to start indexing:", err)
-  );
+  workspaceIndexer.startIndexing(workspaceId, body.path);
 
   return c.json(
     {
@@ -118,8 +115,8 @@ workspaces.get("/workspace/:id/files", (c) => {
   const workspaceId = c.req.param("id");
   const ws = getWorkspace(workspaceId);
   if (!ws) return c.json({ error: "Workspace not found" }, 404);
-  const files = listWorkspaceFileEntries(workspaceId);
-  return c.json({ files });
+  workspaceIndexer.ensureIndexing(workspaceId, ws.path);
+  return c.json({ files: workspaceIndexer.listFiles(workspaceId) });
 });
 
 workspaces.post("/workspace/:id/reindex", async (c) => {
