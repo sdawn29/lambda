@@ -80,6 +80,7 @@ export const API_KEY_PROVIDERS: {
   { id: "opencode", label: "OpenCode Zen", placeholder: "..." },
   { id: "opencode-go", label: "OpenCode Go", placeholder: "..." },
   { id: "azure-openai-responses", label: "Azure OpenAI", placeholder: "..." },
+  { id: "deepseek", label: "DeepSeek", placeholder: "sk-..." },
 ]
 
 function SuccessBadge({ children }: { children: string }) {

@@ -23,7 +23,7 @@ interface UsePrefetchThreadsMessagesOptions {
  * restarting prefetches on every render. It handles workspace switches gracefully.
  */
 export function usePrefetchThreadsMessages({
-  activeThreadId,
+  activeThreadId: _activeThreadId,
 }: UsePrefetchThreadsMessagesOptions = {}) {
   const { data: workspaces = [] } = useWorkspaces()
   const queryClient = useQueryClient()

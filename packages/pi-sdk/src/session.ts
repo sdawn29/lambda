@@ -1,6 +1,6 @@
 import {
   createAgentSession,
-  createCodingTools,
+  createReadOnlyTools,
   ModelRegistry,
   SessionManager,
 } from "@mariozechner/pi-coding-agent";
@@ -114,8 +114,8 @@ export async function createManagedSession(
       ? modelRegistry.find(config.provider, config.model)
       : undefined;
 
-  // Use tool factories to ensure paths resolve relative to cwd
-  const tools = createCodingTools(cwd);
+  // Use read-only tools (bash, read, edit, write) with paths resolved to cwd
+  const tools = createReadOnlyTools(cwd);
 
   const { session } = await createAgentSession({
     authStorage,
@@ -124,7 +124,7 @@ export async function createManagedSession(
     cwd,
     model,
     thinkingLevel: config.thinkingLevel as any,
-    tools,
+    customTools: tools,
   });
 
   return buildHandle(session, cwd);
@@ -149,15 +149,15 @@ export async function openManagedSession(
 
   const sessionManager = SessionManager.open(sessionFilePath);
 
-  // Use tool factories to ensure paths resolve relative to cwd
-  const tools = createCodingTools(cwd);
+  // Use read-only tools (bash, read, edit, write) with paths resolved to cwd
+  const tools = createReadOnlyTools(cwd);
 
   const { session } = await createAgentSession({
     authStorage,
     modelRegistry,
     sessionManager,
     cwd,
-    tools,
+    customTools: tools,
   });
 
   return buildHandle(session, cwd);

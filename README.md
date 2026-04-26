@@ -139,6 +139,19 @@ The workflow uses the default `GITHUB_TOKEN`. If you later need release-generate
 | `VITE_SERVER_URL` | `apps/web`    | `http://localhost:3001` | Useful when running the web UI directly in a browser instead of through Electron                                        |
 | `PORT`            | `apps/server` | `3001`                  | Standalone server port. The Electron app starts the server on a random local port and passes it to the renderer via IPC |
 
+## Providers
+
+The application supports multiple AI providers including Anthropic, OpenAI, Google Gemini, DeepSeek, and more. For the full list and configuration details, see [docs/providers.md](docs/providers.md).
+
+### DeepSeek
+
+DeepSeek V4 Flash and Pro models are available with `DEEPSEEK_API_KEY` authentication. Configure your API key in:
+- **Settings → API Keys → DeepSeek** (stored in `~/.pi/agent/auth.json`)
+
+### Retry Configuration
+
+Provider request timeout and retry behavior can be configured via settings. See [docs/settings.md](docs/settings.md#retry) for details.
+
 ## Local data
 
 - App data is stored under `~/.lamda-code`
