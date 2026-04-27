@@ -147,6 +147,10 @@ export function TitleBar() {
     SHORTCUT_ACTIONS.NAVIGATE_FORWARD,
     canGoForward ? () => router.history.forward() : null
   )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.TOGGLE_FILE_TREE,
+    activeWorkspace?.path ? toggleFileTree : null
+  )
 
   const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
   const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
@@ -154,6 +158,7 @@ export function TitleBar() {
   const diffBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL)
   const terminalBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_TERMINAL)
   const renameBinding = useShortcutBinding(SHORTCUT_ACTIONS.RENAME_THREAD)
+  const fileTreeBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_FILE_TREE)
 
   const navRef = useRef<HTMLDivElement>(null)
   const [navWidth, setNavWidth] = useState(0)
@@ -419,7 +424,10 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Toggle file tree</TooltipContent>
+          <TooltipContent>
+            Toggle file tree{" "}
+            <ShortcutKbd binding={fileTreeBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
       </div>
     </div>

@@ -102,7 +102,7 @@ export const FileAccordionItem = memo(function FileAccordionItem({
               icon={Undo2}
               label="Revert changes"
               onClick={handleRevert}
-              variant="destructive"
+              variant="ghost"
               size="icon-sm"
               disabled={reverting}
             />

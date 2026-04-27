@@ -37,6 +37,12 @@ import { FileHeader } from "./file-header"
 import { SORT_OPTIONS, type SortMode, applySortMode } from "./sort-utils"
 import { cn } from "@/shared/lib/utils"
 import { useTheme } from "@/shared/components/theme-provider"
+import {
+  useShortcutHandler,
+  useShortcutBinding,
+} from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
+import { ShortcutKbd } from "@/shared/ui/kbd"
 import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
 import { getServerUrl } from "@/shared/lib/client"
 import ReactMarkdown from "react-markdown"
@@ -551,6 +557,9 @@ export const DiffPanel = memo(function DiffPanel({
   const [fileSearchOpen, setFileSearchOpen] = useState(false)
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
 
+  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF, toggleFullscreen)
+  const fullscreenBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF)
+
   const activeTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId),
     [tabs, activeTabId]
@@ -692,7 +701,10 @@ export const DiffPanel = memo(function DiffPanel({
                 </Button>
               }
             />
-            <TooltipContent>{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</TooltipContent>
+            <TooltipContent>
+              {isFullscreen ? "Exit fullscreen" : "Fullscreen"}{" "}
+              <ShortcutKbd binding={fullscreenBinding} className="ml-1" />
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger
