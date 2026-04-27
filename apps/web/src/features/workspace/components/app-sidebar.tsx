@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   Archive,
@@ -17,6 +17,7 @@ import { useNavigate, useParams } from "@tanstack/react-router"
 import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
+import { IconButtonWithTooltip } from "@/shared/ui/icon-button-with-tooltip"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 
 import {
@@ -94,7 +95,7 @@ function ThreadRow({
   const now = useNow()
   const { archiveThread, pinThread, unpinThread } = useWorkspace()
 
-  async function handlePinToggle(e: React.MouseEvent) {
+  const handlePinToggle = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
     try {
@@ -106,7 +107,12 @@ function ThreadRow({
     } catch (err) {
       console.error("Failed to toggle pin:", err)
     }
-  }
+  }, [thread.isPinned, thread.id, workspaceId, unpinThread, pinThread])
+
+  const handleArchiveClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setConfirming(true)
+  }, [])
 
   return (
     <>
@@ -122,37 +128,29 @@ function ThreadRow({
                 <span className="h-1.5 w-1.5 rounded-full bg-transparent" />
               )}
             </span>
-            <button
+            <IconButtonWithTooltip
+              icon={Pin}
+              label={thread.isPinned ? "Unpin thread" : "Pin thread"}
+              onClick={handlePinToggle}
               className={cn(
-                "absolute inset-0 flex items-center justify-center rounded p-0.5 transition-colors hover:text-muted-foreground/80",
+                "absolute inset-0 size-auto transition-colors",
                 !thread.isPinned && "invisible text-muted-foreground/30 group-hover/thread:visible"
               )}
-              onClick={handlePinToggle}
-              title={thread.isPinned ? "Unpin thread" : "Pin thread"}
-            >
-              <Pin className="h-3 w-3" />
-            </button>
+            />
           </span>
           <span className="truncate">{thread.title}</span>
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground/50 group-hover/thread:hidden">
-            {relativeTime(thread.createdAt, now)}
-          </span>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  className="ml-auto hidden shrink-0 rounded p-0.5 text-muted-foreground/50 hover:bg-accent hover:text-foreground group-hover/thread:flex"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setConfirming(true)
-                  }}
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                </button>
-              }
+          <div className="ml-auto grid shrink-0 items-center">
+            <span className="col-start-1 row-start-1 text-xs text-muted-foreground/50 group-hover/thread:invisible">
+              {relativeTime(thread.createdAt, now)}
+            </span>
+            <IconButtonWithTooltip
+              icon={Archive}
+              label="Archive thread"
+              onClick={handleArchiveClick}
+              tooltipSide="right"
+              className="col-start-1 row-start-1 invisible size-auto p-0.5 text-muted-foreground/50 group-hover/thread:visible"
             />
-            <TooltipContent>Archive thread</TooltipContent>
-          </Tooltip>
+          </div>
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>
 

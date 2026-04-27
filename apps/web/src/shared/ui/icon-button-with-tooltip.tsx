@@ -15,6 +15,8 @@ interface IconButtonWithTooltipProps {
   variant?: "default" | "destructive" | "ghost"
   /** Button size variant */
   size?: "icon-sm" | "icon-xs" | "icon"
+  /** Tooltip placement side */
+  tooltipSide?: "top" | "right" | "bottom" | "left"
   /** Disabled state */
   disabled?: boolean
   className?: string
@@ -26,6 +28,7 @@ export function IconButtonWithTooltip({
   onClick,
   variant = "ghost",
   size = "icon-sm",
+  tooltipSide,
   disabled,
   className,
 }: IconButtonWithTooltipProps) {
@@ -53,7 +56,7 @@ export function IconButtonWithTooltip({
   return (
     <Tooltip>
       <TooltipTrigger render={button} />
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent side={tooltipSide}>{label}</TooltipContent>
     </Tooltip>
   )
 }
