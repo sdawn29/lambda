@@ -10,7 +10,8 @@ import {
 } from "react"
 import { Archive, Check, Columns2, AlignLeft, GitCompare, Loader2, PackageMinus, PackagePlus, Plus, X, ArrowUpDown, ExternalLink, Maximize2, Minimize2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { getFileIcon } from "@/shared/ui/file-icon"
+import { Icon } from "@iconify/react"
+import { getIconName } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import {
@@ -355,6 +356,17 @@ const SourceControlContent = memo(function SourceControlContent({
 
 // ─── File Content ─────────────────────────────────────────────────────────────
 
+function resolveFilePath(currentFilePath: string, href: string): string {
+  const dir = currentFilePath.split(/[/\\]/).slice(0, -1).join("/")
+  const parts = `${dir}/${href}`.split("/")
+  const resolved: string[] = []
+  for (const part of parts) {
+    if (part === "..") resolved.pop()
+    else if (part !== ".") resolved.push(part)
+  }
+  return resolved.join("/")
+}
+
 const FileContent = memo(function FileContent({
   filePath,
   openWithAppId,
@@ -367,6 +379,8 @@ const FileContent = memo(function FileContent({
   const [content, setContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [serverUrl, setServerUrl] = useState<string>("")
+  const { addTab, open: openPanel } = useDiffPanel()
   const [markdownPreview, setMarkdownPreview] = useState(false)
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
@@ -381,6 +395,43 @@ const FileContent = memo(function FileContent({
   const fileName = pathParts[pathParts.length - 1] ?? ""
   const fileExtension = fileName.split(".").pop()?.toLowerCase() ?? ""
   const isMarkdown = fileExtension === "md" || fileExtension === "markdown"
+  const isImage = /^(png|jpe?g|gif|svg|webp|bmp|ico|tiff?|avif)$/.test(fileExtension)
+
+  const markdownLinkComponents = useMemo(() => ({
+    a: ({ href, children }: React.ComponentProps<"a">) => {
+      const isExternal = !href || /^(https?:|mailto:|#)/.test(href)
+      if (isExternal) {
+        return (
+          <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+            {children}
+          </a>
+        )
+      }
+      const resolvedPath = href.startsWith("/") ? href : resolveFilePath(filePath, href)
+      const fileName = resolvedPath.split(/[/\\]/).pop() || resolvedPath
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            openPanel()
+            addTab({ title: fileName, type: "file", filePath: resolvedPath })
+          }}
+          className="underline underline-offset-4 cursor-pointer"
+        >
+          {children}
+        </button>
+      )
+    },
+    img: ({ src, alt }) => {
+      if (!src) return null
+      const resolvedSrc = /^https?:/.test(src)
+        ? src
+        : `${serverUrl}/file?path=${encodeURIComponent(
+            src.startsWith("/") ? src : resolveFilePath(filePath, src)
+          )}`
+      return <img src={resolvedSrc} alt={alt ?? ""} className="max-w-full rounded" />
+    },
+  }), [filePath, serverUrl, addTab, openPanel])
 
   // Enable rich text preview by default for markdown files
   useEffect(() => {
@@ -413,9 +464,16 @@ const FileContent = memo(function FileContent({
 
     const loadFile = async () => {
       try {
-        const serverUrl = await getServerUrl()
+        const url = await getServerUrl()
+        if (!cancelled) setServerUrl(url)
+
+        if (isImage) {
+          if (!cancelled) setLoading(false)
+          return
+        }
+
         const response = await fetch(
-          `${serverUrl}/file?path=${encodeURIComponent(filePath)}`
+          `${url}/file?path=${encodeURIComponent(filePath)}`
         )
         if (!response.ok) {
           throw new Error(`Failed to load file: ${response.statusText}`)
@@ -434,10 +492,8 @@ const FileContent = memo(function FileContent({
     }
 
     loadFile()
-    return () => {
-      cancelled = true
-    }
-  }, [filePath])
+    return () => { cancelled = true }
+  }, [filePath, isImage])
 
   if (loading) {
     return (
@@ -485,12 +541,19 @@ const FileContent = memo(function FileContent({
       <div
         className={cn(
           "min-h-0 flex-1 overflow-auto",
+          isImage ? "flex items-center justify-center p-4" :
           markdownPreview ? "prose prose-sm max-w-none p-4 dark:prose-invert" : "file-viewer-code pl-4"
         )}
         style={markdownPreview ? undefined : { userSelect: "text" }}
       >
-        {markdownPreview ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content ?? ""}</ReactMarkdown>
+        {isImage ? (
+          <img
+            src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
+            alt={fileName}
+            className="max-h-full max-w-full object-contain"
+          />
+        ) : markdownPreview ? (
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownLinkComponents}>{content ?? ""}</ReactMarkdown>
         ) : (
           <Suspense
             fallback={
@@ -619,9 +682,10 @@ export const DiffPanel = memo(function DiffPanel({
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
             return (
-              <Button
+              <div
                 key={tab.id}
-                variant="ghost"
+                role="tab"
+                aria-selected={isActive}
                 ref={(el) => {
                   if (el) {
                     tabRefs.current.set(tab.id, el as HTMLButtonElement)
@@ -631,19 +695,16 @@ export const DiffPanel = memo(function DiffPanel({
                 }}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "group relative h-full shrink-0 gap-1.5 rounded-none border-r px-3 text-xs",
+                  "group relative flex h-full shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-none border-r px-3 text-xs",
                   isActive
                     ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
                     : "bg-muted/40 text-muted-foreground"
                 )}
               >
                 {tab.type === "source-control" ? (
-                  <GitCompare className="shrink-0" />
+                  <GitCompare className="size-3.5 shrink-0" />
                 ) : (
-                  (() => {
-                    const FileIcon = getFileIcon(tab.title)
-                    return <FileIcon className="shrink-0" />
-                  })()
+                  <Icon icon={`catppuccin:${getIconName(tab.title)}`} className="size-3.5 shrink-0" aria-hidden />
                 )}
                 <span className="max-w-30 truncate">{tab.title}</span>
                 {tab.type !== "source-control" && (
@@ -665,7 +726,7 @@ export const DiffPanel = memo(function DiffPanel({
                     <X className="h-2.5 w-2.5" />
                   </Button>
                 )}
-              </Button>
+              </div>
             )
           })}
 
