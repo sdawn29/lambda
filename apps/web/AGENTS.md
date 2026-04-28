@@ -124,6 +124,11 @@ For complex feature modules with significant internal structure:
 
 - [**Chat Feature**](src/features/chat/AGENTS.md) — Real-time messaging, streaming, error handling (34 files, ~5000 LOC)
 - [**Git Feature**](src/features/git/AGENTS.md) — Diff rendering, staging, branching, commits (26 files, ~2400 LOC)
+- [**Workspace Feature**](src/features/workspace/AGENTS.md) — Workspace/thread lifecycle, sidebar navigation (9 files)
+- [**Terminal Feature**](src/features/terminal/AGENTS.md) — xterm.js terminal with WebSocket PTY
+- [**Settings Feature**](src/features/settings/AGENTS.md) — Provider config, API keys, preferences
+- [**Electron Feature**](src/features/electron/AGENTS.md) — Desktop integration, server lifecycle, updates
+- [**Shared Utilities**](src/shared/AGENTS.md) — UI components, hooks, utilities (54+ files)
 
 ## Related
 

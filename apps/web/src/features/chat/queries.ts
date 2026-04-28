@@ -129,11 +129,6 @@ export function useContextUsage(sessionId: string | undefined) {
     queryFn: () => fetchContextUsage(sessionId!),
     enabled: !!sessionId,
     gcTime: 30 * 1000,
-    refetchInterval: () =>
-      typeof document === "undefined" || document.visibilityState !== "visible"
-        ? false
-        : 3_000,
-    refetchIntervalInBackground: false,
     staleTime: 0,
     select: (data) => data.contextUsage,
   })
@@ -147,11 +142,6 @@ export function useSessionStats(sessionId: string | undefined) {
     queryFn: () => fetchSessionStats(sessionId!),
     enabled: !!sessionId,
     gcTime: 30 * 1000,
-    refetchInterval: () =>
-      typeof document === "undefined" || document.visibilityState !== "visible"
-        ? false
-        : 5_000,
-    refetchIntervalInBackground: false,
     staleTime: 0,
     select: (data) => data.stats,
   })

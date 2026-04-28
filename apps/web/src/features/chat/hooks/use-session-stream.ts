@@ -5,6 +5,7 @@ import { openSessionWebSocket, listRunningTools } from "../api"
 import { subscribeToSessionEvents, type AgentEndMessage } from "../session-events"
 import {
   messagesQueryKey,
+  chatKeys,
 } from "../queries"
 import { createAssistantMessage, createErrorMessage, blockToMessage } from "../types"
 import type { Message, ToolMessage } from "../types"
@@ -472,9 +473,9 @@ export function useSessionStream({
 
             onMessageEnd?.()
             onIsLoadingChange?.(false)
-            void queryClient.invalidateQueries({
-              queryKey: messagesQueryKey(sessionId),
-            })
+            void queryClient.invalidateQueries({ queryKey: messagesQueryKey(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: chatKeys.contextUsage(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: chatKeys.sessionStats(sessionId) })
           },
           onMessageEnd: () => {},
           onTurnStart: () => {},

@@ -81,3 +81,7 @@ Detailed AGENTS.md files for complex web feature modules:
 | [Routes (server)](apps/server/src/routes/AGENTS.md) | `server/src/routes/` | REST endpoints: sessions, threads, git, files |
 | [Terminal](apps/web/src/features/terminal/AGENTS.md) | `web/src/features/terminal/` | xterm.js + WebSocket PTY |
 | [Settings](apps/web/src/features/settings/AGENTS.md) | `web/src/features/settings/` | Provider config, API keys |
+| [Workspace](apps/web/src/features/workspace/AGENTS.md) | `web/src/features/workspace/` | 9 files, workspace/thread lifecycle |
+| [File Tree](apps/web/src/features/file-tree/AGENTS.md) | `web/src/features/file-tree/` | 4 files, file navigation |
+| [Electron](apps/web/src/features/electron/AGENTS.md) | `web/src/features/electron/` | 5 files, desktop integration |
+| [Shared](apps/web/src/shared/AGENTS.md) | `web/src/shared/` | 54+ files, UI components + utilities |

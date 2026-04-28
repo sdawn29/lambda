@@ -1,5 +1,4 @@
-import { useState, useCallback } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useCallback, useEffect } from "react"
 import {
   Archive,
   ChevronRight,
@@ -71,13 +70,12 @@ function relativeTime(ts: number, now = Date.now()): string {
 }
 
 function useNow() {
-  const { data = 0 } = useQuery({
-    queryKey: ["now"],
-    queryFn: () => Date.now(),
-    refetchInterval: 60_000,
-    staleTime: 0,
-  })
-  return data
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  return now
 }
 
 function ThreadRow({

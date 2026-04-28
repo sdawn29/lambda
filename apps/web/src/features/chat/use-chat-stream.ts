@@ -7,7 +7,7 @@
  * - Streaming status (isLoading, isStopped, isCompacting)
  * - Error handling (pending errors)
  */
-import { useCallback, useState, useMemo, useEffect, startTransition } from "react"
+import { useCallback, useState, useMemo, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSessionStream } from "./hooks/use-session-stream"
@@ -119,32 +119,19 @@ export function useChatStream({
     // Error handling is managed by the stream hook
   }, [])
 
-  // Track when this thread last reported loading to handle SSE reconnection
-  // If isLoadingInternal has been true for too long without being cleared, assume the
-  // agent has finished (handles edge cases where agent_end wasn't received)
+  // Safety net: if the agent appears to be loading for longer than 5 minutes without
+  // an agent_end event, assume it finished. WebSocket transport errors already clear
+  // loading via onTransportError, so this mainly covers very long-running agents.
   const LOADING_TIMEOUT_MS = 5 * 60 * 1000
   const [isTimedOut, setIsTimedOut] = useState(false)
 
   useEffect(() => {
     if (!isLoadingInternal) {
-      startTransition(() => {
-        setIsTimedOut(false)
-      })
+      setIsTimedOut(false)
       return
     }
-
-    const startTime = Date.now()
-    
-    const checkTimeout = () => {
-      startTransition(() => {
-        setIsTimedOut(Date.now() - startTime > LOADING_TIMEOUT_MS)
-      })
-    }
-
-    // Check immediately and then every second
-    checkTimeout()
-    const interval = setInterval(checkTimeout, 1000)
-    return () => clearInterval(interval)
+    const id = setTimeout(() => setIsTimedOut(true), LOADING_TIMEOUT_MS)
+    return () => clearTimeout(id)
   }, [isLoadingInternal, LOADING_TIMEOUT_MS])
 
   // isLoading is true only if this thread's SSE reports loading
