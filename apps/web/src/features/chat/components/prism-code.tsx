@@ -20,6 +20,7 @@ import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql"
 import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx"
 import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript"
 import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml"
+import { refractor } from "refractor/core"
 import type { CSSProperties } from "react"
 
 let languagesRegistered = false
@@ -45,6 +46,13 @@ function ensureLanguagesRegistered() {
   SyntaxHighlighter.registerLanguage("kotlin", kotlin)
   SyntaxHighlighter.registerLanguage("markdown", markdown)
   SyntaxHighlighter.registerLanguage("md", markdown)
+  // Prism's markdown grammar matches entire GFM tables as a single multi-line
+  // block token, producing phantom blank lines when split for line numbers.
+  // Patch the shared refractor singleton directly after registration.
+  const mdGrammar = (refractor as unknown as { languages?: Record<string, Record<string, unknown>> }).languages?.markdown
+  if (mdGrammar && "table" in mdGrammar) {
+    delete mdGrammar.table
+  }
   SyntaxHighlighter.registerLanguage("php", php)
   SyntaxHighlighter.registerLanguage("python", python)
   SyntaxHighlighter.registerLanguage("py", python)

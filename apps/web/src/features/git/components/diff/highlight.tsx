@@ -69,8 +69,6 @@ const EXT_TO_LANG: Record<string, string> = {
   bash: "bash",
   yaml: "yaml",
   yml: "yaml",
-  md: "markdown",
-  mdx: "markdown",
   sql: "sql",
   java: "java",
   c: "c",
