@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { Icon } from "@iconify/react"
 
+import { Button } from "@/shared/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { getFileIcon } from "@/shared/ui/file-icon"
 import type { WorkspaceEntry } from "../queries"
@@ -40,17 +41,16 @@ export function FileMentionDropdown({
         </div>
       ) : (
         entries.map((entry, i) => (
-          <button
+          <Button
             key={entry.path}
-            type="button"
+            variant="ghost"
             tabIndex={-1}
             onMouseDown={(e) => {
               e.preventDefault()
               onSelect(entry)
             }}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs outline-none",
-              "hover:bg-accent hover:text-accent-foreground",
+              "h-auto w-full justify-start gap-2 rounded-sm px-2 py-1.5 text-xs",
               i === selectedIndex && "bg-accent text-accent-foreground"
             )}
           >
@@ -78,7 +78,7 @@ export function FileMentionDropdown({
                 </span>
               )}
             </span>
-          </button>
+          </Button>
         ))
       )}
     </div>

@@ -7,12 +7,14 @@ import {
   CloudUpload,
   Sparkles,
   Settings2,
-  AlertCircle,
   FileText,
 } from "lucide-react"
 import { useSettingsModal } from "@/features/settings/context"
+import { Alert, AlertDescription } from "@/shared/ui/alert"
+import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/shared/ui/dialog"
+import { Textarea } from "@/shared/ui/textarea"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
@@ -72,15 +74,15 @@ function StatusBadge({ code }: { code: string }) {
     text: "text-muted-foreground",
   }
   return (
-    <span
+    <Badge
       className={cn(
-        "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-semibold leading-none",
+        "h-4 w-4 shrink-0 rounded-sm text-[10px] font-semibold leading-none",
         meta.bg,
         meta.text
       )}
     >
       {meta.label}
-    </span>
+    </Badge>
   )
 }
 
@@ -179,7 +181,7 @@ function AutoTextarea({
   }, [value])
 
   return (
-    <textarea
+    <Textarea
       ref={ref}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -187,10 +189,7 @@ function AutoTextarea({
       placeholder={placeholder}
       autoFocus={autoFocus}
       rows={3}
-      className={cn(
-        "w-full resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground/70",
-        className
-      )}
+      className={cn("resize-none border-0 bg-transparent shadow-none focus-visible:ring-0", className)}
     />
   )
 }
@@ -450,13 +449,15 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={handleConfigure}
-                      className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="gap-1 text-[11px] text-muted-foreground"
                     >
-                      <Settings2 className="size-3" />
+                      <Settings2 />
                       Configure
-                    </button>
+                    </Button>
                   }
                 />
                 <TooltipContent>Customize commit message prompt</TooltipContent>
@@ -465,22 +466,20 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={handleGenerate}
                       disabled={generating || staged.length === 0}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded px-1.5 py-1 text-[11px] transition-colors",
-                        "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        "disabled:pointer-events-none disabled:opacity-35"
-                      )}
+                      className="gap-1.5 text-[11px] text-muted-foreground"
                     >
                       {generating ? (
                         <Loader2 className="size-3 animate-spin" />
                       ) : (
-                        <Sparkles className="size-3" />
+                        <Sparkles />
                       )}
                       {generating ? "Generating…" : "Generate"}
-                    </button>
+                    </Button>
                   }
                 />
                 <TooltipContent>
@@ -495,13 +494,9 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
         {/* Error */}
         {error && (
-          <div
-            role="alert"
-            className="mx-4 mb-2 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-          >
-            <AlertCircle className="mt-px size-3.5 shrink-0" />
-            <span className="leading-snug">{error}</span>
-          </div>
+          <Alert variant="destructive" className="mx-4 mb-2">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Footer */}

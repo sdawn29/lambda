@@ -46,7 +46,7 @@ export function IconButtonWithTooltip({
         disabled={disabled}
         onClick={onClick}
       >
-        <Icon className="h-3 w-3" />
+        <Icon />
         <span className="sr-only">{label}</span>
       </Button>
     ),

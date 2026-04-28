@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react"
-import { Archive, Loader2, X } from "lucide-react"
+import { Archive, X } from "lucide-react"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { LoadingSpinner } from "@/shared/ui/loading-spinner"
 
 export function StashInputBar({
   onConfirm,
@@ -29,7 +32,7 @@ export function StashInputBar({
   return (
     <div className="flex items-center gap-2 border-b border-border/50 bg-muted/20 px-3 py-2">
       <Archive className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-      <input
+      <Input
         ref={inputRef}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -38,18 +41,20 @@ export function StashInputBar({
           if (e.key === "Escape") onCancel()
         }}
         placeholder="Stash message (optional) — Enter to confirm"
-        className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/40"
+        className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-xs shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0 h-auto"
       />
       {stashing ? (
-        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/60" />
+        <LoadingSpinner size="sm" />
       ) : (
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={onCancel}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:bg-muted hover:text-muted-foreground"
+          className="shrink-0 text-muted-foreground/50"
         >
-          <X className="h-3 w-3" />
+          <X />
           <span className="sr-only">Cancel</span>
-        </button>
+        </Button>
       )}
     </div>
   )

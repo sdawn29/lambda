@@ -1,4 +1,5 @@
 import { memo } from "react"
+import { Badge } from "@/shared/ui/badge"
 import { cn } from "@/shared/lib/utils"
 
 export interface ChangedFile {
@@ -64,14 +65,14 @@ export const StatusBadge = memo(function StatusBadge({
     text: "text-muted-foreground",
   }
   return (
-    <span
+    <Badge
       className={cn(
-        "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 font-mono text-[10px] leading-none font-semibold",
+        "h-4 min-w-4 rounded-sm px-0.5 font-mono text-[10px] leading-none font-semibold",
         meta.bg,
         meta.text
       )}
     >
       {label}
-    </span>
+    </Badge>
   )
 })

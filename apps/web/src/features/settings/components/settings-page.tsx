@@ -24,10 +24,16 @@ import {
   FolderOpen,
 } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/shared/ui/progress"
 import { Switch } from "@/shared/ui/switch"
 import {
   Dialog,
@@ -333,13 +339,15 @@ export function SettingsPage() {
               className="h-7 pl-7 text-xs"
             />
             {search && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setSearch("")}
-                className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                className="absolute top-1/2 right-1.5 -translate-y-1/2"
               >
-                <X className="h-3 w-3" />
-              </button>
+                <X />
+                <span className="sr-only">Clear search</span>
+              </Button>
             )}
           </div>
         </div>
@@ -355,20 +363,16 @@ export function SettingsPage() {
               const Icon = section.icon
               const isActive = activeSection === section.id
               return (
-                <button
+                <Button
                   key={section.id}
-                  type="button"
+                  variant={isActive ? "secondary" : "ghost"}
+                  size="sm"
                   onClick={() => scrollToSection(section.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
-                    isActive
-                      ? "bg-accent font-medium text-accent-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
+                  className="w-full justify-start gap-2"
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span>{section.label}</span>
-                </button>
+                </Button>
               )
             })
           )}
@@ -891,14 +895,13 @@ function ShortcutRecorder({
 
   return (
     <div className="flex items-center gap-1.5">
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setRecording(true)}
         className={cn(
-          "flex min-w-24 items-center justify-center rounded-md border px-2 py-1 text-xs transition-colors",
-          recording
-            ? "animate-pulse border-ring bg-primary/10 text-primary"
-            : "border-border bg-transparent hover:border-ring hover:bg-muted/50"
+          "min-w-24",
+          recording && "animate-pulse border-ring bg-primary/10 text-primary"
         )}
         title="Click to record a new shortcut"
       >
@@ -909,26 +912,28 @@ function ShortcutRecorder({
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
-      </button>
+      </Button>
       {!isDefault && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           title="Reset to default"
           onClick={() => onSave(action, DEFAULT_SHORTCUTS[action])}
-          className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
         >
-          <RotateCcw className="h-3 w-3" />
-        </button>
+          <RotateCcw />
+          <span className="sr-only">Reset to default</span>
+        </Button>
       )}
       {binding && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           title="Clear shortcut"
           onClick={() => onSave(action, "")}
-          className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
         >
-          <X className="h-3 w-3" />
-        </button>
+          <X />
+          <span className="sr-only">Clear shortcut</span>
+        </Button>
       )}
     </div>
   )
@@ -1092,18 +1097,10 @@ function UpdateStatusRow({
       )
     case "downloading":
       return (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Downloading update…</span>
-            <span className="tabular-nums">{Math.round(status.percent)}%</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${status.percent}%` }}
-            />
-          </div>
-        </div>
+        <Progress value={status.percent} className="flex-col gap-1.5">
+          <ProgressLabel>Downloading update…</ProgressLabel>
+          <ProgressValue>{Math.round(status.percent)}%</ProgressValue>
+        </Progress>
       )
     case "ready":
       return (
@@ -1121,13 +1118,10 @@ function UpdateStatusRow({
       )
     case "error":
       return (
-        <div
-          role="alert"
-          className="flex items-center gap-2 text-xs text-destructive"
-        >
-          <AlertTriangle className="h-3.5 w-3.5" />
-          <span className="truncate">{status.message}</span>
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertDescription className="truncate">{status.message}</AlertDescription>
+        </Alert>
       )
   }
 }

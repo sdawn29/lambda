@@ -87,10 +87,10 @@ export const StashEntryRow = memo(function StashEntryRow({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"
+                  className="text-muted-foreground/60 hover:text-foreground"
                   onClick={() => run("pop")}
                 >
-                  <PackageOpen className="h-3 w-3" />
+                  <PackageOpen />
                   <span className="sr-only">Pop</span>
                 </Button>
               }
@@ -104,10 +104,10 @@ export const StashEntryRow = memo(function StashEntryRow({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="h-6 w-6 text-muted-foreground/60 hover:text-foreground"
+                  className="text-muted-foreground/60 hover:text-foreground"
                   onClick={() => run("apply")}
                 >
-                  <Download className="h-3 w-3" />
+                  <Download />
                   <span className="sr-only">Apply</span>
                 </Button>
               }
@@ -121,10 +121,10 @@ export const StashEntryRow = memo(function StashEntryRow({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="h-6 w-6 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
+                  className="text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => run("drop")}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 />
                   <span className="sr-only">Drop</span>
                 </Button>
               }

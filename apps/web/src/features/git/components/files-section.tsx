@@ -1,5 +1,6 @@
 import { memo, useState } from "react"
 import { ChevronRight } from "lucide-react"
+import { Badge } from "@/shared/ui/badge"
 import { FileAccordionItem } from "./file-accordion-item"
 import { type ChangedFile } from "./status-badge"
 import { type DiffMode } from "./diff-view"
@@ -28,7 +29,7 @@ export const FilesSection = memo(function FilesSection({
     <div className="border-b border-border/40 last:border-0">
       <button
         onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-muted/40"
+        className="flex h-auto w-full items-center justify-start gap-2 rounded-none px-3 py-1.5"
       >
         <ChevronRight
           className={cn(
@@ -40,9 +41,9 @@ export const FilesSection = memo(function FilesSection({
           {label}
         </span>
         {files.length > 0 && (
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+          <Badge variant="secondary" className="h-4 min-w-4 rounded-full px-1 text-[10px]">
             {files.length}
-          </span>
+          </Badge>
         )}
       </button>
 

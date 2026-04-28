@@ -8,7 +8,8 @@ import {
   memo,
   Suspense,
 } from "react"
-import { AlertCircle, Archive, Check, Columns2, AlignLeft, GitCompare, Loader2, PackageMinus, PackagePlus, Plus, X, ArrowUpDown, ExternalLink, Maximize2, Minimize2 } from "lucide-react"
+import { Archive, Check, Columns2, AlignLeft, GitCompare, Loader2, PackageMinus, PackagePlus, Plus, X, ArrowUpDown, ExternalLink, Maximize2, Minimize2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { getFileIcon } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
@@ -157,12 +158,12 @@ const SourceControlContent = memo(function SourceControlContent({
                 size="icon-sm"
                 onClick={handleStageAll}
                 disabled={bulkWorking || !hasUnstaged}
-                className="h-6 w-6 text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
                 {stageAll.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="animate-spin" />
                 ) : (
-                  <PackagePlus className="h-3 w-3" />
+                  <PackagePlus />
                 )}
                 <span className="sr-only">Stage all</span>
               </Button>
@@ -179,12 +180,12 @@ const SourceControlContent = memo(function SourceControlContent({
                 size="icon-sm"
                 onClick={handleUnstageAll}
                 disabled={bulkWorking || !hasStaged}
-                className="h-6 w-6 text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
                 {unstageAll.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="animate-spin" />
                 ) : (
-                  <PackageMinus className="h-3 w-3" />
+                  <PackageMinus />
                 )}
                 <span className="sr-only">Unstage all</span>
               </Button>
@@ -203,9 +204,9 @@ const SourceControlContent = memo(function SourceControlContent({
                 size="icon-sm"
                 onClick={() => setMode("inline")}
                 data-active={mode === "inline"}
-                className="h-6 w-6 text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
               >
-                <AlignLeft className="h-3 w-3" />
+                <AlignLeft />
                 <span className="sr-only">Inline view</span>
               </Button>
             }
@@ -221,9 +222,9 @@ const SourceControlContent = memo(function SourceControlContent({
                 size="icon-sm"
                 onClick={() => setMode("side-by-side")}
                 data-active={mode === "side-by-side"}
-                className="h-6 w-6 text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
               >
-                <Columns2 className="h-3 w-3" />
+                <Columns2 />
                 <span className="sr-only">Side-by-side</span>
               </Button>
             }
@@ -238,13 +239,16 @@ const SourceControlContent = memo(function SourceControlContent({
             <TooltipTrigger
               render={
                 <DropdownMenuTrigger
-                  className={cn(
-                    "flex h-6 w-6 items-center justify-center rounded-md transition-colors",
-                    "text-muted-foreground/70 hover:bg-accent hover:text-accent-foreground",
-                    sortMode !== "name" && "bg-accent text-accent-foreground"
-                  )}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      data-active={sortMode !== "name"}
+                      className="text-muted-foreground/70 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                    />
+                  }
                 >
-                  <ArrowUpDown className="h-3 w-3" />
+                  <ArrowUpDown />
                   <span className="sr-only">Sort files</span>
                 </DropdownMenuTrigger>
               }
@@ -277,9 +281,9 @@ const SourceControlContent = memo(function SourceControlContent({
                 size="icon-sm"
                 onClick={() => setStashInputOpen(true)}
                 disabled={!hasChanges}
-                className="h-6 w-6 text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
-                <Archive className="h-3 w-3" />
+                <Archive />
                 <span className="sr-only">Stash changes</span>
               </Button>
             }
@@ -305,10 +309,9 @@ const SourceControlContent = memo(function SourceControlContent({
           )}
 
           {!loading && error && (
-            <div className="mx-3 mt-3 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/8 px-3 py-2.5 text-xs text-destructive">
-              <AlertCircle className="mt-px size-3.5 shrink-0" />
-              <span className="leading-snug">{error}</span>
-            </div>
+            <Alert variant="destructive" className="mx-3 mt-3">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           {!loading && !error && files.length === 0 && (
@@ -458,11 +461,10 @@ const FileContent = memo(function FileContent({
         <div className="border-b border-border/50">
           <FileHeader pathParts={pathParts} filePath={filePath} openWithAppId={openWithAppId} />
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="mx-3 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/8 px-3 py-2.5 text-xs text-destructive">
-            <AlertCircle className="mt-px size-3.5 shrink-0" />
-            <span className="leading-snug">{error}</span>
-          </div>
+        <div className="flex flex-1 items-center justify-center p-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         </div>
       </div>
     )
@@ -617,59 +619,53 @@ export const DiffPanel = memo(function DiffPanel({
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
             return (
-              <button
+              <Button
                 key={tab.id}
-                type="button"
+                variant="ghost"
                 ref={(el) => {
                   if (el) {
-                    tabRefs.current.set(tab.id, el)
+                    tabRefs.current.set(tab.id, el as HTMLButtonElement)
                   } else {
                     tabRefs.current.delete(tab.id)
                   }
                 }}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "group relative flex shrink-0 items-center gap-1.5 border-r px-3 text-xs transition-colors",
+                  "group relative h-full shrink-0 gap-1.5 rounded-none border-r px-3 text-xs",
                   isActive
                     ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "bg-muted/40 text-muted-foreground"
                 )}
               >
                 {tab.type === "source-control" ? (
-                  <GitCompare className="h-3 w-3 shrink-0" />
+                  <GitCompare className="shrink-0" />
                 ) : (
                   (() => {
                     const FileIcon = getFileIcon(tab.title)
-                    return <FileIcon className="h-3 w-3 shrink-0" />
+                    return <FileIcon className="shrink-0" />
                   })()
                 )}
                 <span className="max-w-30 truncate">{tab.title}</span>
                 {tab.type !== "source-control" && (
-                  <span
-                    role="button"
-                    tabIndex={-1}
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     aria-label={`Close ${tab.title}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       closeTab(tab.id)
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.stopPropagation()
-                        closeTab(tab.id)
-                      }
-                    }}
                     className={cn(
-                      "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm transition-colors hover:bg-muted-foreground/20",
+                      "shrink-0",
                       isActive
                         ? "opacity-60 hover:opacity-100"
                         : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
                     )}
                   >
                     <X className="h-2.5 w-2.5" />
-                  </span>
+                  </Button>
                 )}
-              </button>
+              </Button>
             )
           })}
 
@@ -696,12 +692,12 @@ export const DiffPanel = memo(function DiffPanel({
                   variant="ghost"
                   size="icon-sm"
                   onClick={toggleFullscreen}
-                  className="h-7 w-7 text-muted-foreground/60 hover:text-foreground"
+                  className="text-muted-foreground/60 hover:text-foreground"
                 >
                   {isFullscreen ? (
-                    <Minimize2 className="h-3.5 w-3.5" />
+                    <Minimize2 />
                   ) : (
-                    <Maximize2 className="h-3.5 w-3.5" />
+                    <Maximize2 />
                   )}
                   <span className="sr-only">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
                 </Button>
@@ -719,9 +715,9 @@ export const DiffPanel = memo(function DiffPanel({
                   variant="ghost"
                   size="icon-sm"
                   onClick={close}
-                  className="h-7 w-7 text-muted-foreground/60 hover:text-foreground"
+                  className="text-muted-foreground/60 hover:text-foreground"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X />
                   <span className="sr-only">Close panel</span>
                 </Button>
               }
