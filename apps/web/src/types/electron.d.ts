@@ -30,6 +30,7 @@ interface ElectronAPI {
   onServerStatusChange: (callback: (status: ServerStatus) => void) => () => void
   restartServer: () => Promise<ServerStatus>
   openPath: (path: string) => Promise<void>
+  openDataDir: () => Promise<void>
   listOpenWithApps: () => Promise<OpenWithApp[]>
   getOpenWithAppIcon: (appId: string) => Promise<string | null>
   openWorkspaceWithApp: (workspacePath: string, appId?: string) => Promise<void>

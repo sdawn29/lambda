@@ -21,6 +21,7 @@ import {
   Download,
   DollarSign,
   Gauge,
+  FolderOpen,
 } from "lucide-react"
 
 import { Badge } from "@/shared/ui/badge"
@@ -567,7 +568,25 @@ export function SettingsPage() {
                   description="Manage your locally stored application data."
                 />
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="flex flex-col gap-3 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">Data folder</p>
+                        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                          ~/.lamda-code
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => window.electronAPI?.openDataDir()}
+                      >
+                        <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                        Show in Finder
+                      </Button>
+                    </div>
+
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5">
                       <div className="flex items-start justify-between gap-4 px-4 py-3">
                         <div className="flex min-w-0 items-start gap-3">
