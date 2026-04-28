@@ -89,8 +89,8 @@
   --accent: #d3cfc7;
   --accent-foreground: #1a1815;
 
-  /* ── Primary (jellybeans steel blue) ── */
-  --primary: #2d64be;
+  /* ── Primary (jellybeans steel blue, darker) ── */
+  --primary: #1a4080;
   --primary-foreground: #f3efe8;
 
   /* ── Destructive (jellybeans error red) ── */
@@ -99,10 +99,10 @@
   /* ── Border: barely-there separators · Input: form field outlines ── */
   --border: #e6e1d9;
   --input:  #d4cfc7;
-  --ring: #2d64be;
+  --ring: #1a4080;
 
   /* ── Charts (jellybeans syntax colors, darkened for light bg) ── */
-  --chart-1: #2d64be;
+  --chart-1: #1a4080;
   --chart-2: #5a7842;
   --chart-3: #c4870a;
   --chart-4: #9f4e32;
@@ -114,12 +114,12 @@
   /* ── Sidebar: clearly distinct from base, no hard border needed ── */
   --sidebar: #e8e4dd;
   --sidebar-foreground: #1a1815;
-  --sidebar-primary: #2d64be;
+  --sidebar-primary: #1a4080;
   --sidebar-primary-foreground: #f3efe8;
   --sidebar-accent: #dedad3;
   --sidebar-accent-foreground: #1a1815;
   --sidebar-border: #e0dbd4;
-  --sidebar-ring: #2d64be;
+  --sidebar-ring: #1a4080;
 }
 
 /* ── Jellybeans Dark ──────────────────────────────────────────────── */
@@ -148,8 +148,8 @@
   --accent: #303030;
   --accent-foreground: #e8e8d3;
 
-  /* ── Primary (jellybeans keyword steel blue) ── */
-  --primary: #6a90d7;
+  /* ── Primary (jellybeans keyword steel blue, darker) ── */
+  --primary: #3a6090;
   --primary-foreground: #e8e8d3;
 
   /* ── Destructive (jellybeans error red) ── */
@@ -158,10 +158,10 @@
   /* ── Borders: subtle separators · Input: border of form fields ── */
   --border: #212121;
   --input:  #1f1f1f;
-  --ring: #6a90d7;
+  --ring: #3a6090;
 
   /* ── Charts (jellybeans full syntax palette) ── */
-  --chart-1: #6a90d7;
+  --chart-1: #3a6090;
   --chart-2: #99ad6a;
   --chart-3: #fad07a;
   --chart-4: #cf6a4c;
@@ -170,12 +170,12 @@
   /* ── Sidebar: deeper than base · accent jumps to card level for contrast ── */
   --sidebar: #0c0c0c;
   --sidebar-foreground: #e8e8d3;
-  --sidebar-primary: #6a90d7;
+  --sidebar-primary: #3a6090;
   --sidebar-primary-foreground: #e8e8d3;
   --sidebar-accent: #181818;
   --sidebar-accent-foreground: #e8e8d3;
   --sidebar-border: #161616;
-  --sidebar-ring: #6a90d7;
+  --sidebar-ring: #3a6090;
 }
 
 /* ── Thinking shimmer animation ────────────────────────────────────────── */
