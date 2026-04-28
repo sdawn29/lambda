@@ -383,11 +383,11 @@ export function ChatView({
                   </p>
                   <p className="text-xs text-muted-foreground/60">
                     Use{" "}
-                    <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px]">
+                    <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">
                       @
                     </kbd>{" "}
                     for files and{" "}
-                    <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px]">
+                    <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">
                       /
                     </kbd>{" "}
                     for commands

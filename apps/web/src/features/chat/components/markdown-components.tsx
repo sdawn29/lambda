@@ -53,8 +53,8 @@ function CodeBlock({
         <CopyButton code={code} />
         <Suspense
           fallback={
-            <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-4">
-              <code>{code}</code>
+            <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-4 text-foreground">
+              <code className="text-foreground">{code}</code>
             </pre>
           }
         >
@@ -74,8 +74,8 @@ function CodeBlock({
   return (
     <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
       <CopyButton code={code} />
-      <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-4">
-        <code>{code}</code>
+      <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-4 text-foreground">
+        <code className="text-foreground">{code}</code>
       </pre>
     </div>
   )
@@ -115,7 +115,7 @@ export const markdownComponents: Components = {
       String(children).endsWith("\n") || className?.startsWith("language-")
     if (!isBlock) {
       return (
-        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.8125rem]">
+        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.8125rem] text-foreground">
           {children}
         </code>
       )
