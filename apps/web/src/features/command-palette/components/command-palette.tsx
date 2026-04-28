@@ -41,7 +41,8 @@ import { useFileTree } from "@/features/file-tree/context"
 import { useSidebar } from "@/shared/ui/sidebar"
 import { useSettingsModal } from "@/features/settings"
 import { useTheme } from "@/shared/components/theme-provider"
-import { getFileIcon } from "@/shared/ui/file-icon"
+import { Icon } from "@iconify/react"
+import { getIconName } from "@/shared/ui/file-icon"
 
 function ShortcutHint({ binding }: { binding: string }) {
   const parts = formatBindingParts(binding)
@@ -170,7 +171,7 @@ export function CommandPalette() {
                         value={`file ${file.relativePath}`}
                         onSelect={() => handleOpenFile(file.relativePath)}
                       >
-                        {getFileIcon(file.name)({ className: "size-3.5 shrink-0 text-muted-foreground" })}
+                        <Icon icon={`catppuccin:${getIconName(file.name)}`} className="size-3.5 shrink-0" aria-hidden />
                         <span className="min-w-0 flex-1 truncate">
                           <span>{file.name}</span>
                           {dir && (
