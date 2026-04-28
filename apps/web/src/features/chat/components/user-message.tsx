@@ -46,7 +46,7 @@ function FolderChip({ folderPath }: { folderPath: string }) {
       <FolderIcon
         width={10}
         height={10}
-        style={{ color: "#60a5fa", flexShrink: 0 }}
+        className="shrink-0 text-primary"
         aria-hidden
       />
       {basename}

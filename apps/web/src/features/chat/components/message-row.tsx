@@ -92,7 +92,7 @@ function AssistantMessageBlock({
   // Apply destructive text color when rendered as an error
   const proseClass = isError
     ? "prose prose-sm max-w-none dark:prose-invert text-destructive [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-destructive [&_a]:underline [&_a]:underline-offset-4"
-    : "prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+    : "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
 
   return (
     <div className="group flex animate-in flex-col gap-2 duration-300 fade-in-0 slide-in-from-bottom-1">

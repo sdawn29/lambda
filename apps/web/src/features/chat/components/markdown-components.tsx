@@ -134,7 +134,12 @@ export const markdownComponents: Components = {
 
   // ── Links ───────────────────────────────────────────────────────────────────
   a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer">
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-primary underline underline-offset-4 transition-colors hover:text-primary/70"
+    >
       {children}
     </a>
   ),
