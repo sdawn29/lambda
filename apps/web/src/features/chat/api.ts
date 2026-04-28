@@ -1,4 +1,4 @@
-import { apiFetch, getServerUrl } from "@/shared/lib/client"
+import { apiFetch, getServerWsUrl } from "@/shared/lib/client"
 import type { MessageBlock, StoredMessageDto } from "./types"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -54,14 +54,17 @@ export function abortSession(id: string): Promise<void> {
   return apiFetch<void>(`/session/${id}/abort`, { method: "POST" })
 }
 
-export async function openSessionEventSource(id: string): Promise<EventSource> {
-  const base = await getServerUrl()
-  return new EventSource(`${base}/session/${id}/events`)
+export async function openSessionWebSocket(id: string, lastEventId?: string): Promise<WebSocket> {
+  const base = await getServerWsUrl()
+  const url = lastEventId
+    ? `${base}/ws/session/${id}/events?lastEventId=${encodeURIComponent(lastEventId)}`
+    : `${base}/ws/session/${id}/events`
+  return new WebSocket(url)
 }
 
-export async function openGlobalEventSource(): Promise<EventSource> {
-  const base = await getServerUrl()
-  return new EventSource(`${base}/events`)
+export async function openGlobalWebSocket(): Promise<WebSocket> {
+  const base = await getServerWsUrl()
+  return new WebSocket(`${base}/ws/events`)
 }
 
 export interface SendPromptParams {

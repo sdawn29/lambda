@@ -6,6 +6,9 @@ import { resolvePort } from "./port.js";
 import app from "./app.js";
 import { bootstrapSessions } from "./bootstrap.js";
 import { handleTerminalConnection } from "./services/terminal-service.js";
+import { handleSessionEventsWs } from "./routes/sessions.js";
+import { handleGlobalEventsWs } from "./routes/health.js";
+import { handleOAuthEventsWs } from "./routes/auth.js";
 
 const port = resolvePort();
 
@@ -31,7 +34,15 @@ bootstrapSessions()
         head: Buffer,
       ) => {
         const url = new URL(request.url ?? "/", "http://localhost");
-        if (url.pathname === "/terminal") {
+        const pathname = url.pathname;
+
+        const isKnownWsPath =
+          pathname === "/terminal" ||
+          pathname === "/ws/events" ||
+          /^\/ws\/session\/[^/]+\/events$/.test(pathname) ||
+          /^\/ws\/auth\/oauth\/[^/]+\/events$/.test(pathname);
+
+        if (isKnownWsPath) {
           wss.handleUpgrade(request, socket, head, (ws) => {
             wss.emit("connection", ws, request);
           });
@@ -42,7 +53,33 @@ bootstrapSessions()
     );
 
     wss.on("connection", (ws: WebSocket, request: import("node:http").IncomingMessage) => {
-      handleTerminalConnection(ws, request);
+      const url = new URL(request.url ?? "/", "http://localhost");
+      const pathname = url.pathname;
+
+      if (pathname === "/terminal") {
+        handleTerminalConnection(ws, request);
+        return;
+      }
+
+      if (pathname === "/ws/events") {
+        handleGlobalEventsWs(ws);
+        return;
+      }
+
+      const sessionMatch = pathname.match(/^\/ws\/session\/([^/]+)\/events$/);
+      if (sessionMatch) {
+        const lastEventId = url.searchParams.get("lastEventId") ?? undefined;
+        handleSessionEventsWs(ws, sessionMatch[1], lastEventId);
+        return;
+      }
+
+      const oauthMatch = pathname.match(/^\/ws\/auth\/oauth\/([^/]+)\/events$/);
+      if (oauthMatch) {
+        handleOAuthEventsWs(ws, oauthMatch[1]);
+        return;
+      }
+
+      ws.close();
     });
   })
   .catch((err) => {

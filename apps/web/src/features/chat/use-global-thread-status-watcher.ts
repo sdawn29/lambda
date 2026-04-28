@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { openGlobalEventSource } from "./api"
+import { openGlobalWebSocket } from "./api"
 import { useSetThreadStatus } from "./thread-status-context"
 import { workspaceKeys } from "@/features/workspace/queries"
 
@@ -13,46 +13,40 @@ export function useGlobalThreadStatusWatcher(activeThreadId?: string) {
 
   useEffect(() => {
     let active = true
-    let es: EventSource | null = null
+    let ws: WebSocket | null = null
 
-    openGlobalEventSource().then((eventSource) => {
+    openGlobalWebSocket().then((socket) => {
       if (!active) {
-        eventSource.close()
+        socket.close()
         return
       }
-      es = eventSource
+      ws = socket
 
-      es.addEventListener("thread_status", (e: MessageEvent) => {
+      ws.addEventListener("message", (e: MessageEvent) => {
         if (!active) return
         try {
-          const { threadId, status } = JSON.parse(e.data) as {
-            threadId: string
-            status: "running" | "idle"
-          }
-          if (status === "idle" && threadId !== activeThreadIdRef.current) {
-            setStatus(threadId, "completed")
-          } else {
-            setStatus(threadId, status)
+          const data = JSON.parse(e.data as string) as { type: string } & Record<string, unknown>
+
+          if (data.type === "thread_status") {
+            const { threadId, status } = data as { threadId: string; status: "running" | "idle" }
+            if (status === "idle" && threadId !== activeThreadIdRef.current) {
+              setStatus(threadId, "completed")
+            } else {
+              setStatus(threadId, status)
+            }
+          } else if (data.type === "workspace_files_updated") {
+            const { workspaceId } = data as { workspaceId: string }
+            queryClient.invalidateQueries({ queryKey: workspaceKeys.files(workspaceId) })
           }
         } catch (error) {
           console.error("[thread-status]", error)
-        }
-      })
-
-      es.addEventListener("workspace_files_updated", (e: MessageEvent) => {
-        if (!active) return
-        try {
-          const { workspaceId } = JSON.parse(e.data) as { workspaceId: string }
-          queryClient.invalidateQueries({ queryKey: workspaceKeys.files(workspaceId) })
-        } catch (error) {
-          console.error("[workspace-index]", error)
         }
       })
     })
 
     return () => {
       active = false
-      es?.close()
+      ws?.close()
     }
   }, [setStatus, queryClient])
 }

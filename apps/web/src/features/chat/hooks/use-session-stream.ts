@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { openSessionEventSource, listRunningTools } from "../api"
+import { openSessionWebSocket, listRunningTools } from "../api"
 import { subscribeToSessionEvents, type AgentEndMessage } from "../session-events"
 import {
   messagesQueryKey,
@@ -272,22 +272,22 @@ export function useSessionStream({
     }
   }, [sessionId])
 
-  // Main SSE effect
+  // Main WebSocket effect
   useEffect(() => {
     let active = true
-    let eventSource: EventSource | null = null
+    let ws: WebSocket | null = null
     // Track the sessionId for this connection to ignore stale events
     const currentSessionId = sessionId
 
-    openSessionEventSource(sessionId)
-      .then((es) => {
+    openSessionWebSocket(sessionId)
+      .then((socket) => {
         if (!active) {
-          es.close()
+          socket.close()
           return
         }
-        eventSource = es
+        ws = socket
 
-        return subscribeToSessionEvents(es, {
+        return subscribeToSessionEvents(socket, {
           // Restore running tools on connect
           onAgentStart: () => {
             if (!active || currentSessionId !== sessionId) return
@@ -533,8 +533,7 @@ export function useSessionStream({
             onIsLoadingChange?.(false)
           },
           onTransportError: () => {
-            if (!active || !eventSource) return
-            if (eventSource.readyState !== EventSource.CLOSED) return
+            if (!active || !ws) return
 
             const lastPrompt = lastPromptRef.current
             onPendingErrorChange?.(
@@ -566,7 +565,7 @@ export function useSessionStream({
       }
       pendingDeltasRef.current = []
       pendingToolUpdatesRef.current = []
-      eventSource?.close()
+      ws?.close()
     }
   }, [
     sessionId,

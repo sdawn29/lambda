@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { openSessionEventSource } from "../api"
+import { openSessionWebSocket } from "../api"
 import { subscribeToSessionEvents } from "../session-events"
 import { gitStatusKey, gitKeys } from "@/features/git/queries"
 
@@ -52,17 +52,17 @@ export function useFileChangeInvalidation(sessionId: string | null) {
     if (!sessionId) return
 
     let active = true
-    let es: EventSource | null = null
+    let ws: WebSocket | null = null
 
-    openSessionEventSource(sessionId)
-      .then((eventSource) => {
+    openSessionWebSocket(sessionId)
+      .then((socket) => {
         if (!active) {
-          eventSource.close()
+          socket.close()
           return
         }
-        es = eventSource
+        ws = socket
 
-        return subscribeToSessionEvents(es, {
+        return subscribeToSessionEvents(socket, {
           onToolExecutionEnd: (data) => {
             const toolName = data.toolName
             if (!toolName) return
@@ -137,7 +137,7 @@ export function useFileChangeInvalidation(sessionId: string | null) {
 
     return () => {
       active = false
-      es?.close()
+      ws?.close()
     }
   }, [sessionId, queryClient])
 }

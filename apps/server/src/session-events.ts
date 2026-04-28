@@ -405,4 +405,3 @@ class SessionEventRegistry {
 }
 
 export const sessionEvents = new SessionEventRegistry();
-export const SESSION_SSE_RETRY_MS = 1000;

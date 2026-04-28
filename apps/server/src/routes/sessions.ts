@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
 import { join, relative } from "path";
 import { readdir } from "fs/promises";
+import type { WebSocket } from "ws";
 import { insertWorkspace, insertThread, insertUserBlock, insertAbortBlock, listMessageBlocks, listRunningToolBlocks } from "@lamda/db";
 import { store } from "../store.js";
-import { sessionEvents, SESSION_SSE_RETRY_MS } from "../session-events.js";
+import { sessionEvents } from "../session-events.js";
 import {
   createSessionForThread,
   ensureSessionEventHub,
@@ -243,41 +243,6 @@ sessions.get("/session/:id/running-tools", (c) => {
   return c.json({ runningTools });
 });
 
-sessions.get("/session/:id/events", async (c) => {
-  const id = c.req.param("id");
-  const entry = store.get(id);
-  if (!entry) return c.json({ error: "Not found" }, 404);
-
-  const hub = ensureSessionEventHub(id, entry);
-  const lastEventId = c.req.header("last-event-id");
-
-  const response = streamSSE(c, async (stream) => {
-    let writeQueue = Promise.resolve();
-    const queueWrite = (record: { id: number; event: { type: string }; data: string }) => {
-      writeQueue = writeQueue.then(() =>
-        stream.writeSSE({
-          event: record.event.type,
-          id: String(record.id),
-          retry: SESSION_SSE_RETRY_MS,
-          data: record.data,
-        }),
-      );
-    };
-
-    const subscription = hub.subscribe({ lastEventId, onEvent: queueWrite });
-    stream.onAbort(() => subscription.unsubscribe());
-
-    for (const record of subscription.initialEvents) queueWrite(record);
-
-    await subscription.closed;
-    await writeQueue;
-  });
-
-  response.headers.set("Cache-Control", "no-cache, no-transform");
-  response.headers.set("X-Accel-Buffering", "no");
-  return response;
-});
-
 sessions.get("/session/:id/workspace-files", async (c) => {
   const cwd = store.getCwd(c.req.param("id"));
   if (!cwd) return c.json({ error: "Session not found" }, 404);
@@ -297,5 +262,35 @@ sessions.get("/session/:id/workspace-files", async (c) => {
     return c.json({ entries: [] });
   }
 });
+
+export function handleSessionEventsWs(ws: WebSocket, id: string, lastEventId?: string) {
+  const entry = store.get(id);
+  if (!entry) {
+    ws.send(JSON.stringify({ type: "server_error", message: "Not found" }));
+    ws.close();
+    return;
+  }
+
+  const hub = ensureSessionEventHub(id, entry);
+
+  const onEvent = (record: { id: number; event: { type: string }; data: string }) => {
+    if (ws.readyState !== 1 /* OPEN */) return;
+    ws.send(`{"id":${record.id},${record.data.slice(1)}`);
+  };
+
+  const subscription = hub.subscribe({ lastEventId, onEvent });
+
+  for (const record of subscription.initialEvents) {
+    if (ws.readyState !== 1 /* OPEN */) break;
+    ws.send(`{"id":${record.id},${record.data.slice(1)}`);
+  }
+
+  ws.on("close", () => subscription.unsubscribe());
+  ws.on("error", () => subscription.unsubscribe());
+
+  subscription.closed.then(() => {
+    if (ws.readyState === 1 /* OPEN */) ws.close();
+  });
+}
 
 export default sessions;

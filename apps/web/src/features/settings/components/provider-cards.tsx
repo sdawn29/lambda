@@ -45,7 +45,7 @@ import {
 import {
   useAbortOAuthLogin,
   useOAuthLogout,
-  useOpenOAuthEventSource,
+  useOpenOAuthWebSocket,
   useRespondToOAuthPrompt,
   useStartOAuthLogin,
   useUpdateProviders,
@@ -126,7 +126,7 @@ type LoginState =
   | { status: "done"; providerId: string }
   | { status: "error"; providerId: string; message: string }
 
-type OAuthSseEvent =
+type OAuthWsEvent =
   | { type: "auth_url"; url: string; instructions?: string }
   | { type: "prompt"; promptId: string; message: string; placeholder?: string }
   | { type: "progress"; message: string }
@@ -138,18 +138,18 @@ export function SubscriptionsCard() {
   const { data: providers, isLoading } = useOAuthProviders()
   const openExternalMutation = useOpenExternal()
   const startOAuthLoginMutation = useStartOAuthLogin()
-  const openOAuthEventSourceMutation = useOpenOAuthEventSource()
+  const openOAuthWebSocketMutation = useOpenOAuthWebSocket()
   const respondToOAuthPromptMutation = useRespondToOAuthPrompt()
   const abortOAuthLoginMutation = useAbortOAuthLogin()
   const oauthLogoutMutation = useOAuthLogout()
   const [loginState, setLoginState] = useState<LoginState>({ status: "idle" })
   const [promptValue, setPromptValue] = useState("")
-  const esRef = useRef<EventSource | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
 
-  function closeEventSource() {
-    if (esRef.current) {
-      esRef.current.close()
-      esRef.current = null
+  function closeWebSocket() {
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
     }
   }
 
@@ -163,7 +163,7 @@ export function SubscriptionsCard() {
   }
 
   async function handleLogin(providerId: string) {
-    closeEventSource()
+    closeWebSocket()
     setLoginState({ status: "connecting", providerId })
 
     let loginId: string
@@ -178,9 +178,9 @@ export function SubscriptionsCard() {
       return
     }
 
-    let es: EventSource
+    let socket: WebSocket
     try {
-      es = await openOAuthEventSourceMutation.mutateAsync(loginId)
+      socket = await openOAuthWebSocketMutation.mutateAsync(loginId)
     } catch (err) {
       setLoginState({
         status: "error",
@@ -191,60 +191,60 @@ export function SubscriptionsCard() {
     }
 
     let completed = false
-    esRef.current = es
+    wsRef.current = socket
 
-    es.addEventListener("auth_url", (e) => {
-      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & {
-        type: "auth_url"
+    socket.addEventListener("message", (e: MessageEvent) => {
+      let event: OAuthWsEvent
+      try {
+        event = JSON.parse(e.data as string) as OAuthWsEvent
+      } catch {
+        return
       }
-      setLoginState({
-        status: "waiting_auth",
-        providerId,
-        loginId,
-        url: event.url,
-        instructions: event.instructions,
-      })
-      void handleOpenExternal(event.url)
-    })
 
-    es.addEventListener("prompt", (e) => {
-      const event = JSON.parse((e as MessageEvent).data) as OAuthSseEvent & {
-        type: "prompt"
-      }
-      setPromptValue("")
-      setLoginState({
-        status: "waiting_prompt",
-        providerId,
-        loginId,
-        promptId: event.promptId,
-        message: event.message,
-        placeholder: event.placeholder,
-      })
-    })
-
-    es.addEventListener("done", () => {
-      completed = true
-      closeEventSource()
-      setLoginState({ status: "done", providerId })
-      queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
-      queryClient.invalidateQueries({ queryKey: modelsQueryKey })
-      setTimeout(() => setLoginState({ status: "idle" }), 2000)
-    })
-
-    es.addEventListener("error", (e) => {
-      if (e instanceof MessageEvent) {
-        const event = JSON.parse(e.data) as OAuthSseEvent & { type: "error" }
+      if (event.type === "auth_url") {
+        setLoginState({
+          status: "waiting_auth",
+          providerId,
+          loginId,
+          url: event.url,
+          instructions: event.instructions,
+        })
+        void handleOpenExternal(event.url)
+      } else if (event.type === "prompt") {
+        setPromptValue("")
+        setLoginState({
+          status: "waiting_prompt",
+          providerId,
+          loginId,
+          promptId: event.promptId,
+          message: event.message,
+          placeholder: event.placeholder,
+        })
+      } else if (event.type === "done") {
         completed = true
-        closeEventSource()
+        closeWebSocket()
+        setLoginState({ status: "done", providerId })
+        queryClient.invalidateQueries({ queryKey: oauthProvidersQueryKey })
+        queryClient.invalidateQueries({ queryKey: modelsQueryKey })
+        setTimeout(() => setLoginState({ status: "idle" }), 2000)
+      } else if (event.type === "error") {
+        completed = true
+        closeWebSocket()
         setLoginState({ status: "error", providerId, message: event.message })
-      } else {
-        closeEventSource()
-        if (!completed)
-          setLoginState({
-            status: "error",
-            providerId,
-            message: "Connection lost",
-          })
+      }
+    })
+
+    socket.addEventListener("error", () => {
+      closeWebSocket()
+      if (!completed) {
+        setLoginState({ status: "error", providerId, message: "Connection lost" })
+      }
+    })
+
+    socket.addEventListener("close", () => {
+      if (!completed) {
+        wsRef.current = null
+        setLoginState({ status: "error", providerId, message: "Connection lost" })
       }
     })
   }
@@ -270,7 +270,7 @@ export function SubscriptionsCard() {
   }
 
   async function handleAbort() {
-    closeEventSource()
+    closeWebSocket()
     if (
       loginState.status === "waiting_auth" ||
       loginState.status === "waiting_prompt" ||

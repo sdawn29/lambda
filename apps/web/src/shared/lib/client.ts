@@ -46,6 +46,11 @@ export async function getServerUrl(): Promise<string> {
   return resolvedServerUrl
 }
 
+export async function getServerWsUrl(): Promise<string> {
+  const httpUrl = await getServerUrl()
+  return httpUrl.replace(/^http/, "ws")
+}
+
 export function apiUrl(path: string): string {
   if (resolvedServerUrl) return `${resolvedServerUrl}${path}`
   const envUrl = import.meta.env.VITE_SERVER_URL as string | undefined

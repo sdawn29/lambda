@@ -1,8 +1,3 @@
-import {
-  addEventSourceListener,
-  addJsonEventSourceListener,
-} from "@/shared/lib/sse"
-
 export type AgentEndMessage =
   | {
       role: "assistant"
@@ -120,106 +115,82 @@ export interface SessionServerErrorEvent {
 }
 
 export function subscribeToSessionEvents(
-  eventSource: EventSource,
+  ws: WebSocket,
   handlers: SessionEventHandlers
 ) {
-  const cleanups = [
-    addJsonEventSourceListener<SessionMessageStartEvent>(
-      eventSource,
-      "message_start",
-      handlers.onMessageStart
-    ),
-    addJsonEventSourceListener<SessionMessageUpdateEvent>(
-      eventSource,
-      "message_update",
-      handlers.onMessageUpdate
-    ),
-    addJsonEventSourceListener<SessionMessageEndEvent>(
-      eventSource,
-      "message_end",
-      handlers.onMessageEnd
-    ),
-    addJsonEventSourceListener<SessionToolExecutionStartEvent>(
-      eventSource,
-      "tool_execution_start",
-      handlers.onToolExecutionStart
-    ),
-    addJsonEventSourceListener<SessionToolExecutionUpdateEvent>(
-      eventSource,
-      "tool_execution_update",
-      handlers.onToolExecutionUpdate
-    ),
-    addJsonEventSourceListener<SessionToolExecutionEndEvent>(
-      eventSource,
-      "tool_execution_end",
-      handlers.onToolExecutionEnd
-    ),
-    addJsonEventSourceListener<SessionTurnStartEvent>(
-      eventSource,
-      "turn_start",
-      handlers.onTurnStart
-    ),
-    addJsonEventSourceListener<SessionTurnEndEvent>(
-      eventSource,
-      "turn_end",
-      handlers.onTurnEnd
-    ),
-    addJsonEventSourceListener<SessionAgentStartEvent>(
-      eventSource,
-      "agent_start",
-      handlers.onAgentStart
-    ),
-    addJsonEventSourceListener<SessionAgentEndEvent>(
-      eventSource,
-      "agent_end",
-      handlers.onAgentEnd
-    ),
-    addJsonEventSourceListener<SessionQueueUpdateEvent>(
-      eventSource,
-      "queue_update",
-      handlers.onQueueUpdate
-    ),
-    addJsonEventSourceListener<SessionAutoRetryStartEvent>(
-      eventSource,
-      "auto_retry_start",
-      handlers.onAutoRetryStart
-    ),
-    addJsonEventSourceListener<SessionAutoRetryEndEvent>(
-      eventSource,
-      "auto_retry_end",
-      handlers.onAutoRetryEnd
-    ),
-    addJsonEventSourceListener<{ reason: "manual" | "threshold" | "overflow" }>(
-      eventSource,
-      "compaction_start",
-      handlers.onCompactionStart
-    ),
-    addJsonEventSourceListener<{
-      reason: "manual" | "threshold" | "overflow";
-      aborted: boolean;
-      willRetry: boolean;
-      errorMessage?: string;
-    }>(
-      eventSource,
-      "compaction_end",
-      handlers.onCompactionEnd
-    ),
-    addJsonEventSourceListener<SessionServerErrorEvent>(
-      eventSource,
-      "server_error",
-      handlers.onServerError
-    ),
-  ];
+  const handleMessage = (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data as string) as { type: string } & Record<string, unknown>
+      switch (data.type) {
+        case "message_start":
+          handlers.onMessageStart(data as SessionMessageStartEvent)
+          break
+        case "message_update":
+          handlers.onMessageUpdate(data as SessionMessageUpdateEvent)
+          break
+        case "message_end":
+          handlers.onMessageEnd(data as SessionMessageEndEvent)
+          break
+        case "tool_execution_start":
+          handlers.onToolExecutionStart(data as SessionToolExecutionStartEvent)
+          break
+        case "tool_execution_update":
+          handlers.onToolExecutionUpdate(data as SessionToolExecutionUpdateEvent)
+          break
+        case "tool_execution_end":
+          handlers.onToolExecutionEnd(data as SessionToolExecutionEndEvent)
+          break
+        case "turn_start":
+          handlers.onTurnStart(data as SessionTurnStartEvent)
+          break
+        case "turn_end":
+          handlers.onTurnEnd(data as SessionTurnEndEvent)
+          break
+        case "agent_start":
+          handlers.onAgentStart(data as SessionAgentStartEvent)
+          break
+        case "agent_end":
+          handlers.onAgentEnd(data as SessionAgentEndEvent)
+          break
+        case "queue_update":
+          handlers.onQueueUpdate(data as SessionQueueUpdateEvent)
+          break
+        case "auto_retry_start":
+          handlers.onAutoRetryStart(data as SessionAutoRetryStartEvent)
+          break
+        case "auto_retry_end":
+          handlers.onAutoRetryEnd(data as SessionAutoRetryEndEvent)
+          break
+        case "compaction_start":
+          handlers.onCompactionStart(data as { reason: "manual" | "threshold" | "overflow" })
+          break
+        case "compaction_end":
+          handlers.onCompactionEnd(data as {
+            reason: "manual" | "threshold" | "overflow"
+            aborted: boolean
+            willRetry: boolean
+            errorMessage?: string
+          })
+          break
+        case "server_error":
+          handlers.onServerError(data as SessionServerErrorEvent)
+          break
+      }
+    } catch (error) {
+      console.error("[ws:session]", error)
+    }
+  }
+
+  ws.addEventListener("message", handleMessage)
 
   if (handlers.onTransportError) {
-    cleanups.push(
-      addEventSourceListener(eventSource, "error", handlers.onTransportError)
-    );
+    ws.addEventListener("error", handlers.onTransportError)
   }
 
   return () => {
-    for (const cleanup of cleanups) {
-      cleanup();
+    ws.removeEventListener("message", handleMessage)
+    if (handlers.onTransportError) {
+      ws.removeEventListener("error", handlers.onTransportError)
     }
-  };
+  }
 }
