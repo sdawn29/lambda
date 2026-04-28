@@ -76,9 +76,10 @@ export function CommandPalette() {
   )
   const allFiles = fileEntries.filter((e) => !e.isDirectory)
   const [search, setSearch] = useState("")
+  const searchLower = search.toLowerCase()
   const files = (
-    search
-      ? allFiles.filter((f) => f.relativePath.toLowerCase().includes(search.toLowerCase()))
+    searchLower
+      ? allFiles.filter((f) => f.relativePath.toLowerCase().includes(searchLower))
       : allFiles
   ).slice(0, 5)
 

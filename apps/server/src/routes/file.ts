@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { readFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 
 const BINARY_MIME_TYPES: Record<string, string> = {
@@ -25,20 +25,17 @@ file.get("/file", async (c) => {
   }
 
   try {
-    const fileStats = await stat(path);
-    if (fileStats.isDirectory()) {
-      return c.json({ error: "path is a directory, not a file" }, 400);
-    }
-
     const mimeType = BINARY_MIME_TYPES[extname(path).toLowerCase()];
     if (mimeType) {
       const buffer = await readFile(path);
       return c.body(buffer, 200, { "Content-Type": mimeType });
     }
-
     const content = await readFile(path, "utf-8");
     return c.text(content);
-  } catch (err) {
+  } catch (err: any) {
+    if (err.code === "EISDIR") {
+      return c.json({ error: "path is a directory, not a file" }, 400);
+    }
     return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
 });

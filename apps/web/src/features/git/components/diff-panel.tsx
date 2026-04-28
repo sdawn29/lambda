@@ -8,7 +8,22 @@ import {
   memo,
   Suspense,
 } from "react"
-import { Archive, Check, Columns2, AlignLeft, GitCompare, Loader2, PackageMinus, PackagePlus, Plus, X, ArrowUpDown, ExternalLink, Maximize2, Minimize2 } from "lucide-react"
+import {
+  Archive,
+  Check,
+  Columns2,
+  AlignLeft,
+  GitCompare,
+  Loader2,
+  PackageMinus,
+  PackagePlus,
+  Plus,
+  X,
+  ArrowUpDown,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+} from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Icon } from "@iconify/react"
 import { getIconName } from "@/shared/ui/file-icon"
@@ -59,6 +74,24 @@ const PrismCode = lazy(() =>
 interface DiffPanelProps {
   sessionId: string
   openWithAppId?: string | null
+}
+
+const LANGUAGE_MAP: Record<string, string> = {
+  ts: "typescript",
+  tsx: "tsx",
+  mts: "typescript",
+  cts: "typescript",
+  js: "javascript",
+  jsx: "jsx",
+  mjs: "javascript",
+  cjs: "javascript",
+  mjsx: "jsx",
+  cjsx: "jsx",
+  py: "python",
+  rb: "ruby",
+  rs: "rust",
+  yml: "yaml",
+  md: "markdown",
 }
 
 // ─── Source Control Content ───────────────────────────────────────────────────
@@ -395,66 +428,71 @@ const FileContent = memo(function FileContent({
   const fileName = pathParts[pathParts.length - 1] ?? ""
   const fileExtension = fileName.split(".").pop()?.toLowerCase() ?? ""
   const isMarkdown = fileExtension === "md" || fileExtension === "markdown"
-  const isImage = /^(png|jpe?g|gif|svg|webp|bmp|ico|tiff?|avif)$/.test(fileExtension)
+  const isImage = /^(png|jpe?g|gif|svg|webp|bmp|ico|tiff?|avif)$/.test(
+    fileExtension
+  )
 
-  const markdownLinkComponents = useMemo(() => ({
-    a: ({ href, children }: React.ComponentProps<"a">) => {
-      const isExternal = !href || /^(https?:|mailto:|#)/.test(href)
-      if (isExternal) {
+  const markdownLinkComponents = useMemo(
+    () => ({
+      a: ({ href, children }: React.ComponentProps<"a">) => {
+        const isExternal = !href || /^(https?:|mailto:|#)/.test(href)
+        if (isExternal) {
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4"
+            >
+              {children}
+            </a>
+          )
+        }
+        const resolvedPath = href.startsWith("/")
+          ? href
+          : resolveFilePath(filePath, href)
+        const linkFileName = resolvedPath.split(/[/\\]/).pop() || resolvedPath
         return (
-          <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+          <button
+            type="button"
+            onClick={() => {
+              openPanel()
+              addTab({
+                title: linkFileName,
+                type: "file",
+                filePath: resolvedPath,
+              })
+            }}
+            className="cursor-pointer underline underline-offset-4"
+          >
             {children}
-          </a>
+          </button>
         )
-      }
-      const resolvedPath = href.startsWith("/") ? href : resolveFilePath(filePath, href)
-      const fileName = resolvedPath.split(/[/\\]/).pop() || resolvedPath
-      return (
-        <button
-          type="button"
-          onClick={() => {
-            openPanel()
-            addTab({ title: fileName, type: "file", filePath: resolvedPath })
-          }}
-          className="underline underline-offset-4 cursor-pointer"
-        >
-          {children}
-        </button>
-      )
-    },
-    img: ({ src, alt }) => {
-      if (!src) return null
-      const resolvedSrc = /^https?:/.test(src)
-        ? src
-        : `${serverUrl}/file?path=${encodeURIComponent(
-            src.startsWith("/") ? src : resolveFilePath(filePath, src)
-          )}`
-      return <img src={resolvedSrc} alt={alt ?? ""} className="max-w-full rounded" />
-    },
-  }), [filePath, serverUrl, addTab, openPanel])
+      },
+      img: ({ src, alt }) => {
+        if (!src) return null
+        const resolvedSrc = /^https?:/.test(src)
+          ? src
+          : `${serverUrl}/file?path=${encodeURIComponent(
+              src.startsWith("/") ? src : resolveFilePath(filePath, src)
+            )}`
+        return (
+          <img
+            src={resolvedSrc}
+            alt={alt ?? ""}
+            className="max-w-full rounded"
+          />
+        )
+      },
+    }),
+    [filePath, serverUrl, addTab, openPanel]
+  )
 
   // Enable rich text preview by default for markdown files
   useEffect(() => {
     setMarkdownPreview(isMarkdown)
-  }, [isMarkdown, filePath])
-  const languageMap: Record<string, string> = {
-    ts: "typescript",
-    tsx: "tsx",
-    mts: "typescript",
-    cts: "typescript",
-    js: "javascript",
-    jsx: "jsx",
-    mjs: "javascript",
-    cjs: "javascript",
-    mjsx: "jsx",
-    cjsx: "jsx",
-    py: "python",
-    rb: "ruby",
-    rs: "rust",
-    yml: "yaml",
-    md: "markdown",
-  }
-  const language = languageMap[fileExtension] ?? fileExtension
+  }, [filePath])
+  const language = LANGUAGE_MAP[fileExtension] ?? fileExtension
 
   useEffect(() => {
     let cancelled = false
@@ -492,14 +530,20 @@ const FileContent = memo(function FileContent({
     }
 
     loadFile()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [filePath, isImage])
 
   if (loading) {
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/50">
-          <FileHeader pathParts={pathParts} filePath={filePath} openWithAppId={openWithAppId} />
+          <FileHeader
+            pathParts={pathParts}
+            filePath={filePath}
+            openWithAppId={openWithAppId}
+          />
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -515,7 +559,11 @@ const FileContent = memo(function FileContent({
     return (
       <div className="flex h-full flex-col">
         <div className="border-b border-border/50">
-          <FileHeader pathParts={pathParts} filePath={filePath} openWithAppId={openWithAppId} />
+          <FileHeader
+            pathParts={pathParts}
+            filePath={filePath}
+            openWithAppId={openWithAppId}
+          />
         </div>
         <div className="flex flex-1 items-center justify-center p-4">
           <Alert variant="destructive">
@@ -535,14 +583,19 @@ const FileContent = memo(function FileContent({
           openWithAppId={openWithAppId}
           isMarkdown={isMarkdown}
           markdownPreview={markdownPreview}
-          onToggleMarkdownPreview={isMarkdown ? () => setMarkdownPreview(!markdownPreview) : undefined}
+          onToggleMarkdownPreview={
+            isMarkdown ? () => setMarkdownPreview(!markdownPreview) : undefined
+          }
         />
       </div>
       <div
         className={cn(
           "min-h-0 flex-1 overflow-auto",
-          isImage ? "flex items-center justify-center p-4" :
-          markdownPreview ? "prose prose-sm max-w-none p-4 dark:prose-invert" : "file-viewer-code pl-4"
+          isImage && "flex items-center justify-center p-4",
+          !isImage &&
+            markdownPreview &&
+            "prose prose-sm max-w-none p-4 dark:prose-invert",
+          !isImage && !markdownPreview && "file-viewer-code pl-4"
         )}
         style={markdownPreview ? undefined : { userSelect: "text" }}
       >
@@ -553,7 +606,12 @@ const FileContent = memo(function FileContent({
             className="max-h-full max-w-full object-contain"
           />
         ) : markdownPreview ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownLinkComponents}>{content ?? ""}</ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownLinkComponents}
+          >
+            {content ?? ""}
+          </ReactMarkdown>
         ) : (
           <Suspense
             fallback={
@@ -594,7 +652,13 @@ function TabContent({
     return <SourceControlContent sessionId={sessionId} />
   }
   if (tab.type === "file" && tab.filePath) {
-    return <FileContent filePath={tab.filePath} openWithAppId={openWithAppId} workspacePath={workspacePath} />
+    return (
+      <FileContent
+        filePath={tab.filePath}
+        openWithAppId={openWithAppId}
+        workspacePath={workspacePath}
+      />
+    )
   }
   return (
     <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -623,13 +687,17 @@ export const DiffPanel = memo(function DiffPanel({
     currentWorkspacePath,
   } = useDiffPanel()
   const { workspaces } = useWorkspace()
-  const currentWorkspaceId = workspaces.find((ws) => ws.path === currentWorkspacePath)?.id
+  const currentWorkspaceId = workspaces.find(
+    (ws) => ws.path === currentWorkspacePath
+  )?.id
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [fileSearchOpen, setFileSearchOpen] = useState(false)
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
 
   useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF, toggleFullscreen)
-  const fullscreenBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF)
+  const fullscreenBinding = useShortcutBinding(
+    SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF
+  )
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId),
@@ -657,151 +725,161 @@ export const DiffPanel = memo(function DiffPanel({
     setFileSearchOpen(true)
   }, [])
 
-  const handleFileSelect = useCallback((relativePath: string) => {
-    const filePath = currentWorkspacePath
-      ? `${currentWorkspacePath}/${relativePath}`
-      : relativePath
-    const fileName = relativePath.split(/[/\\]/).pop() || relativePath
-    addTab({ title: fileName, type: "file", filePath })
-  }, [addTab, currentWorkspacePath])
+  const handleFileSelect = useCallback(
+    (relativePath: string) => {
+      const filePath = currentWorkspacePath
+        ? `${currentWorkspacePath}/${relativePath}`
+        : relativePath
+      const fileName = relativePath.split(/[/\\]/).pop() || relativePath
+      addTab({ title: fileName, type: "file", filePath })
+    },
+    [addTab, currentWorkspacePath]
+  )
 
   return (
     <>
-    {currentWorkspaceId && (
-      <FileSearchModal
-        open={fileSearchOpen}
-        onOpenChange={setFileSearchOpen}
-        workspaceId={currentWorkspaceId}
-        onSelect={handleFileSelect}
-      />
-    )}
-    <div className="flex h-full w-full flex-col bg-background">
-      {/* Tab bar */}
-      <div className="flex h-8 shrink-0 items-stretch border-b">
-        <div className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTabId
-            return (
-              <div
-                key={tab.id}
-                role="tab"
-                aria-selected={isActive}
-                ref={(el) => {
-                  if (el) {
-                    tabRefs.current.set(tab.id, el as HTMLButtonElement)
-                  } else {
-                    tabRefs.current.delete(tab.id)
-                  }
-                }}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "group relative flex h-full shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-none border-r px-3 text-xs",
-                  isActive
-                    ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
-                    : "bg-muted/40 text-muted-foreground"
-                )}
-              >
-                {tab.type === "source-control" ? (
-                  <GitCompare className="size-3.5 shrink-0" />
-                ) : (
-                  <Icon icon={`catppuccin:${getIconName(tab.title)}`} className="size-3.5 shrink-0" aria-hidden />
-                )}
-                <span className="max-w-30 truncate">{tab.title}</span>
-                {tab.type !== "source-control" && (
+      {currentWorkspaceId && (
+        <FileSearchModal
+          open={fileSearchOpen}
+          onOpenChange={setFileSearchOpen}
+          workspaceId={currentWorkspaceId}
+          onSelect={handleFileSelect}
+        />
+      )}
+      <div className="flex h-full w-full flex-col bg-background">
+        {/* Tab bar */}
+        <div className="flex h-8 shrink-0 items-stretch border-b">
+          <div className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTabId
+              return (
+                <div
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  ref={(el) => {
+                    if (el) {
+                      tabRefs.current.set(tab.id, el as HTMLButtonElement)
+                    } else {
+                      tabRefs.current.delete(tab.id)
+                    }
+                  }}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "group relative flex h-full shrink-0 cursor-pointer items-center gap-1.5 rounded-none border-r pr-1 pl-3 text-xs select-none",
+                    isActive
+                      ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
+                      : "bg-muted/40 text-muted-foreground"
+                  )}
+                >
+                  {tab.type === "source-control" ? (
+                    <GitCompare className="size-3.5 shrink-0" />
+                  ) : (
+                    <Icon
+                      icon={`catppuccin:${getIconName(tab.title)}`}
+                      className="size-3.5 shrink-0"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="max-w-30 truncate">{tab.title}</span>
+                  {tab.type !== "source-control" && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={`Close ${tab.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        closeTab(tab.id)
+                      }}
+                      className={cn(
+                        "ml-auto shrink-0",
+                        isActive
+                          ? "opacity-60 hover:opacity-100"
+                          : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
+                      )}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Add tab dropdown */}
+            <DropdownMenu open={showAddMenu} onOpenChange={setShowAddMenu}>
+              <DropdownMenuTrigger className="flex items-center px-2 text-muted-foreground hover:text-foreground">
+                <Plus className="h-3.5 w-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuItem onClick={handleAddFileTab}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open File
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Right side buttons */}
+          <div className="flex shrink-0 items-center gap-0.5 border-l px-1">
+            <Tooltip>
+              <TooltipTrigger
+                render={
                   <Button
                     variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Close ${tab.title}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      closeTab(tab.id)
-                    }}
-                    className={cn(
-                      "shrink-0",
-                      isActive
-                        ? "opacity-60 hover:opacity-100"
-                        : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
-                    )}
+                    size="icon-sm"
+                    onClick={toggleFullscreen}
+                    className="text-muted-foreground/60 hover:text-foreground"
                   >
-                    <X className="h-2.5 w-2.5" />
+                    {isFullscreen ? <Minimize2 /> : <Maximize2 />}
+                    <span className="sr-only">
+                      {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                    </span>
                   </Button>
-                )}
-              </div>
-            )
-          })}
-
-          {/* Add tab dropdown */}
-          <DropdownMenu open={showAddMenu} onOpenChange={setShowAddMenu}>
-            <DropdownMenuTrigger className="flex items-center px-2 text-muted-foreground hover:text-foreground">
-              <Plus className="h-3.5 w-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              <DropdownMenuItem onClick={handleAddFileTab}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Open File
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Right side buttons */}
-        <div className="flex shrink-0 items-center gap-0.5 border-l px-1">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={toggleFullscreen}
-                  className="text-muted-foreground/60 hover:text-foreground"
-                >
-                  {isFullscreen ? (
-                    <Minimize2 />
-                  ) : (
-                    <Maximize2 />
-                  )}
-                  <span className="sr-only">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
-                </Button>
-              }
-            />
-            <TooltipContent>
-              {isFullscreen ? "Exit fullscreen" : "Fullscreen"}{" "}
-              <ShortcutKbd binding={fullscreenBinding} className="ml-1" />
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={close}
-                  className="text-muted-foreground/60 hover:text-foreground"
-                >
-                  <X />
-                  <span className="sr-only">Close panel</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Close panel</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Tab content */}
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab ? (
-          <TabContent tab={activeTab} sessionId={sessionId} openWithAppId={openWithAppId} workspacePath={currentWorkspacePath ?? undefined} />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-              <GitCompare className="h-5 w-5 text-muted-foreground/50" />
-            </div>
-            <p className="text-xs">Select or add a tab to view content</p>
+                }
+              />
+              <TooltipContent>
+                {isFullscreen ? "Exit fullscreen" : "Fullscreen"}{" "}
+                <ShortcutKbd binding={fullscreenBinding} className="ml-1" />
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={close}
+                    className="text-muted-foreground/60 hover:text-foreground"
+                  >
+                    <X />
+                    <span className="sr-only">Close panel</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>Close panel</TooltipContent>
+            </Tooltip>
           </div>
-        )}
+        </div>
+
+        {/* Tab content */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {activeTab ? (
+            <TabContent
+              tab={activeTab}
+              sessionId={sessionId}
+              openWithAppId={openWithAppId}
+              workspacePath={currentWorkspacePath ?? undefined}
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <GitCompare className="h-5 w-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-xs">Select or add a tab to view content</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </>
   )
 })
