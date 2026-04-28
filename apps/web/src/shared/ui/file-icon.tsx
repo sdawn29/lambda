@@ -4,7 +4,7 @@ import catppuccinData from "@iconify-json/catppuccin/icons.json"
 
 addCollection(catppuccinData as Parameters<typeof addCollection>[0])
 
-function getIconName(filename: string): string {
+export function getIconName(filename: string): string {
   const lower = filename.toLowerCase()
   const parts = lower.split(".")
   const ext = parts.length > 1 ? parts[parts.length - 1] : ""

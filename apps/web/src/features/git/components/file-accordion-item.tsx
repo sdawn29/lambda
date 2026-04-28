@@ -1,6 +1,7 @@
 import { memo, useCallback, useState } from "react"
 import { ChevronRight, Minus, Plus, Undo2 } from "lucide-react"
-import { getFileIcon } from "@/shared/ui/file-icon"
+import { Icon } from "@iconify/react"
+import { getIconName } from "@/shared/ui/file-icon"
 import { LoadingSpinner } from "@/shared/ui/loading-spinner"
 import { IconButtonWithTooltip } from "@/shared/ui/icon-button-with-tooltip"
 import { DiffView, type DiffMode } from "./diff-view"
@@ -82,7 +83,7 @@ export const FileAccordionItem = memo(function FileAccordionItem({
             )}
           />
           <StatusBadge file={file} />
-          {(() => { const FileIcon = getFileIcon(fileName); return <FileIcon className="size-3 shrink-0" /> })()}
+          <Icon icon={`catppuccin:${getIconName(fileName)}`} className="size-3 shrink-0" aria-hidden />
           <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden pr-2">
             <span className="shrink-0 font-mono text-xs font-medium text-foreground/85">
               {fileName}

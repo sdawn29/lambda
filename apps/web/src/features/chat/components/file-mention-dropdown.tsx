@@ -3,7 +3,7 @@ import { Icon } from "@iconify/react"
 
 import { Button } from "@/shared/ui/button"
 import { cn } from "@/shared/lib/utils"
-import { getFileIcon } from "@/shared/ui/file-icon"
+import { getIconName } from "@/shared/ui/file-icon"
 import type { WorkspaceEntry } from "../queries"
 
 export function FileMentionDropdown({
@@ -63,10 +63,14 @@ export function FileMentionDropdown({
                 aria-hidden
               />
             ) : (
-              (() => {
-                const FileIcon = getFileIcon(entry.path)
-                return <FileIcon className="size-3 shrink-0" aria-hidden />
-              })()
+              <Icon
+                {...(() => {
+                  const iconName = getIconName(entry.path)
+                  return { icon: `catppuccin:${iconName}` }
+                })()}
+                className="size-3 shrink-0"
+                aria-hidden
+              />
             )}
             <span className="flex min-w-0 items-baseline gap-1.5">
               <span className="shrink-0 font-mono font-medium">
