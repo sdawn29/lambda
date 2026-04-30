@@ -114,10 +114,15 @@ export const ChatTextbox = memo(
 
     React.useEffect(() => {
       if (!availableLevels.length) return
+      // When thinking is available, default to "medium" if not set or not in available levels
       if (!availableLevels.includes(thinkingLevel)) {
-        setThinkingLevel(
-          (availableLevels[availableLevels.length - 1] ?? "medium") as ThinkingLevel
-        )
+        const mediumIndex = availableLevels.indexOf("medium")
+        if (mediumIndex !== -1) {
+          setThinkingLevel("medium")
+        } else {
+          // Fall back to first available level
+          setThinkingLevel(availableLevels[0] as ThinkingLevel)
+        }
       }
     }, [availableLevels])
 
