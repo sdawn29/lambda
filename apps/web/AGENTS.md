@@ -40,7 +40,7 @@ Each feature module follows a consistent structure with `api.ts`, `queries.ts`, 
 - `features/layout/` — Title bar, navigation, panel toggles, editor integration
 - `features/electron/` — Electron-specific APIs (server port discovery)
 - `features/file-tree/` — File browser with directory listing via server API
-- `features/file-opening/` — File opening helper with editor discovery and open-with functionality (macOS)
+- `features/command-palette/` — Cmd+K command interface for quick actions
 - `features/chat-v2/` — (scaffold for future work, not currently used)
 
 ### Routes (src/routes/)
@@ -129,6 +129,7 @@ For complex feature modules with significant internal structure:
 - [**Settings Feature**](src/features/settings/AGENTS.md) — Provider config, API keys, preferences
 - [**Electron Feature**](src/features/electron/AGENTS.md) — Desktop integration, server lifecycle, updates
 - [**Layout Feature**](src/features/layout/AGENTS.md) — Title bar, navigation, panel toggles, editor integration
+- [**Command Palette Feature**](src/features/command-palette/AGENTS.md) — Cmd+K command interface, quick navigation (3 files)
 - [**Shared Utilities**](src/shared/AGENTS.md) — UI components, hooks, utilities (54+ files)
 
 ## Related

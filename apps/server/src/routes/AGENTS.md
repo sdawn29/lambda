@@ -139,6 +139,54 @@ API key management (reads from `~/.pi/agent/auth.json`).
 ### health.ts
 Health check endpoints for monitoring.
 
+## WebSocket Command Protocol
+
+Sessions also support a unified WebSocket command channel at `/ws/session/:id/commands` as an alternative to REST endpoints.
+
+### Client → Server Messages
+
+| Message Type | Payload | Description |
+|--------------|---------|-------------|
+| `prompt` | `{text, provider?, model?, thinkingLevel?, images?, streamingBehavior?}` | Send prompt |
+| `steer` | `{text}` | Queue steering message |
+| `follow-up` | `{text}` | Queue follow-up message |
+| `abort` | `{}` | Abort current operation |
+| `compact` | `{}` | Trigger context compaction |
+| `git:stage` | `{filePath}` | Stage file |
+| `git:unstage` | `{filePath}` | Unstage file |
+| `git:stage-all` | `{}` | Stage all changes |
+| `git:unstage-all` | `{}` | Unstage all changes |
+| `git:commit` | `{message}` | Commit staged changes |
+| `git:checkout` | `{branch}` | Checkout branch |
+| `git:branch` | `{branch}` | Create new branch |
+| `git:push` | `{}` | Push to remote |
+| `git:stash` | `{message?}` | Stash changes |
+| `git:stash-pop` | `{ref}` | Pop stash |
+| `git:stash-apply` | `{ref}` | Apply stash |
+| `git:stash-drop` | `{ref}` | Drop stash |
+| `git:revert-file` | `{filePath}` | Revert file to HEAD |
+| `git:init` | `{}` | Initialize git repository |
+| `workspace:reindex` | `{}` | Trigger workspace reindex |
+
+### Server → Client Messages
+
+| Message Type | Payload | Description |
+|--------------|---------|-------------|
+| `ack` | `{clientId?, operation, accepted}` | Command acknowledgment |
+| `git:result` | `{sessionId, operation, success, error?, data?}` | Git operation result |
+| `git:status` | `{sessionId, status}` | Git status update |
+| `git:progress` | `{sessionId, operation, current, total}` | Progress update |
+| `server_error` | `{message}` | Error response |
+| `workspace:progress` | `{workspaceId, operation, current, total}` | Indexing progress |
+
+### TypeScript Types
+
+Defined in `src/websocket/types.ts`:
+```typescript
+export type ClientMessage = PromptMessage | SteerMessage | FollowUpMessage | AbortMessage | CompactMessage | GitCommandMessage | WorkspaceCommandMessage
+export type ServerMessage = ServerErrorMessage | GitStatusMessage | GitProgressMessage | GitResultMessage | WorkspaceProgressMessage | CommandAckMessage
+```
+
 ## Conventions
 
 - **RESTful routing**: Resources nested under `/session/:id/` for session-scoped operations
@@ -158,6 +206,9 @@ Health check endpoints for monitoring.
 ## Related
 
 - [apps/server/AGENTS.md](../AGENTS.md) — Server app overview
+- [apps/server/src/websocket/index.ts](../websocket/index.ts) — WebSocket module exports
+- [apps/server/src/websocket/types.ts](../websocket/types.ts) — WebSocket message types
+- [apps/server/src/websocket/session-commands.ts](../websocket/session-commands.ts) — Command handler
 - [apps/web/src/features/chat/AGENTS.md](../../../web/src/features/chat/AGENTS.md) — Chat module (SSE consumer)
 - [apps/web/src/features/git/AGENTS.md](../../../web/src/features/git/AGENTS.md) — Git UI module
 - [packages/pi-sdk/AGENTS.md](../../../packages/pi-sdk/AGENTS.md) — SDK handle types

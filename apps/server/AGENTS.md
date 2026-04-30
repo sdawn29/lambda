@@ -74,11 +74,47 @@ Hono server (default port 3001) with three layers:
 | `GET`    | `/directory`                     | List directory contents for file browser                 |
 | `GET`    | `/file`                          | Read file contents for preview                           |
 
-### Services (src/services/)
+### WebSocket Endpoints (src/websocket/)
 
-- `session-service.ts` — Manages Pi agent session lifecycle, prompt handling, event streaming
-- `terminal-service.ts` — Manages WebSocket terminal sessions via node-pty
-- `auth-service.ts` — Handles auth token resolution and storage
+| Path | Purpose |
+|------|---------|
+| `/terminal` | PTY terminal sessions via node-pty |
+| `/ws/events` | Global events (server status, OAuth) |
+| `/ws/session/:id/events` | Session event stream (alternative to SSE) |
+| `/ws/session/:id/commands` | Unified command channel (prompt, git ops) |
+| `/ws/auth/oauth/:provider/events` | OAuth flow events |
+
+### Unified Command Protocol (WebSocket)
+
+All session operations can be sent via `/ws/session/:id/commands`:
+
+**Client → Server Messages:**
+- `prompt` — Send user prompt (with optional images, model, thinking level)
+- `steer` — Queue steering message
+- `follow-up` — Queue follow-up message
+- `abort` — Abort current operation
+- `compact` — Trigger context compaction
+- `git:*` — Git commands (stage, unstage, commit, checkout, etc.)
+- `workspace:reindex` — Trigger workspace file reindex
+
+**Server → Client Messages:**
+- `ack` — Command acknowledgment
+- `git:result` — Git operation result
+- `git:status` — Git status update (after operations)
+- `git:progress` — Git operation progress
+- `server_error` — Error response
+- `workspace:progress` — Workspace indexing progress
+
+### Core Services
+
+| Service | File | Responsibility |
+|---------|------|----------------|
+| Session | `session-service.ts` | Session lifecycle, pi-sdk wrapper |
+| Terminal | `terminal-service.ts` | PTY management, WebSocket streaming |
+| Auth | `auth-service.ts` | API key resolution |
+| Indexer | `workspace-indexer.ts` | Workspace file indexing |
+| WebSocket | `websocket/session-commands.ts` | Unified command handler |
+| Broadcasters | `thread-status-broadcaster.ts`, `workspace-index-broadcaster.ts` | Event distribution |
 
 ## Conventions
 
