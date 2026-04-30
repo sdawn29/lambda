@@ -3,35 +3,30 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import { openSessionWebSocket, listRunningTools } from "../api"
 import { subscribeToSessionEvents, type AgentEndMessage } from "../session-events"
-import {
-  messagesQueryKey,
-  chatKeys,
-} from "../queries"
+import { messagesQueryKey, chatKeys } from "../queries"
 import { createAssistantMessage, createErrorMessage, blockToMessage } from "../types"
-import type { Message, ToolMessage } from "../types"
+import type { AssistantMessage, Message, ToolMessage } from "../types"
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────
 
 interface TurnMeta {
   startTime: number
   model?: string
   provider?: string
   thinkingLevel?: string
-  blockId?: string
 }
 
 interface AssistantDeltaEvent {
   type: "text_delta" | "thinking_delta"
   delta: string
-  partial?: {
-    model?: string
-    provider?: string
-  }
+  partial?: { model?: string; provider?: string }
 }
 
 function isAssistantDeltaEvent(
   value: { type: string; delta?: string; partial?: unknown } | undefined
 ): value is AssistantDeltaEvent {
-  return Boolean(
-    value &&
+  return (
+    value != null &&
     typeof value.delta === "string" &&
     (value.type === "text_delta" || value.type === "thinking_delta")
   )
@@ -43,99 +38,66 @@ interface ToolMessageUpdate {
   args?: unknown
   status: "running" | "done" | "error"
   result?: unknown
-  partialResult?: unknown  // Partial result during execution
+  partialResult?: unknown
   duration?: number
   startTime?: number
-  toolBlockId?: string
 }
 
 function upsertToolMessage(
   prev: Message[],
   toolCallId: string,
-  updater: (existing?: Message) => Message
+  updater: (existing?: ToolMessage) => ToolMessage
 ): Message[] {
   const index = prev.findIndex(
     (msg) => msg.role === "tool" && msg.toolCallId === toolCallId
   )
   if (index === -1) return [...prev, updater()]
-  const next = [...prev]
-  next[index] = updater(next[index])
-  return next
+  return [...prev.slice(0, index), updater(prev[index] as ToolMessage), ...prev.slice(index + 1)]
 }
 
-/**
- * Merge running tools into the message list.
- * Running tools from the server are inserted at the correct position
- * (after the assistant message but before any subsequent messages).
- */
-function mergeRunningTools(
-  messages: Message[],
-  runningTools: Message[]
-): Message[] {
+function mergeRunningTools(messages: Message[], runningTools: Message[]): Message[] {
   if (runningTools.length === 0) return messages
-  
-  // Filter out any existing running tools with the same toolCallId
-  const existingRunningToolIds = new Set(
+
+  const existingIds = new Set(
     messages
       .filter((m): m is ToolMessage => m.role === "tool" && m.status === "running")
       .map((m) => m.toolCallId)
   )
-  
-  const newRunningTools = runningTools.filter(
-    (m): m is ToolMessage => 
-      m.role === "tool" && 
-      !existingRunningToolIds.has(m.toolCallId)
+
+  const newTools = runningTools.filter(
+    (m): m is ToolMessage => m.role === "tool" && !existingIds.has(m.toolCallId)
   )
-  
-  if (newRunningTools.length === 0) return messages
-  
-  // Find the position to insert running tools
-  // They should appear after the last assistant message and before any user message or final tool
-  const lastAssistantIndex = messages.reduceRight(
-    (found, msg, i) => found === -1 && msg.role === "assistant" ? i : found,
+
+  if (newTools.length === 0) return messages
+
+  const lastAssistantIdx = messages.reduceRight(
+    (found, msg, i) => (found === -1 && msg.role === "assistant" ? i : found),
     -1
   )
-  
-  if (lastAssistantIndex === -1) {
-    // No assistant message yet, append to end
-    return [...messages, ...newRunningTools]
-  }
-  
-  // Insert after assistant message, before next message
-  const insertIndex = lastAssistantIndex + 1
-  return [
-    ...messages.slice(0, insertIndex),
-    ...newRunningTools,
-    ...messages.slice(insertIndex)
-  ]
+
+  if (lastAssistantIdx === -1) return [...messages, ...newTools]
+
+  const insertIdx = lastAssistantIdx + 1
+  return [...messages.slice(0, insertIdx), ...newTools, ...messages.slice(insertIdx)]
 }
 
-function appendAssistantDelta(
-  prev: Message[],
-  event: AssistantDeltaEvent
-): Message[] {
-  const next = [...prev]
-  const last = next[next.length - 1]
+function appendAssistantDelta(prev: Message[], event: AssistantDeltaEvent): Message[] {
+  const last = prev[prev.length - 1]
   if (last?.role !== "assistant") {
-    next.push(
+    return [
+      ...prev,
       event.type === "thinking_delta"
         ? createAssistantMessage({ thinking: event.delta })
-        : createAssistantMessage({ content: event.delta })
-    )
-    return next
+        : createAssistantMessage({ content: event.delta }),
+    ]
   }
   if (event.type === "thinking_delta") {
-    next[next.length - 1] = { ...last, thinking: last.thinking + event.delta }
-  } else {
-    next[next.length - 1] = { ...last, content: last.content + event.delta }
+    return [...prev.slice(0, -1), { ...last, thinking: last.thinking + event.delta }]
   }
-  return next
+  return [...prev.slice(0, -1), { ...last, content: last.content + event.delta }]
 }
 
-function finalizeRunningTools(
-  prev: Message[],
-  runMessages: AgentEndMessage[]
-): Message[] {
+function finalizeRunningTools(prev: Message[], runMessages: AgentEndMessage[]): Message[] {
   const toolResults = new Map(
     runMessages
       .filter(
@@ -149,8 +111,7 @@ function finalizeRunningTools(
     .reverse()
     .find(
       (msg): msg is Extract<AgentEndMessage, { role: "assistant" }> =>
-        msg.role === "assistant" &&
-        (msg.stopReason === "aborted" || msg.stopReason === "error")
+        msg.role === "assistant" && (msg.stopReason === "aborted" || msg.stopReason === "error")
     )
 
   const fallbackError = assistantFailure?.errorMessage
@@ -161,26 +122,66 @@ function finalizeRunningTools(
 
   return prev.map((msg) => {
     if (msg.role !== "tool" || msg.status !== "running") return msg
-    const toolResult = toolResults.get(msg.toolCallId)
-    if (toolResult) {
-      const duration = msg.startTime ? Date.now() - msg.startTime : undefined
+    const result = toolResults.get(msg.toolCallId)
+    if (result) {
+      const duration = msg.startTime ? Date.now() - msg.startTime : msg.duration
       return {
         ...msg,
-        toolName: toolResult.toolName || msg.toolName,
-        status: toolResult.isError ? "error" : "done",
-        result: { content: toolResult.content, details: toolResult.details },
-        duration: msg.duration ?? duration,
+        toolName: result.toolName || msg.toolName,
+        status: result.isError ? "error" : "done",
+        result: { content: result.content, details: result.details },
+        duration,
       }
     }
-    const duration = msg.startTime ? Date.now() - msg.startTime : undefined
     return {
       ...msg,
       status: "error",
       result: msg.result ?? { content: [{ type: "text", text: fallbackError }] },
-      duration: msg.duration ?? duration,
+      duration: msg.duration ?? (msg.startTime ? Date.now() - msg.startTime : undefined),
     }
   })
 }
+
+function findLastAssistantIndex(messages: Message[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant") return i
+  }
+  return -1
+}
+
+function parseErrorMessage(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed?.error?.message) return parsed.error.message
+    if (parsed?.error) return typeof parsed.error === "string" ? parsed.error : JSON.stringify(parsed.error)
+  } catch {
+    const jsonStart = raw.indexOf("{")
+    if (jsonStart > 0) {
+      try {
+        const inner = (JSON.parse(raw.slice(jsonStart)) as Record<string, unknown>)?.error as Record<string, unknown> | undefined
+        if (typeof inner?.message === "string") return inner.message
+      } catch {
+        // fall through to raw string
+      }
+    }
+  }
+  return raw
+}
+
+// ── Per-session stream state ────────────────────────────────────────────────────
+
+type DoneFlag = { current: boolean }
+const sessionDoneFlags = new Map<string, DoneFlag>()
+
+function getSessionDoneFlag(sessionId: string): DoneFlag {
+  const existing = sessionDoneFlags.get(sessionId)
+  if (existing) return existing
+  const flag: DoneFlag = { current: false }
+  sessionDoneFlags.set(sessionId, flag)
+  return flag
+}
+
+// ── Hook ────────────────────────────────────────────────────────────────────────
 
 export interface UseSessionStreamOptions {
   sessionId: string
@@ -205,57 +206,51 @@ export function useSessionStream({
   const pendingToolUpdatesRef = useRef<ToolMessageUpdate[]>([])
   const pendingToolStartRef = useRef<Map<string, number>>(new Map())
   const turnMetaRef = useRef<TurnMeta | null>(null)
-  const pendingThinkingLevelRef = useRef<string | null>(null)
   const lastPromptRef = useRef<{ text: string; thinkingLevel?: string } | null>(null)
+  const pendingThinkingLevelRef = useRef<string | null>(null)
+
+  // Stable ref to the current callbacks — stored in a ref so event handlers
+  // (which are recreated each effect run) always call the latest callbacks.
+  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange })
+  useEffect(() => {
+    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange }
+  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange])
 
   const flushPendingUpdates = useCallback(() => {
     rafRef.current = null
 
-    // Flush tool starts/updates first
-    const toolUpdates = pendingToolUpdatesRef.current
-    if (toolUpdates.length > 0) {
-      pendingToolUpdatesRef.current = []
-      queryClient.setQueryData<Message[]>(
-        messagesQueryKey(sessionId),
-        (prev) =>
-          toolUpdates.reduce(
-            (msgs, update) =>
-              upsertToolMessage(
-                msgs ?? [],
-                update.toolCallId,
-                (existing) => {
-                  // Safely get existing tool properties
-                  const existingTool = existing?.role === "tool" 
-                    ? existing as ToolMessage 
-                    : null
-                  
-                  return {
-                    role: "tool" as const,
-                    toolCallId: update.toolCallId,
-                    toolName: update.toolName ?? existingTool?.toolName ?? "tool",
-                    args: update.args ?? existingTool?.args ?? {},
-                    status: update.status,
-                    result: update.result ?? existingTool?.result,
-                    partialResult: update.partialResult ?? existingTool?.partialResult,
-                    duration: update.duration ?? existingTool?.duration,
-                    startTime: update.startTime ?? existingTool?.startTime,
-                  } as ToolMessage
-                }
-              ),
-            prev ?? []
-          )
-      )
-    }
+    const toolUpdates = pendingToolUpdatesRef.current.splice(0)
+    const deltas = pendingDeltasRef.current.splice(0)
+    if (toolUpdates.length === 0 && deltas.length === 0) return
 
-    // Flush deltas
-    const deltas = pendingDeltasRef.current
-    if (deltas.length > 0) {
-      pendingDeltasRef.current = []
-      queryClient.setQueryData<Message[]>(
-        messagesQueryKey(sessionId),
-        (prev) => deltas.reduce((msgs, delta) => appendAssistantDelta(msgs ?? [], delta), prev ?? [])
-      )
-    }
+    queryClient.setQueryData<Message[]>(messagesQueryKey(sessionId), (prev) => {
+      let msgs = prev ?? []
+
+      if (toolUpdates.length > 0) {
+        msgs = toolUpdates.reduce((acc, update) => {
+          const existing = acc.find(
+            (m): m is ToolMessage => m.role === "tool" && m.toolCallId === update.toolCallId
+          )
+          return upsertToolMessage(acc, update.toolCallId, () => ({
+            role: "tool" as const,
+            toolCallId: update.toolCallId,
+            toolName: update.toolName ?? existing?.toolName ?? "tool",
+            args: update.args ?? existing?.args ?? {},
+            status: update.status,
+            result: update.result ?? existing?.result,
+            partialResult: update.partialResult ?? existing?.partialResult,
+            duration: update.duration ?? existing?.duration,
+            startTime: update.startTime ?? existing?.startTime,
+          }))
+        }, msgs)
+      }
+
+      if (deltas.length > 0) {
+        msgs = deltas.reduce((acc, delta) => appendAssistantDelta(acc, delta), msgs)
+      }
+
+      return msgs
+    })
   }, [queryClient, sessionId])
 
   const scheduleUpdate = useCallback(() => {
@@ -264,55 +259,40 @@ export function useSessionStream({
     }
   }, [flushPendingUpdates])
 
-  // Cleanup on unmount or sessionId change
-  useEffect(() => {
-    // This effect handles sessionId changes by closing the previous SSE
-    return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      }
-    }
-  }, [sessionId])
-
   // Main WebSocket effect
   useEffect(() => {
-    let active = true
+    const doneFlag = getSessionDoneFlag(sessionId)
+    doneFlag.current = false
     let ws: WebSocket | null = null
-    // Track the sessionId for this connection to ignore stale events
-    const currentSessionId = sessionId
 
     openSessionWebSocket(sessionId)
       .then((socket) => {
-        // socket is null if all retries failed
-        if (!socket || !active) {
-          if (socket) socket.close()
+        if (doneFlag.current) {
+          socket?.close()
           return
         }
+        if (!socket) {
+          doneFlag.current = true
+          callbacksRef.current.onIsLoadingChange?.(false)
+          return
+        }
+
         ws = socket
 
-        return subscribeToSessionEvents(socket, {
-          // Restore running tools on connect
+        return subscribeToSessionEvents(ws, {
           onAgentStart: () => {
-            if (!active || currentSessionId !== sessionId) return
-            // Fetch and inject running tools from server on initial connect
-            // Also set loading state since we're reconnecting to a streaming session
+            if (doneFlag.current) return
             void (async () => {
               try {
                 const { runningTools: blocks } = await listRunningTools(sessionId)
-                if (blocks.length === 0) return
-                
+                if (blocks.length === 0 || doneFlag.current) return
                 const tools = blocks
-                  .map((block) => blockToMessage(block))
+                  .map(blockToMessage)
                   .filter((msg): msg is ToolMessage => msg.role === "tool" && msg.status === "running")
-                
-                if (tools.length > 0) {
-                  // Set loading state since we're reconnecting to a streaming session
-                  onIsLoadingChange?.(true)
-                  
-                  queryClient.setQueryData<Message[]>(
-                    messagesQueryKey(sessionId),
-                    (prev) => mergeRunningTools(prev ?? [], tools)
+                if (tools.length > 0 && !doneFlag.current) {
+                  callbacksRef.current.onIsLoadingChange?.(true)
+                  queryClient.setQueryData<Message[]>(messagesQueryKey(sessionId), (prev) =>
+                    mergeRunningTools(prev ?? [], tools)
                   )
                 }
               } catch (e) {
@@ -320,65 +300,51 @@ export function useSessionStream({
               }
             })()
           },
+
           onMessageStart: (data) => {
-            if (!active || currentSessionId !== sessionId || data.message?.role !== "assistant") return
-            onMessageStart?.()
-            onIsLoadingChange?.(true)
+            if (doneFlag.current) return
+            if (data.message?.role !== "assistant") return
+            callbacksRef.current.onMessageStart?.()
+            callbacksRef.current.onIsLoadingChange?.(true)
             turnMetaRef.current = {
               startTime: Date.now(),
               thinkingLevel: pendingThinkingLevelRef.current ?? undefined,
             }
             pendingThinkingLevelRef.current = null
-
-            // Create assistant message for streaming UI
-            queryClient.setQueryData<Message[]>(
-              messagesQueryKey(sessionId),
-              (prev) => [...(prev ?? []), createAssistantMessage()]
-            )
+            queryClient.setQueryData<Message[]>(messagesQueryKey(sessionId), (prev) => [
+              ...(prev ?? []),
+              createAssistantMessage(),
+            ])
           },
+
           onMessageUpdate: (data) => {
-            if (!active) return
+            if (doneFlag.current) return
             const event = data.assistantMessageEvent
             if (!isAssistantDeltaEvent(event)) return
-
             if (turnMetaRef.current) {
-              if (!turnMetaRef.current.model && event.partial?.model) {
-                turnMetaRef.current.model = event.partial.model
-              }
-              if (!turnMetaRef.current.provider && event.partial?.provider) {
-                turnMetaRef.current.provider = event.partial.provider
-              }
+              if (!turnMetaRef.current.model && event.partial?.model) turnMetaRef.current.model = event.partial.model
+              if (!turnMetaRef.current.provider && event.partial?.provider) turnMetaRef.current.provider = event.partial.provider
             }
-
             pendingDeltasRef.current.push(event)
             scheduleUpdate()
           },
+
           onToolExecutionStart: (data) => {
-            if (!active) return
+            if (doneFlag.current) return
             const startTime = Date.now()
             pendingToolStartRef.current.set(data.toolCallId, startTime)
-            pendingToolUpdatesRef.current.push({
-              toolCallId: data.toolCallId,
-              toolName: data.toolName,
-              args: data.args,
-              status: "running",
-              startTime,
-            })
+            pendingToolUpdatesRef.current.push({ toolCallId: data.toolCallId, toolName: data.toolName, args: data.args, status: "running", startTime })
             scheduleUpdate()
           },
+
           onToolExecutionUpdate: (data) => {
-            if (!active) return
-            pendingToolUpdatesRef.current.push({
-              toolCallId: data.toolCallId,
-              toolName: data.toolName,
-              args: data.args,
-              status: "running",
-              partialResult: data.partialResult,
-            })
+            if (doneFlag.current) return
+            pendingToolUpdatesRef.current.push({ toolCallId: data.toolCallId, toolName: data.toolName, args: data.args, status: "running", partialResult: data.partialResult })
             scheduleUpdate()
           },
+
           onToolExecutionEnd: (data) => {
-            if (!active) return
+            if (doneFlag.current) return
             const startTime = pendingToolStartRef.current.get(data.toolCallId)
             pendingToolStartRef.current.delete(data.toolCallId)
             pendingToolUpdatesRef.current.push({
@@ -390,107 +356,66 @@ export function useSessionStream({
             })
             scheduleUpdate()
           },
+
           onAgentEnd: (data) => {
-            if (!active) return
-            const messages = data.messages ?? []
+            if (doneFlag.current) return
 
-            // Update cache with finalized messages
-            queryClient.setQueryData<Message[]>(
-              messagesQueryKey(sessionId),
-              (prev) => {
-                const base = prev ?? []
-                let finalized = finalizeRunningTools(base, messages)
+            queryClient.setQueryData<Message[]>(messagesQueryKey(sessionId), (prev) => {
+              const base = prev ?? []
+              let finalized = finalizeRunningTools(base, data.messages ?? [])
 
-                // Add response metadata to last assistant message
-                const meta = turnMetaRef.current
-                if (meta) {
-                  const responseTime = Date.now() - meta.startTime
-                  const lastIdx = finalized.reduceRight(
-                    (found, msg, i) =>
-                      found === -1 && msg.role === "assistant" ? i : found,
-                    -1
-                  )
-                  if (lastIdx !== -1) {
-                    const last = finalized[lastIdx]
-                    if (last.role === "assistant") {
-                      finalized = [
-                        ...finalized.slice(0, lastIdx),
-                        {
-                          ...last,
-                          model: meta.model,
-                          provider: meta.provider,
-                          thinkingLevel: meta.thinkingLevel,
-                          responseTime,
-                        } as Message,
-                        ...finalized.slice(lastIdx + 1),
-                      ]
-                    }
-                  }
-                  turnMetaRef.current = null
+              const meta = turnMetaRef.current
+              if (meta) {
+                const lastIdx = findLastAssistantIndex(finalized)
+                if (lastIdx !== -1) {
+                  const last = finalized[lastIdx] as AssistantMessage
+                  finalized = [
+                    ...finalized.slice(0, lastIdx),
+                    {
+                      ...last,
+                      model: meta.model,
+                      provider: meta.provider,
+                      thinkingLevel: meta.thinkingLevel,
+                      responseTime: Date.now() - meta.startTime,
+                    },
+                    ...finalized.slice(lastIdx + 1),
+                  ]
                 }
-
-                // Check for assistant errors
-                const assistantError = [...messages]
-                  .reverse()
-                  .find(
-                    (msg): msg is Extract<AgentEndMessage, { role: "assistant" }> =>
-                      msg.role === "assistant" && msg.stopReason === "error" && !!msg.errorMessage
-                  )
-
-                if (assistantError?.errorMessage) {
-                  let displayError = assistantError.errorMessage
-
-                  // Parse error message
-                  try {
-                    const parsed = JSON.parse(assistantError.errorMessage)
-                    if (parsed?.error?.message) {
-                      displayError = parsed.error.message
-                    } else if (parsed?.error) {
-                      displayError =
-                        typeof parsed.error === "string"
-                          ? parsed.error
-                          : JSON.stringify(parsed.error)
-                    }
-                  } catch {
-                    const jsonStart = displayError.indexOf("{")
-                    if (jsonStart > 0) {
-                      try {
-                        const parsed = JSON.parse(
-                          displayError.slice(jsonStart)
-                        ) as Record<string, unknown>
-                        const inner = parsed?.error as
-                          | Record<string, unknown>
-                          | undefined
-                        if (typeof inner?.message === "string") {
-                          displayError = inner.message
-                        }
-                      } catch {
-                        // use raw string
-                      }
-                    }
-                  }
-
-                  const errorMsg = createErrorMessage("Error", displayError)
-                  finalized = [...finalized, errorMsg]
-                }
-
-                return finalized
+                turnMetaRef.current = null
               }
-            )
 
-            onMessageEnd?.()
-            onIsLoadingChange?.(false)
+              const assistantError = [...(data.messages ?? [])]
+                .reverse()
+                .find(
+                  (msg): msg is Extract<AgentEndMessage, { role: "assistant" }> =>
+                    msg.role === "assistant" && msg.stopReason === "error" && !!msg.errorMessage
+                )
+
+              if (assistantError?.errorMessage) {
+                finalized = [
+                  ...finalized,
+                  createErrorMessage("Error", parseErrorMessage(assistantError.errorMessage)),
+                ]
+              }
+
+              return finalized
+            })
+
+            callbacksRef.current.onMessageEnd?.()
+            callbacksRef.current.onIsLoadingChange?.(false)
             void queryClient.invalidateQueries({ queryKey: messagesQueryKey(sessionId) })
             void queryClient.invalidateQueries({ queryKey: chatKeys.contextUsage(sessionId) })
             void queryClient.invalidateQueries({ queryKey: chatKeys.sessionStats(sessionId) })
           },
+
           onMessageEnd: () => {},
           onTurnStart: () => {},
           onTurnEnd: () => {},
           onQueueUpdate: () => {},
+
           onAutoRetryStart: ({ attempt, errorMessage }) => {
-            if (!active) return
-            onPendingErrorChange?.(
+            if (doneFlag.current) return
+            callbacksRef.current.onPendingErrorChange?.(
               createErrorMessage("Retrying", errorMessage, {
                 retryable: true,
                 retryCount: attempt,
@@ -498,11 +423,12 @@ export function useSessionStream({
               })
             )
           },
+
           onAutoRetryEnd: ({ success, finalError }) => {
-            if (!active) return
+            if (doneFlag.current) return
             if (!success && finalError) {
               const lastPrompt = lastPromptRef.current
-              onPendingErrorChange?.(
+              callbacksRef.current.onPendingErrorChange?.(
                 createErrorMessage("Retry Failed", finalError, {
                   retryable: true,
                   action: lastPrompt
@@ -511,26 +437,30 @@ export function useSessionStream({
                 })
               )
             } else {
-              onPendingErrorChange?.(null)
+              callbacksRef.current.onPendingErrorChange?.(null)
             }
           },
+
           onCompactionStart: () => {
-            if (!active) return
-            onIsCompactingChange?.(true)
+            if (doneFlag.current) return
+            callbacksRef.current.onIsCompactingChange?.(true)
           },
+
           onCompactionEnd: ({ errorMessage, aborted }) => {
-            if (!active) return
-            onIsCompactingChange?.(false)
-            if (errorMessage && !aborted) {
-              onPendingErrorChange?.(createErrorMessage("Compaction Failed", errorMessage))
-            } else {
-              onPendingErrorChange?.(null)
-            }
+            if (doneFlag.current) return
+            callbacksRef.current.onIsCompactingChange?.(false)
+            callbacksRef.current.onPendingErrorChange?.(
+              errorMessage && !aborted
+                ? createErrorMessage("Compaction Failed", errorMessage)
+                : null
+            )
           },
+
           onServerError: ({ message }) => {
-            if (!active) return
+            if (doneFlag.current) return
+            doneFlag.current = true
             const lastPrompt = lastPromptRef.current
-            onPendingErrorChange?.(
+            callbacksRef.current.onPendingErrorChange?.(
               createErrorMessage("Error", message, {
                 retryable: true,
                 action: lastPrompt
@@ -538,13 +468,14 @@ export function useSessionStream({
                   : { type: "dismiss" },
               })
             )
-            onIsLoadingChange?.(false)
+            callbacksRef.current.onIsLoadingChange?.(false)
           },
-          onTransportError: () => {
-            if (!active || !ws) return
 
+          onTransportError: () => {
+            if (doneFlag.current) return
+            doneFlag.current = true
             const lastPrompt = lastPromptRef.current
-            onPendingErrorChange?.(
+            callbacksRef.current.onPendingErrorChange?.(
               createErrorMessage(
                 "Connection Lost",
                 "The connection to the server was lost. Please try again.",
@@ -555,38 +486,27 @@ export function useSessionStream({
                 }
               )
             )
-            onIsLoadingChange?.(false)
-            void queryClient.invalidateQueries({
-              queryKey: messagesQueryKey(sessionId),
-            })
+            callbacksRef.current.onIsLoadingChange?.(false)
+            void queryClient.invalidateQueries({ queryKey: messagesQueryKey(sessionId) })
           },
         })
       })
       .catch((err) => {
-        if (active) console.debug("[session-stream] WebSocket unavailable:", err)
+        if (doneFlag.current) return
+        doneFlag.current = true
+        callbacksRef.current.onIsLoadingChange?.(false)
+        console.debug("[session-stream] WebSocket unavailable:", err)
       })
 
     return () => {
-      active = false
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current)
-      }
+      doneFlag.current = true
+      sessionDoneFlags.delete(sessionId)
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       pendingDeltasRef.current = []
       pendingToolUpdatesRef.current = []
       ws?.close()
-      // Reset loading state on cleanup so returning threads don't show stale status
-      onIsLoadingChange?.(false)
     }
-  }, [
-    sessionId,
-    queryClient,
-    onMessageStart,
-    onMessageEnd,
-    onIsLoadingChange,
-    onIsCompactingChange,
-    onPendingErrorChange,
-    scheduleUpdate,
-  ])
+  }, [sessionId, queryClient, scheduleUpdate])
 
   return {
     lastPromptRef,

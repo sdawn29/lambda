@@ -1,20 +1,24 @@
 /**
- * Simplified chat stream hook - wraps useSessionStream and useVisibleMessages.
- * 
- * This is the main public API for the chat feature. It provides:
- * - SSE connection management via useSessionStream
- * - Message state via useMessages (TanStack Query)
- * - Streaming status (isLoading, isStopped, isCompacting)
- * - Error handling (pending errors)
+ * Chat stream hook — connects the WebSocket stream to UI state.
+ *
+ * Responsibilities:
+ * - Opens a WebSocket for the session and dispatches events to callbacks
+ * - Manages isLoading, isCompacting, pendingError as local state
+ * - Provides startUserPrompt() which optimistically adds the user message
+ *
+ * The isLoading state is scoped to the current sessionId. When sessionId
+ * changes (thread switch), the previous session's loading is cleared by the
+ * new session's WebSocket opening (which calls onIsLoadingChange(true) via
+ * onMessageStart). No explicit session change handling is needed here.
  */
-import { useCallback, useState, useMemo, useEffect } from "react"
+import { useCallback, useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSessionStream } from "./hooks/use-session-stream"
 import { useVisibleMessages } from "./hooks/use-visible-messages"
 import { messagesQueryKey } from "./queries"
-import type { Message } from "./types"
 import { createErrorMessage } from "./types"
+import type { Message } from "./types"
 
 interface UseChatStreamOptions {
   sessionId: string
@@ -39,65 +43,40 @@ export function useChatStream({
   threadId,
   initialIsStopped,
 }: UseChatStreamOptions): UseChatStreamResult {
-  // threadId reserved for future per-thread state
   void threadId
 
   const queryClient = useQueryClient()
   const [isStopped, setIsStopped] = useState(initialIsStopped)
   const [isCompacting, setIsCompacting] = useState(false)
   const [pendingError, setPendingError] = useState<ReturnType<typeof createErrorMessage> | null>(null)
-  // Track loading state per session to avoid stale cross-thread contamination.
-  // Using a Map means old thread's loading state doesn't leak into new thread.
-  const [loadingForSessionId, setLoadingForSessionId] = useState<string | null>(null)
-  const isLoadingInternal = loadingForSessionId === sessionId
+  const [isLoading, setIsLoading] = useState(false)
 
-  const { messages, isLoading } = useVisibleMessages({
+  const { messages } = useVisibleMessages({ sessionId, pendingError })
+
+  // Connect to WebSocket stream
+  const { lastPromptRef, pendingThinkingLevelRef } = useSessionStream({
     sessionId,
-    pendingError,
-  })
-
-  // Handle pending error changes from stream
-  const handlePendingErrorChange = useCallback(
-    (error: ReturnType<typeof createErrorMessage> | null) => {
-      setPendingError(error)
-    },
-    []
-  )
-
-  // Connect to SSE stream
-  useSessionStream({
-    sessionId,
-    onIsLoadingChange: (loading) => {
-      if (loading) {
-        setLoadingForSessionId(sessionId)
-      } else if (loadingForSessionId === sessionId) {
-        setLoadingForSessionId(null)
-      }
-    },
+    onIsLoadingChange: setIsLoading,
     onIsCompactingChange: setIsCompacting,
-    onPendingErrorChange: handlePendingErrorChange,
+    onPendingErrorChange: setPendingError,
   })
 
   const hasLoadedMessages = messages.length > 0 || isLoading
 
-  const visibleMessages = useMemo(() => {
-    return messages
-  }, [messages])
+  const visibleMessages = useMemo(() => messages, [messages])
 
-  // Add user message immediately to cache (optimistic update)
   const startUserPrompt = useCallback(
-    (text: string, _thinkingLevel?: string) => {
-      // NOTE: thinkingLevel is reserved for future streaming thinking display
-      void _thinkingLevel
+    (text: string, thinkingLevel?: string) => {
       setIsStopped(false)
-      setLoadingForSessionId(sessionId)
+      setIsLoading(true)
+      lastPromptRef.current = { text, thinkingLevel }
+      pendingThinkingLevelRef.current = thinkingLevel ?? null
 
-      // Optimistically add user message to cache immediately
       const userMessage: Message = { role: "user", content: text }
       queryClient.setQueryData<Message[]>(messagesQueryKey(sessionId), (prev) => {
         const current = prev ?? []
-        // Avoid duplicate messages - check if last message is same user message
         const lastMsg = current[current.length - 1]
+        // Avoid duplicate if the same message was sent twice quickly
         if (
           current.length > 0 &&
           lastMsg.role === "user" &&
@@ -108,41 +87,20 @@ export function useChatStream({
         return [...current, userMessage]
       })
     },
-    [queryClient, sessionId]
+    [queryClient, sessionId, lastPromptRef, pendingThinkingLevelRef]
   )
 
-  const markStopped = useCallback(() => {
-    setIsStopped(true)
-  }, [])
+  const markStopped = useCallback(() => setIsStopped(true), [])
 
   const markSendFailed = useCallback(() => {
     // Error handling is managed by the stream hook
   }, [])
 
-  // Safety net: if the agent appears to be loading for longer than 5 minutes without
-  // an agent_end event, assume it finished. WebSocket transport errors already clear
-  // loading via onTransportError, so this mainly covers very long-running agents.
-  const LOADING_TIMEOUT_MS = 5 * 60 * 1000
-  const [isTimedOut, setIsTimedOut] = useState(false)
-
-  useEffect(() => {
-    if (!isLoadingInternal) {
-      setIsTimedOut(false)
-      return
-    }
-    const id = setTimeout(() => setIsTimedOut(true), LOADING_TIMEOUT_MS)
-    return () => clearTimeout(id)
-  }, [isLoadingInternal, LOADING_TIMEOUT_MS])
-
-  // isLoading is true only if this thread's SSE reports loading
-  // Each ChatView has its own sessionId, so only the thread with active SSE shows loading
-  const isThisThreadLoading = isLoadingInternal && !isTimedOut
-
   return {
     visibleMessages,
     hasConversationHistory: visibleMessages.length > 0,
     hasLoadedMessages,
-    isLoading: isThisThreadLoading,
+    isLoading,
     isStopped,
     isCompacting,
     startUserPrompt,

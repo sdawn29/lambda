@@ -205,7 +205,7 @@ export function useTerminalForWorkspace(workspaceId: string, cwd: string) {
       renameTab: (tabId: string, title: string) => ctx.renameTab(workspaceId, tabId, title),
       killAll: () => ctx.killAll(workspaceId),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [ctx, workspaceId, cwd, state]
   )
 }
