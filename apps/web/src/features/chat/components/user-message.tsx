@@ -1,34 +1,29 @@
-import { FileIcon, FileTextIcon, FolderIcon, TerminalIcon } from "lucide-react"
+import { FileTextIcon, TerminalIcon } from "lucide-react"
+import { Icon } from "@iconify/react"
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
-import { badgeVariants } from "@/shared/ui/badge"
-import { getFileTypeColor } from "@/shared/lib/file-type-color"
-import { cn } from "@/shared/lib/utils"
+import { getIconName } from "@/shared/ui/file-icon"
 import type { SlashCommand } from "../api"
 
-const CHIP_BASE_CLASS = cn(
-  badgeVariants({ variant: "secondary" }),
-  "mx-0.5 gap-1 px-1.5 py-0.5 text-xs text-foreground select-text"
-)
+const CHIP_BASE_CLASS =
+  "mx-0.5 inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 align-middle font-mono text-xs text-foreground/80 select-text"
 
 const TOKEN_RE = /(@[^\s]+|\/[^\s]+)/g
 
 function isFileMention(path: string): boolean {
   const basename = path.split("/").pop() ?? path
+  // Dotfiles (.npmrc, .env, .gitignore) start with a dot — always a file
+  if (basename.startsWith(".")) return true
   return basename.lastIndexOf(".") > 0
 }
 
 function FileChip({ filePath }: { filePath: string }) {
   const basename = filePath.split("/").pop() ?? filePath
-  const color = getFileTypeColor(basename)
   return (
-    <span
-      className={cn(CHIP_BASE_CLASS, "border-primary/25 bg-primary/10 font-mono")}
-    >
-      <FileIcon
-        width={10}
-        height={10}
-        style={{ color, flexShrink: 0 }}
+    <span className={CHIP_BASE_CLASS}>
+      <Icon
+        icon={`catppuccin:${getIconName(basename)}`}
+        className="size-3.5 shrink-0"
         aria-hidden
       />
       {basename}
@@ -40,15 +35,8 @@ function FolderChip({ folderPath }: { folderPath: string }) {
   const normalized = folderPath.replace(/\/+$/, "")
   const basename = normalized.split("/").pop() || normalized
   return (
-    <span
-      className={cn(CHIP_BASE_CLASS, "border-primary/25 bg-primary/10 font-mono")}
-    >
-      <FolderIcon
-        width={10}
-        height={10}
-        className="shrink-0 text-primary"
-        aria-hidden
-      />
+    <span className={CHIP_BASE_CLASS}>
+      <Icon icon="catppuccin:folder" className="size-3.5 shrink-0" aria-hidden />
       {basename}
     </span>
   )
@@ -62,18 +50,11 @@ function SlashCommandChip({ command }: { command: SlashCommand }) {
       <TooltipTrigger
         render={
           <span className="inline-flex align-middle">
-            <span
-              className={cn(
-                CHIP_BASE_CLASS,
-                command.source === "skill"
-                  ? "border-emerald-500/25 bg-emerald-500/10"
-                  : "border-sky-500/25 bg-sky-500/10"
-              )}
-            >
+            <span className={CHIP_BASE_CLASS}>
               {command.source === "skill" ? (
-                <TerminalIcon aria-hidden />
+                <TerminalIcon className="size-3 shrink-0" aria-hidden />
               ) : (
-                <FileTextIcon aria-hidden />
+                <FileTextIcon className="size-3 shrink-0" aria-hidden />
               )}
               <span className="font-mono">/{command.name}</span>
             </span>
