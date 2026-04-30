@@ -46,6 +46,10 @@ export const messagesQueryKey = (sessionId: string) =>
 /**
  * Fetch messages from server and convert blocks to UI messages.
  * Uses the new block-based message storage.
+ *
+ * IMPORTANT: This query merges localStorage data with streaming messages
+ * from setQueryData calls. This ensures thread switches show the latest
+ * data even when the WebSocket is adding messages.
  */
 export function useMessages(sessionId: string) {
   const queryClient = useQueryClient()
@@ -56,7 +60,7 @@ export function useMessages(sessionId: string) {
     queryFn: async (): Promise<Message[]> => {
       // Fetch blocks from server
       const { blocks } = await listMessages(sessionId)
-      
+
       // Convert blocks to UI messages
       const serverMessages = blocksToMessages(blocks as MessageBlock[])
 
@@ -66,6 +70,7 @@ export function useMessages(sessionId: string) {
       // Update query cache
       queryClient.setQueryData(messagesQueryKey(sessionId), serverMessages)
 
+
       return serverMessages
     },
     // Load from localStorage first (instant, no network)
@@ -74,9 +79,9 @@ export function useMessages(sessionId: string) {
       return stored?.messages ?? undefined
     },
     gcTime: 30 * 60 * 1000,
-    staleTime: 30 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    staleTime: 0,  // Always stale so we refetch on mount
+    refetchOnMount: true,  // Refetch when coming back to thread
+    refetchOnWindowFocus: true,  // Also refetch when window regains focus,
     enabled: !!sessionId,
   })
 }

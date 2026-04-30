@@ -247,6 +247,20 @@ export function updateToolBlockResult(
 }
 
 /**
+ * Update a tool block with partial result during execution (for progress updates).
+ * For example, the write tool can stream file contents as they're being written.
+ */
+export function updateToolBlockPartialResult(
+  blockId: string,
+  partialResult: string
+): void {
+  db.update(messageBlocks)
+    .set({ toolResult: partialResult })
+    .where(eq(messageBlocks.id, blockId))
+    .run();
+}
+
+/**
  * Get a message block by ID
  */
 export function getMessageBlock(id: string): MessageBlock | undefined {

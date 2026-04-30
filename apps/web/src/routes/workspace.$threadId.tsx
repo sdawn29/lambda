@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect, useRef } from "react"
 
-import { ChatView, useSetThreadStatus } from "@/features/chat"
+import { ChatView, useSetActiveThreadId } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
 import { useDiffPanel } from "@/features/git"
 import { useFileTree } from "@/features/file-tree"
@@ -43,7 +43,16 @@ function WorkspaceThreadRoute() {
   const { isOpen: fileTreeOpen } = useFileTree()
   const { mutate: updateSetting } = useUpdateAppSetting()
   const { mutate: updateLastAccessed } = useUpdateThreadLastAccessed()
-  const setThreadStatus = useSetThreadStatus()
+  const setActiveThreadId = useSetActiveThreadId()
+
+  // Set active thread when viewing this thread
+  useEffect(() => {
+    setActiveThreadId(threadId)
+    return () => {
+      // Clear active thread when navigating away
+      setActiveThreadId(null)
+    }
+  }, [threadId, setActiveThreadId])
 
   // Find current workspace
   const foundWorkspace = workspaces.find((ws) =>
@@ -70,8 +79,7 @@ function WorkspaceThreadRoute() {
       value: threadId,
     })
     updateLastAccessed(threadId)
-    setThreadStatus(threadId, "idle")
-  }, [threadId, updateSetting, updateLastAccessed, setThreadStatus])
+  }, [threadId, updateSetting, updateLastAccessed])
 
   useEffect(() => {
     if (!isLoading && !foundThread) {

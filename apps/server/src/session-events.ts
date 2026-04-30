@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, listRunningToolBlocks } from "@lamda/db";
+import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, updateToolBlockPartialResult, listRunningToolBlocks } from "@lamda/db";
 import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
-import { threadStatusBroadcaster } from "./thread-status-broadcaster.js";
+import { threadStatusBroadcaster, type ThreadStatus } from "./thread-status-broadcaster.js";
 
 const MAX_RECENT_EVENTS = 512;
 
@@ -157,6 +157,11 @@ class SessionEventHub {
   private getReplayEvents(lastEventId?: string): SessionEventRecord[] {
     const parsedLastEventId = parseEventId(lastEventId);
     if (parsedLastEventId === null) {
+      // New connection without lastEventId - replay all recent events
+      // to allow client to restore state from server snapshot
+      if (this.recentEvents.length > 0) {
+        return [...this.recentEvents];
+      }
       if (this.runInProgress) {
         // Include running tool blocks from DB for new subscribers
         const toolBlocks = listRunningToolBlocks(this.threadId);
@@ -223,7 +228,7 @@ class SessionEventHub {
       if (msg.message?.role === "assistant") {
         this.runInProgress = true;
         this.currentRunEvents = [];
-        threadStatusBroadcaster.broadcast(this.threadId, "running");
+        threadStatusBroadcaster.broadcast(this.threadId, "streaming");
 
         // Create assistant block in DB
         const blockId = insertAssistantStartBlock(this.threadId);
@@ -311,6 +316,23 @@ class SessionEventHub {
           result: JSON.stringify(msg.result),
           duration,
         });
+      }
+      return;
+    }
+
+    // tool_execution_update - update tool block with partial result
+    if (event.type === "tool_execution_update") {
+      const msg = event as {
+        toolCallId: string;
+        partialResult?: unknown;
+      };
+
+      const toolContext = this.currentToolBlocks.get(msg.toolCallId);
+      if (toolContext && msg.partialResult !== undefined) {
+        updateToolBlockPartialResult(
+          toolContext.toolBlockId,
+          JSON.stringify(msg.partialResult)
+        );
       }
       return;
     }

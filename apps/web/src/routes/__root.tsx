@@ -15,7 +15,6 @@ import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { TerminalProvider, useTerminal } from "@/features/terminal"
 import { DiffPanelProvider, useDiffPanel } from "@/features/git"
 import { FileTreeProvider } from "@/features/file-tree"
-import { useGlobalThreadStatusWatcher } from "@/features/chat"
 import { usePrefetchThreadsMessages } from "@/features/chat/hooks"
 import {
   ServerUnavailable,
@@ -42,7 +41,6 @@ function RootLayoutInner() {
   }
   const { getState } = useTerminal()
   const { isFullscreen: diffFullscreen } = useDiffPanel()
-  useGlobalThreadStatusWatcher(activeThreadId)
 
   // Prefetch all thread messages in the background for instant thread switching
   usePrefetchThreadsMessages({ activeThreadId })

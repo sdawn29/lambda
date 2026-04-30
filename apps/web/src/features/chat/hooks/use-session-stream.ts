@@ -43,6 +43,7 @@ interface ToolMessageUpdate {
   args?: unknown
   status: "running" | "done" | "error"
   result?: unknown
+  partialResult?: unknown  // Partial result during execution
   duration?: number
   startTime?: number
   toolBlockId?: string
@@ -235,6 +236,7 @@ export function useSessionStream({
                     args: update.args ?? existingTool?.args ?? {},
                     status: update.status,
                     result: update.result ?? existingTool?.result,
+                    partialResult: update.partialResult ?? existingTool?.partialResult,
                     duration: update.duration ?? existingTool?.duration,
                     startTime: update.startTime ?? existingTool?.startTime,
                   } as ToolMessage
@@ -294,6 +296,7 @@ export function useSessionStream({
           onAgentStart: () => {
             if (!active || currentSessionId !== sessionId) return
             // Fetch and inject running tools from server on initial connect
+            // Also set loading state since we're reconnecting to a streaming session
             void (async () => {
               try {
                 const { runningTools: blocks } = await listRunningTools(sessionId)
@@ -304,6 +307,9 @@ export function useSessionStream({
                   .filter((msg): msg is ToolMessage => msg.role === "tool" && msg.status === "running")
                 
                 if (tools.length > 0) {
+                  // Set loading state since we're reconnecting to a streaming session
+                  onIsLoadingChange?.(true)
+                  
                   queryClient.setQueryData<Message[]>(
                     messagesQueryKey(sessionId),
                     (prev) => mergeRunningTools(prev ?? [], tools)
@@ -367,7 +373,7 @@ export function useSessionStream({
               toolName: data.toolName,
               args: data.args,
               status: "running",
-              result: data.partialResult,
+              partialResult: data.partialResult,
             })
             scheduleUpdate()
           },

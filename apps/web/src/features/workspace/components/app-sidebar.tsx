@@ -128,7 +128,7 @@ function ThreadRow({
         <SidebarMenuSubButton isActive={isActive} onClick={onClick}>
           <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
             <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-              {status === "running" ? (
+              {status === "streaming" ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/60" />
               ) : status === "completed" ? (
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />

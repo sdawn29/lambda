@@ -96,14 +96,16 @@ function getEditDiff(result: unknown): string | null {
 // ── Generic result ─────────────────────────────────────────────────────────────
 
 function getResultText(msg: ToolMessage): string | null {
-  if (msg.result === undefined) return null
-  if (typeof msg.result === "string") return msg.result
+  // Prefer final result, fall back to partial result during execution
+  const resultSource = msg.result ?? msg.partialResult
+  if (resultSource === undefined) return null
+  if (typeof resultSource === "string") return resultSource
   if (
-    typeof msg.result === "object" &&
-    msg.result !== null &&
-    Array.isArray((msg.result as Record<string, unknown>).content)
+    typeof resultSource === "object" &&
+    resultSource !== null &&
+    Array.isArray((resultSource as Record<string, unknown>).content)
   ) {
-    const parts = (msg.result as { content: { type: string; text?: string }[] })
+    const parts = (resultSource as { content: { type: string; text?: string }[] })
       .content
     const text = parts
       .filter((p) => p.type === "text" && typeof p.text === "string")
@@ -111,7 +113,7 @@ function getResultText(msg: ToolMessage): string | null {
       .join("")
     if (text) return text
   }
-  return JSON.stringify(msg.result, null, 2)
+  return JSON.stringify(resultSource, null, 2)
 }
 
 function argsSummary(args: unknown): string {
@@ -286,6 +288,18 @@ export const ToolCallBlock = memo(function ToolCallBlock({
               <span className="text-muted-foreground/40">
                 {isEdit ? "Editing…" : isRead ? "Reading…" : "Running…"}
               </span>
+            )}
+
+            {/* Running state: show partial result if available */}
+            {msg.status === "running" && resultText && (
+              <>
+                {isRead && readFilePath && (
+                  <ReadView text={resultText} filePath={readFilePath} live={true} />
+                )}
+                {!isRead && (
+                  <LivePre text={resultText} live={true} />
+                )}
+              </>
             )}
 
             {/* Done state: show content */}

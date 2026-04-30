@@ -66,6 +66,7 @@ export interface ToolMessage {
   args: unknown
   status: "running" | "done" | "error"
   result?: unknown
+  partialResult?: unknown  // Partial result during execution (e.g., write tool progress)
   duration?: number
   startTime?: number
 }
