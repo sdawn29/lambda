@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useSessionStream } from "./hooks/use-session-stream"
 import { useVisibleMessages } from "./hooks/use-visible-messages"
 import { messagesQueryKey } from "./queries"
+import { dismissSessionError } from "./api"
 import { createErrorMessage } from "./types"
 import type { ErrorMessage, Message } from "./types"
 import { useSetThreadStatus } from "./thread-status-context"
@@ -110,6 +111,9 @@ export function useChatStream({
         )
       )
       setPendingError((prev) => (prev?.id === id ? null : prev))
+      // Tell the server to drop error events from its replay buffer so they
+      // don't reappear when the WebSocket reconnects after a page refresh.
+      dismissSessionError(sessionId).catch(() => { /* best-effort */ })
     },
     [queryClient, sessionId]
   )
