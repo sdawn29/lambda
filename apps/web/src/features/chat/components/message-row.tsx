@@ -180,58 +180,60 @@ function ErrorBlock({
 }) {
   const { action } = message
   const canRetry = action?.type === "retry" && !!action.prompt
-  const showActions = !!onAction && !!action && action.type !== "continue"
+  const canDismiss = !!onAction && !!action && action.type !== "continue"
 
   return (
     <div className="group flex animate-in flex-col duration-300 fade-in-0 slide-in-from-bottom-1">
-      <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3">
-        <div className="flex items-start gap-2.5">
-          <AlertCircleIcon className="mt-px h-4 w-4 shrink-0 text-destructive/60" />
+      <div className="rounded-lg border border-border/50 px-3 py-2.5">
+        <div className="flex items-start gap-2">
+          <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/70" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm leading-none font-medium text-destructive/90">
-              {message.title}
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-medium text-foreground">
+                {message.title}
+              </span>
               {message.retryCount != null && (
-                <span className="ml-2 text-xs font-normal text-destructive/50">
+                <span className="text-[10px] text-muted-foreground/60">
                   attempt {message.retryCount}
                 </span>
               )}
-            </p>
-            <p className="mt-1.5 text-xs leading-relaxed text-destructive/65">
+            </div>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               {message.message}
             </p>
+            {canDismiss && canRetry && (
+              <div className="mt-2 flex gap-1.5">
+                <Button
+                  size="xs"
+                  variant="destructive"
+                  onClick={() => onAction(action!, message.id)}
+                >
+                  <RotateCwIcon />
+                  Retry
+                </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="text-muted-foreground/60 hover:text-foreground/80"
+                  onClick={() => onAction({ type: "dismiss" }, message.id)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            )}
           </div>
-          {showActions && !canRetry && (
-            <button
-              type="button"
+          {canDismiss && !canRetry && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="shrink-0 -mt-0.5 text-muted-foreground/40 hover:text-muted-foreground"
               onClick={() => onAction({ type: "dismiss" }, message.id)}
-              className="shrink-0 text-destructive/40 transition-colors hover:text-destructive/70"
-              aria-label="Dismiss"
             >
-              <XIcon className="h-3.5 w-3.5" />
-            </button>
+              <XIcon />
+              <span className="sr-only">Dismiss</span>
+            </Button>
           )}
         </div>
-
-        {showActions && canRetry && (
-          <div className="mt-3 flex gap-2 pl-6.5">
-            <Button
-              size="xs"
-              variant="destructive"
-              onClick={() => onAction(action!, message.id)}
-            >
-              <RotateCwIcon />
-              Retry
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              className="text-muted-foreground/60 hover:text-foreground/80"
-              onClick={() => onAction({ type: "dismiss" }, message.id)}
-            >
-              Dismiss
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   )

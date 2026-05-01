@@ -18,7 +18,7 @@ import { useSessionStream } from "./hooks/use-session-stream"
 import { useVisibleMessages } from "./hooks/use-visible-messages"
 import { messagesQueryKey } from "./queries"
 import { createErrorMessage } from "./types"
-import type { Message } from "./types"
+import type { ErrorMessage, Message } from "./types"
 
 interface UseChatStreamOptions {
   sessionId: string
@@ -36,6 +36,7 @@ interface UseChatStreamResult {
   startUserPrompt: (text: string, thinkingLevel?: string) => void
   markStopped: () => void
   markSendFailed: () => void
+  dismissError: (id: string) => void
 }
 
 export function useChatStream({
@@ -96,6 +97,18 @@ export function useChatStream({
     // Error handling is managed by the stream hook
   }, [])
 
+  const dismissError = useCallback(
+    (id: string) => {
+      queryClient.setQueryData<Message[]>(messagesQueryKey(sessionId), (prev) =>
+        (prev ?? []).filter(
+          (m): boolean => !(m.role === "error" && (m as ErrorMessage).id === id)
+        )
+      )
+      setPendingError((prev) => (prev?.id === id ? null : prev))
+    },
+    [queryClient, sessionId]
+  )
+
   return {
     visibleMessages,
     hasConversationHistory: visibleMessages.length > 0,
@@ -106,5 +119,6 @@ export function useChatStream({
     startUserPrompt,
     markStopped,
     markSendFailed,
+    dismissError,
   }
 }
