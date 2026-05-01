@@ -15,6 +15,7 @@ export interface ThreadDto {
   isStopped: boolean
   createdAt: number
   sessionId: string | null
+  isPinned?: boolean
 }
 
 export interface WorkspaceDto {
@@ -126,6 +127,14 @@ export function unarchiveThread(threadId: string): Promise<void> {
   return apiFetch<void>(`/thread/${threadId}/unarchive`, { method: "PATCH" })
 }
 
+export function pinThread(threadId: string): Promise<void> {
+  return apiFetch<void>(`/thread/${threadId}/pin`, { method: "PATCH" })
+}
+
+export function unpinThread(threadId: string): Promise<void> {
+  return apiFetch<void>(`/thread/${threadId}/unpin`, { method: "PATCH" })
+}
+
 export interface ArchivedThreadDto {
   id: string
   workspaceId: string
@@ -142,4 +151,20 @@ export function listArchivedThreads(): Promise<{ threads: ArchivedThreadDto[] }>
 
 export function resetAllData(): Promise<void> {
   return apiFetch<void>("/reset", { method: "DELETE" })
+}
+
+export interface WorkspaceFileEntry {
+  relativePath: string
+  name: string
+  isDirectory: boolean
+}
+
+export function listWorkspaceIndexFiles(
+  workspaceId: string
+): Promise<{ files: WorkspaceFileEntry[] }> {
+  return apiFetch<{ files: WorkspaceFileEntry[] }>(`/workspace/${workspaceId}/files`)
+}
+
+export function triggerWorkspaceReindex(workspaceId: string): Promise<void> {
+  return apiFetch<void>(`/workspace/${workspaceId}/reindex`, { method: "POST" })
 }

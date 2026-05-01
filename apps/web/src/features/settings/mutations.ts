@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   abortOAuthLogin,
   oauthLogout,
-  openOAuthEventSource,
+  openOAuthWebSocket,
   respondToOAuthPrompt,
   startOAuthLogin,
   updateProviders,
@@ -53,9 +53,9 @@ export function useStartOAuthLogin() {
   })
 }
 
-export function useOpenOAuthEventSource() {
+export function useOpenOAuthWebSocket() {
   return useMutation({
-    mutationFn: (loginId: string) => openOAuthEventSource(loginId),
+    mutationFn: (loginId: string) => openOAuthWebSocket(loginId),
   })
 }
 

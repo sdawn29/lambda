@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
 import { randomUUID } from "crypto";
+import type { WebSocket } from "ws";
 import {
   sharedAuthStorage,
   readAuthJson,
@@ -76,38 +76,6 @@ auth.post("/auth/oauth/:providerId/login", async (c) => {
   return c.json({ loginId }, 201);
 });
 
-auth.get("/auth/oauth/:loginId/events", async (c) => {
-  const loginId = c.req.param("loginId");
-  const login = activeLogins.get(loginId);
-  if (!login) return c.json({ error: "Login session not found" }, 404);
-
-  return streamSSE(c, async (stream) => {
-    stream.onAbort(() => {
-      login.sseFlush = null;
-    });
-
-    while (login.sseQueue.length > 0) {
-      const event = login.sseQueue.shift()!;
-      await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
-    }
-
-    await new Promise<void>((resolve) => {
-      login.sseFlush = async () => {
-        while (login.sseQueue.length > 0) {
-          const event = login.sseQueue.shift()!;
-          await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
-          if (event.type === "done" || event.type === "error") {
-            login.sseFlush = null;
-            resolve();
-            return;
-          }
-        }
-      };
-      if (!activeLogins.has(loginId)) resolve();
-    });
-  });
-});
-
 auth.post("/auth/oauth/:loginId/respond", async (c) => {
   const loginId = c.req.param("loginId");
   const login = activeLogins.get(loginId);
@@ -175,5 +143,36 @@ auth.put("/providers", async (c) => {
   await writeAuthJson(authData);
   return c.json({ ok: true });
 });
+
+export function handleOAuthEventsWs(ws: WebSocket, loginId: string) {
+  const login = activeLogins.get(loginId);
+  if (!login) {
+    ws.send(JSON.stringify({ type: "error", message: "Login session not found" }));
+    ws.close();
+    return;
+  }
+
+  const flush = () => {
+    while (login.sseQueue.length > 0) {
+      const event = login.sseQueue.shift()!;
+      if (ws.readyState !== 1 /* OPEN */) break;
+      ws.send(JSON.stringify(event));
+      if (event.type === "done" || event.type === "error") {
+        login.sseFlush = null;
+        ws.close();
+        return;
+      }
+    }
+  };
+
+  // Drain any already-queued events
+  flush();
+
+  login.sseFlush = flush;
+
+  ws.on("close", () => {
+    if (login.sseFlush === flush) login.sseFlush = null;
+  });
+}
 
 export default auth;

@@ -1,6 +1,6 @@
 # AGENTS.md — db
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-26
 
 ## Purpose
 
@@ -24,19 +24,21 @@ Single-file database client (`client.ts`) that:
 ### Key Files
 
 - `src/client.ts` — Database initialization with inline schema migrations
-- `src/schema.ts` — Drizzle table definitions (workspaces, threads, messages)
+- `src/schema.ts` — Drizzle table definitions (workspaces, threads, messages, settings)
 - `src/queries/workspaces.ts` — Workspace CRUD operations
 - `src/queries/threads.ts` — Thread CRUD operations
 - `src/queries/messages.ts` — Message listing and insertion
+- `src/queries/settings.ts` — Key-value settings storage (get, upsert, delete, getAll)
 - `src/index.ts` — Barrel export of all public API
 
 ## Database Schema
 
 | Table        | Columns                                                                                           |
 | ------------ | ------------------------------------------------------------------------------------------------- |
-| `workspaces` | `id` (TEXT PK), `name`, `path`, `created_at`                                                      |
-| `threads`    | `id` (TEXT PK), `workspace_id` (FK → workspaces), `title`, `created_at`                           |
+| `workspaces` | `id` (TEXT PK), `name`, `path`, `open_with_app_id`, `created_at`                                   |
+| `threads`    | `id` (TEXT PK), `workspace_id` (FK → workspaces), `title`, `session_file`, `model_id`, `is_stopped`, `is_archived`, `is_pinned`, `last_accessed_at`, `created_at` |
 | `messages`   | `id` (TEXT PK), `thread_id` (FK → threads), `role` (user/assistant/tool), `content`, `created_at` |
+| `settings`   | `key` (TEXT PK), `value`                                                                         |
 
 All IDs are UUIDs. Timestamps are Unix epoch integers. Foreign keys cascade on delete.
 
@@ -58,6 +60,7 @@ All IDs are UUIDs. Timestamps are Unix epoch integers. Foreign keys cascade on d
 - **No migration system** — adding a new column requires manually updating the `CREATE TABLE` statement in `client.ts` and considering backward compatibility
 - **Synchronous by design** — all DB operations block the event loop; acceptable for a single-user desktop app but would need refactoring for server use
 - **No connection pooling** — single SQLite connection; fine for desktop but not for concurrent access
+- **Threads have extended metadata** — `isStopped`, `isArchived`, `isPinned` flags plus `sessionFile` path and `modelId` for session persistence
 
 ## Related
 

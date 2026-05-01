@@ -17,17 +17,24 @@ import {
   Keyboard,
   Database,
   ChevronRight,
-  Eye,
-  EyeOff,
   RefreshCw,
   Download,
+  DollarSign,
+  Gauge,
+  FolderOpen,
 } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
-import { Toggle } from "@/shared/ui/toggle"
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/shared/ui/progress"
+import { Switch } from "@/shared/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -132,7 +139,7 @@ const SECTIONS: SettingsSection[] = [
   {
     id: "subscriptions",
     label: "Subscriptions",
-    icon: Key,
+    icon: DollarSign,
     description: "OAuth sign-in for Claude Pro, GitHub Copilot, etc.",
     keywords: [
       "oauth",
@@ -180,6 +187,20 @@ const SECTIONS: SettingsSection[] = [
       "shortcut",
       "binding",
       "keys",
+    ],
+  },
+  {
+    id: "retry",
+    label: "Retry",
+    icon: Gauge,
+    description: "Configure retry behavior for provider requests",
+    keywords: [
+      "retry",
+      "timeout",
+      "max retries",
+      "delay",
+      "provider",
+      "request",
     ],
   },
   {
@@ -244,9 +265,17 @@ export function SettingsPage() {
     function updateActive() {
       if (isScrollingTo.current) return
       const c = container!
-      const atBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 8
 
-      if (atBottom) {
+      const atTop = c.scrollTop < 8
+      if (atTop) {
+        const first = visibleSections[0]
+        if (first) setActiveSection(first.id)
+        return
+      }
+
+      // If we're in the bottom 30%, select the last visible section
+      const scrollProgress = c.scrollTop / (c.scrollHeight - c.clientHeight)
+      if (scrollProgress > 0.7) {
         const last = visibleSections[visibleSections.length - 1]
         if (last) setActiveSection(last.id)
         return
@@ -310,13 +339,15 @@ export function SettingsPage() {
               className="h-7 pl-7 text-xs"
             />
             {search && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setSearch("")}
-                className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                className="absolute top-1/2 right-1.5 -translate-y-1/2"
               >
-                <X className="h-3 w-3" />
-              </button>
+                <X />
+                <span className="sr-only">Clear search</span>
+              </Button>
             )}
           </div>
         </div>
@@ -332,20 +363,16 @@ export function SettingsPage() {
               const Icon = section.icon
               const isActive = activeSection === section.id
               return (
-                <button
+                <Button
                   key={section.id}
-                  type="button"
+                  variant={isActive ? "secondary" : "ghost"}
+                  size="sm"
                   onClick={() => scrollToSection(section.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
-                    isActive
-                      ? "bg-accent font-medium text-accent-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
+                  className="w-full justify-start gap-2"
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span>{section.label}</span>
-                </button>
+                </Button>
               )
             })
           )}
@@ -426,7 +453,7 @@ export function SettingsPage() {
                 className="scroll-mt-8"
               >
                 <SectionHeader
-                  icon={Key}
+                  icon={DollarSign}
                   title="Subscriptions"
                   description="Sign in with Claude Pro, GitHub Copilot, and more."
                 />
@@ -494,6 +521,24 @@ export function SettingsPage() {
               </section>
             )}
 
+            {/* ── Retry ── */}
+            {visibleSections.some((s) => s.id === "retry") && (
+              <section
+                id="retry"
+                ref={(el) => {
+                  sectionRefs.current["retry"] = el
+                }}
+                className="scroll-mt-8"
+              >
+                <SectionHeader
+                  icon={Gauge}
+                  title="Retry"
+                  description="Configure retry behavior and timeout for provider requests."
+                />
+                <RetrySettingsCard />
+              </section>
+            )}
+
             {/* ── Updates ── */}
             {visibleSections.some((s) => s.id === "updates") && (
               <section
@@ -527,7 +572,25 @@ export function SettingsPage() {
                   description="Manage your locally stored application data."
                 />
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="flex flex-col gap-3 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">Data folder</p>
+                        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                          ~/.lamda-code
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => window.electronAPI?.openDataDir()}
+                      >
+                        <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                        Show in Finder
+                      </Button>
+                    </div>
+
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5">
                       <div className="flex items-start justify-between gap-4 px-4 py-3">
                         <div className="flex min-w-0 items-start gap-3">
@@ -647,16 +710,16 @@ function AppearanceCard() {
               if (typeof value === "string") setTheme(value as Theme)
             }}
           >
-            <SelectTrigger className="min-w-32" aria-label="Theme">
+            <SelectTrigger className="min-w-32 gap-2" aria-label="Theme">
               <ActiveThemeIcon data-icon="inline-start" />
-              <SelectValue placeholder="Theme" />
+              <SelectValue>{activeTheme.label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {THEMES.map(({ value, label, icon: Icon }) => (
                   <SelectItem key={value} value={value}>
-                    <Icon />
-                    {label}
+                    <Icon data-icon="inline-start" />
+                    <span>{label}</span>
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -679,6 +742,13 @@ function ChatPreferencesCard() {
     DEFAULT_THINKING_PHRASES.join("\n")
   const [phrasesValue, setPhrasesValue] = useState(persistedPhrasesRaw)
   const [phrasesSaved, setPhrasesSaved] = useState(false)
+  const phrasesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (phrasesSavedTimerRef.current) clearTimeout(phrasesSavedTimerRef.current)
+    }
+  }, [])
 
   const prevPersistedPhrasesRef = React.useRef(persistedPhrasesRaw)
   React.useEffect(() => {
@@ -691,10 +761,10 @@ function ChatPreferencesCard() {
     }
   }, [persistedPhrasesRaw, phrasesValue])
 
-  const handleToggle = (pressed: boolean) => {
+  const handleToggle = (checked: boolean) => {
     updateSetting.mutate({
       key: APP_SETTINGS_KEYS.SHOW_THINKING,
-      value: pressed ? "1" : "0",
+      value: checked ? "1" : "0",
     })
   }
 
@@ -705,7 +775,8 @@ function ChatPreferencesCard() {
       value: trimmed,
     })
     setPhrasesSaved(true)
-    setTimeout(() => setPhrasesSaved(false), 1500)
+    if (phrasesSavedTimerRef.current) clearTimeout(phrasesSavedTimerRef.current)
+    phrasesSavedTimerRef.current = setTimeout(() => setPhrasesSaved(false), 1500)
   }
 
   function handleResetPhrases() {
@@ -731,20 +802,11 @@ function ChatPreferencesCard() {
               emits thinking deltas.
             </FieldDescription>
           </FieldContent>
-          <Toggle
-            pressed={showThinking}
-            onPressedChange={handleToggle}
-            variant="outline"
+          <Switch
+            checked={showThinking}
+            onCheckedChange={handleToggle}
             aria-label="Show model thinking"
-            className="min-w-24 justify-center"
-          >
-            {showThinking ? (
-              <Eye data-icon="inline-start" />
-            ) : (
-              <EyeOff data-icon="inline-start" />
-            )}
-            {showThinking ? "Visible" : "Hidden"}
-          </Toggle>
+          />
         </Field>
 
         <Separator />
@@ -841,14 +903,13 @@ function ShortcutRecorder({
 
   return (
     <div className="flex items-center gap-1.5">
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setRecording(true)}
         className={cn(
-          "flex min-w-24 items-center justify-center rounded-md border px-2 py-1 text-xs transition-colors",
-          recording
-            ? "animate-pulse border-ring bg-primary/10 text-primary"
-            : "border-border bg-transparent hover:border-ring hover:bg-muted/50"
+          "min-w-24",
+          recording && "animate-pulse border-ring bg-primary/10 text-primary"
         )}
         title="Click to record a new shortcut"
       >
@@ -859,26 +920,28 @@ function ShortcutRecorder({
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
-      </button>
+      </Button>
       {!isDefault && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           title="Reset to default"
           onClick={() => onSave(action, DEFAULT_SHORTCUTS[action])}
-          className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
         >
-          <RotateCcw className="h-3 w-3" />
-        </button>
+          <RotateCcw />
+          <span className="sr-only">Reset to default</span>
+        </Button>
       )}
       {binding && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           title="Clear shortcut"
           onClick={() => onSave(action, "")}
-          className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
         >
-          <X className="h-3 w-3" />
-        </button>
+          <X />
+          <span className="sr-only">Clear shortcut</span>
+        </Button>
       )}
     </div>
   )
@@ -1042,18 +1105,10 @@ function UpdateStatusRow({
       )
     case "downloading":
       return (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Downloading update…</span>
-            <span className="tabular-nums">{Math.round(status.percent)}%</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${status.percent}%` }}
-            />
-          </div>
-        </div>
+        <Progress value={status.percent} className="flex-col gap-1.5">
+          <ProgressLabel>Downloading update…</ProgressLabel>
+          <ProgressValue>{() => `${Math.round(status.percent)}%`}</ProgressValue>
+        </Progress>
       )
     case "ready":
       return (
@@ -1071,10 +1126,10 @@ function UpdateStatusRow({
       )
     case "error":
       return (
-        <div className="flex items-center gap-2 text-xs text-destructive">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          <span className="truncate">{status.message}</span>
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertDescription className="truncate">{status.message}</AlertDescription>
+        </Alert>
       )
   }
 }
@@ -1090,6 +1145,13 @@ function CommitPromptCard() {
     settings?.[APP_SETTINGS_KEYS.COMMIT_MESSAGE_PROMPT] ?? DEFAULT_COMMIT_PROMPT
   const [value, setValue] = useState(persistedValue)
   const [saved, setSaved] = useState(false)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    }
+  }, [])
 
   const prevPersistedRef = React.useRef(persistedValue)
   React.useEffect(() => {
@@ -1108,7 +1170,8 @@ function CommitPromptCard() {
       value: value.trim(),
     })
     setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    savedTimerRef.current = setTimeout(() => setSaved(false), 1500)
   }
 
   function handleReset() {
@@ -1171,6 +1234,256 @@ function CommitPromptCard() {
             size="sm"
             className="px-3"
             disabled={!hasDiffPlaceholder || saved}
+            onClick={handleSave}
+          >
+            {saved ? (
+              <>
+                <Check data-icon="inline-start" />
+                Saved
+              </>
+            ) : (
+              <>
+                <Save data-icon="inline-start" />
+                Save
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Retry settings card ───────────────────────────────────────────────────────
+
+interface RetrySettings {
+  enabled: boolean
+  maxRetries: number
+  baseDelayMs: number
+  provider: {
+    timeoutMs: number
+    maxRetries: number
+    maxRetryDelayMs: number
+  }
+}
+
+const DEFAULT_RETRY_SETTINGS: RetrySettings = {
+  enabled: true,
+  maxRetries: 3,
+  baseDelayMs: 2000,
+  provider: {
+    timeoutMs: 0,
+    maxRetries: 0,
+    maxRetryDelayMs: 60000,
+  },
+}
+
+const RETRY_SETTINGS_KEY = "retry"
+
+function RetrySettingsCard() {
+  const { data: settings } = useAppSettings()
+  const updateSetting = useUpdateAppSetting()
+
+  const persistedValue = useMemo(() => {
+    const raw = settings?.[RETRY_SETTINGS_KEY]
+    if (!raw) return DEFAULT_RETRY_SETTINGS
+    try {
+      return { ...DEFAULT_RETRY_SETTINGS, ...JSON.parse(raw) }
+    } catch {
+      return DEFAULT_RETRY_SETTINGS
+    }
+  }, [settings])
+
+  // Use persistedValue directly as the source of truth, but allow local edits.
+  // Initialize local state from persistedValue to avoid hydration mismatch.
+  const [localSettings, setLocalSettings] = useState<RetrySettings>(() => persistedValue)
+  const [saved, setSaved] = useState(false)
+  const retrySavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (retrySavedTimerRef.current) clearTimeout(retrySavedTimerRef.current)
+    }
+  }, [])
+
+  // Sync local state when persisted value changes (e.g., user resets from another tab)
+  React.useEffect(() => {
+    setLocalSettings(persistedValue)
+  }, [persistedValue])
+
+  function handleSave() {
+    updateSetting.mutate({
+      key: RETRY_SETTINGS_KEY,
+      value: JSON.stringify(localSettings),
+    })
+    setSaved(true)
+    if (retrySavedTimerRef.current) clearTimeout(retrySavedTimerRef.current)
+    retrySavedTimerRef.current = setTimeout(() => setSaved(false), 1500)
+  }
+
+  function handleReset() {
+    setLocalSettings(DEFAULT_RETRY_SETTINGS)
+    updateSetting.mutate({
+      key: RETRY_SETTINGS_KEY,
+      value: JSON.stringify(DEFAULT_RETRY_SETTINGS),
+    })
+  }
+
+  function updateProvider<K extends keyof RetrySettings["provider"]>(
+    key: K,
+    value: number
+  ) {
+    setLocalSettings((prev) => ({
+      ...prev,
+      provider: { ...prev.provider, [key]: value },
+    }))
+  }
+
+  const isDefault = JSON.stringify(localSettings) === JSON.stringify(DEFAULT_RETRY_SETTINGS)
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-4">
+        {/* Agent-level retry */}
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldTitle>Enable agent-level retry</FieldTitle>
+            <FieldDescription>
+              Automatically retry on transient errors. Uses exponential backoff
+              with base delay of {localSettings.baseDelayMs / 1000}s.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            checked={localSettings.enabled}
+            onCheckedChange={(checked) =>
+              setLocalSettings((prev) => ({ ...prev, enabled: checked }))
+            }
+            aria-label="Enable agent-level retry"
+          />
+        </Field>
+
+        {localSettings.enabled && (
+          <>
+            <Separator />
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="retry-max-retries">
+                  Max agent retries
+                </FieldLabel>
+                <FieldDescription>
+                  Maximum number of retry attempts (default: 3)
+                </FieldDescription>
+                <Input
+                  id="retry-max-retries"
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={localSettings.maxRetries}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      maxRetries: Math.max(0, parseInt(e.target.value, 10) || 0),
+                    }))
+                  }
+                  className="mt-1.5 w-28"
+                />
+              </Field>
+            </FieldGroup>
+          </>
+        )}
+
+        <Separator />
+
+        {/* Provider-level retry */}
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-sm font-medium">Provider request settings</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Controls for SDK-level timeouts and retry behavior. Useful for
+              long-running local inference or provider-specific SDK retry
+              settings.
+            </p>
+          </div>
+
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="provider-timeout">
+                Request timeout (ms)
+              </FieldLabel>
+              <FieldDescription>
+                Provider/SDK request timeout. Set to 0 to use SDK default.
+              </FieldDescription>
+              <Input
+                id="provider-timeout"
+                type="number"
+                min={0}
+                step={1000}
+                value={localSettings.provider.timeoutMs}
+                onChange={(e) =>
+                  updateProvider("timeoutMs", Math.max(0, parseInt(e.target.value, 10) || 0))
+                }
+                className="mt-1.5 w-36"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="provider-max-retries">
+                Provider max retries
+              </FieldLabel>
+              <FieldDescription>
+                Provider/SDK retry attempts. Set to 0 to use SDK default.
+              </FieldDescription>
+              <Input
+                id="provider-max-retries"
+                type="number"
+                min={0}
+                max={20}
+                value={localSettings.provider.maxRetries}
+                onChange={(e) =>
+                  updateProvider("maxRetries", Math.max(0, parseInt(e.target.value, 10) || 0))
+                }
+                className="mt-1.5 w-28"
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="provider-max-delay">
+                Max retry delay (ms)
+              </FieldLabel>
+              <FieldDescription>
+                Cap provider-requested retry delays at this value. Set to 0 to
+                disable the cap. Default: 60000 (60 seconds).
+              </FieldDescription>
+              <Input
+                id="provider-max-delay"
+                type="number"
+                min={0}
+                step={1000}
+                value={localSettings.provider.maxRetryDelayMs}
+                onChange={(e) =>
+                  updateProvider("maxRetryDelayMs", Math.max(0, parseInt(e.target.value, 10) || 0))
+                }
+                className="mt-1.5 w-36"
+              />
+            </Field>
+          </FieldGroup>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2"
+            disabled={isDefault}
+            onClick={handleReset}
+          >
+            <RotateCcw data-icon="inline-start" />
+            Reset to default
+          </Button>
+          <Button
+            size="sm"
+            className="px-3"
+            disabled={saved}
             onClick={handleSave}
           >
             {saved ? (

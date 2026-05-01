@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 
 import { cn } from "@/shared/lib/utils"
 import { useThinkingPhrases } from "@/shared/lib/thinking-visibility"
@@ -10,7 +10,9 @@ export function ThinkingIndicator({ className }: { className?: string }) {
   const [phraseIndex, setPhraseIndex] = useState(0)
 
   useEffect(() => {
-    setPhraseIndex(0)
+    startTransition(() => {
+      setPhraseIndex(0)
+    })
   }, [phrases])
 
   useEffect(() => {

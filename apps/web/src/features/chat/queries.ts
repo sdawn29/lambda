@@ -1,18 +1,14 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   listMessages,
   fetchModels,
-  listWorkspaceFiles,
   fetchSlashCommands,
   fetchContextUsage,
   fetchThinkingLevels,
+  fetchSessionStats,
 } from "./api"
-import {
-  createAssistantMessage,
-  parseAssistantMessageContent,
-  type StoredMessageDto,
-  type Message,
-} from "./types"
+import { blocksToMessages, type MessageBlock, type Message } from "./types"
+import { getChatSyncEngine, loadThreadFromStorage } from "./hooks/use-chat-sync-engine"
 
 export type { WorkspaceEntry } from "./api"
 
@@ -26,60 +22,71 @@ export const chatKeys = {
   messages: (sessionId: string) =>
     [...chatSessionKey(sessionId), "messages"] as const,
   models: [...chatRootKey, "models"] as const,
-  workspaceFiles: (sessionId: string) =>
-    [...chatSessionKey(sessionId), "workspace-files"] as const,
   commands: (sessionId: string) =>
     [...chatSessionKey(sessionId), "commands"] as const,
   contextUsage: (sessionId: string) =>
     [...chatSessionKey(sessionId), "context-usage"] as const,
+  sessionStats: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "stats"] as const,
   thinkingLevels: (sessionId: string) =>
     [...chatSessionKey(sessionId), "thinking-levels"] as const,
+  scroll: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "meta", "scroll"] as const,
+  errors: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "meta", "errors"] as const,
+  pendingError: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "meta", "pendingError"] as const,
 }
 
-// ── Messages ──────────────────────────────────────────────────────────────────
-
-function storedToMessage(m: StoredMessageDto): Message {
-  if (m.role === "tool") {
-    const data = JSON.parse(m.content) as {
-      toolCallId: string
-      toolName: string
-      args: unknown
-      result: unknown
-      status: "running" | "done" | "error"
-    }
-    return {
-      role: "tool",
-      toolCallId: data.toolCallId,
-      toolName: data.toolName,
-      args: data.args,
-      result: data.result,
-      status: data.status,
-    }
-  }
-  if (m.role === "assistant") {
-    return createAssistantMessage(parseAssistantMessageContent(m.content))
-  }
-  return { role: "user", content: m.content }
-}
+// ── Messages ─────────────────────────────────────────────────────────────────
 
 export const messagesQueryKey = (sessionId: string) =>
   chatKeys.messages(sessionId)
 
+/**
+ * Fetch messages from server and convert blocks to UI messages.
+ * Uses the new block-based message storage.
+ *
+ * IMPORTANT: This query merges localStorage data with streaming messages
+ * from setQueryData calls. This ensures thread switches show the latest
+ * data even when the WebSocket is adding messages.
+ */
 export function useMessages(sessionId: string) {
+  const queryClient = useQueryClient()
+  const syncEngine = getChatSyncEngine()
+
   return useQuery({
     queryKey: messagesQueryKey(sessionId),
-    queryFn: async () => {
-      const { messages: stored } = await listMessages(sessionId)
-      return stored.map(storedToMessage)
+    queryFn: async (): Promise<Message[]> => {
+      // Fetch blocks from server
+      const { blocks } = await listMessages(sessionId)
+
+      // Convert blocks to UI messages
+      const serverMessages = blocksToMessages(blocks as MessageBlock[])
+
+      // Save to localStorage for instant loading
+      syncEngine.saveMessages(sessionId, serverMessages)
+
+      // Update query cache
+      queryClient.setQueryData(messagesQueryKey(sessionId), serverMessages)
+
+
+      return serverMessages
     },
-    gcTime: 60 * 1000,
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: "always",
+    // Load from localStorage first (instant, no network)
+    initialData: () => {
+      const stored = loadThreadFromStorage(sessionId)
+      return stored?.messages ?? undefined
+    },
+    gcTime: 30 * 60 * 1000,
+    staleTime: 0,  // Always stale so we refetch on mount
+    refetchOnMount: true,  // Refetch when coming back to thread
+    refetchOnWindowFocus: true,  // Also refetch when window regains focus,
     enabled: !!sessionId,
   })
 }
 
-// ── Models ────────────────────────────────────────────────────────────────────
+// ── Models ─────────────────────────────────────────────────────────────────
 
 export const modelsQueryKey = chatKeys.models
 
@@ -92,26 +99,7 @@ export function useModels() {
   })
 }
 
-// ── Workspace files ───────────────────────────────────────────────────────────
-
-export const workspaceFilesQueryKey = (sessionId: string) =>
-  chatKeys.workspaceFiles(sessionId)
-
-export function useWorkspaceFiles(
-  sessionId: string | undefined,
-  enabled = true
-) {
-  return useQuery({
-    queryKey: sessionId ? workspaceFilesQueryKey(sessionId) : chatKeys.all,
-    queryFn: () => listWorkspaceFiles(sessionId!),
-    enabled: enabled && !!sessionId,
-    gcTime: 60 * 1000,
-    staleTime: 30_000,
-    select: (data) => data,
-  })
-}
-
-// ── Slash commands ────────────────────────────────────────────────────────────
+// ── Slash commands ────────────────────────────────────────────────────────
 
 export function useSlashCommands(
   sessionId: string | undefined,
@@ -122,11 +110,11 @@ export function useSlashCommands(
     queryFn: () => fetchSlashCommands(sessionId!),
     enabled: enabled && !!sessionId,
     gcTime: 60 * 1000,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   })
 }
 
-// ── Thinking levels ───────────────────────────────────────────────────────────
+// ── Thinking levels ────────────────────────────────────────────────────────
 
 export function useThinkingLevels(sessionId: string | undefined) {
   return useQuery({
@@ -138,7 +126,7 @@ export function useThinkingLevels(sessionId: string | undefined) {
   })
 }
 
-// ── Context usage ─────────────────────────────────────────────────────────────
+// ── Context usage ─────────────────────────────────────────────────────────
 
 export function useContextUsage(sessionId: string | undefined) {
   return useQuery({
@@ -146,12 +134,20 @@ export function useContextUsage(sessionId: string | undefined) {
     queryFn: () => fetchContextUsage(sessionId!),
     enabled: !!sessionId,
     gcTime: 30 * 1000,
-    refetchInterval: () =>
-      typeof document === "undefined" || document.visibilityState !== "visible"
-        ? false
-        : 3_000,
-    refetchIntervalInBackground: false,
     staleTime: 0,
     select: (data) => data.contextUsage,
+  })
+}
+
+// ── Session stats ─────────────────────────────────────────────────────────
+
+export function useSessionStats(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: sessionId ? chatKeys.sessionStats(sessionId) : chatKeys.all,
+    queryFn: () => fetchSessionStats(sessionId!),
+    enabled: !!sessionId,
+    gcTime: 30 * 1000,
+    staleTime: 0,
+    select: (data) => data.stats,
   })
 }

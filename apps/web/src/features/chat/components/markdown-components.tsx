@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
 import type { Components } from "react-markdown"
 import { useTheme } from "@/shared/components/theme-provider"
@@ -10,11 +10,19 @@ const PrismCode = lazy(() => import("./prism-code"))
 
 function CopyButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
 
   function handleCopy() {
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setCopied(false), 2000)
     })
   }
 
@@ -53,8 +61,8 @@ function CodeBlock({
         <CopyButton code={code} />
         <Suspense
           fallback={
-            <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-xs leading-6">
-              <code>{code}</code>
+            <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-4 text-foreground">
+              <code className="text-foreground">{code}</code>
             </pre>
           }
         >
@@ -74,8 +82,8 @@ function CodeBlock({
   return (
     <div className="group relative my-4 overflow-hidden rounded-lg border border-border">
       <CopyButton code={code} />
-      <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-xs leading-6">
-        <code>{code}</code>
+      <pre className="overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-4 text-foreground">
+        <code className="text-foreground">{code}</code>
       </pre>
     </div>
   )
@@ -115,7 +123,7 @@ export const markdownComponents: Components = {
       String(children).endsWith("\n") || className?.startsWith("language-")
     if (!isBlock) {
       return (
-        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.8125rem]">
+        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.8125rem] text-foreground">
           {children}
         </code>
       )
@@ -123,8 +131,23 @@ export const markdownComponents: Components = {
     return <CodeBlock className={className}>{children}</CodeBlock>
   },
   // ── Links ───────────────────────────────────────────────────────────────────
+  // ── Headings ─────────────────────────────────────────────────────────────
+  // Render all heading levels as h4 to keep the chat UI compact.
+  h1: ({ children }) => <h4>{children}</h4>,
+  h2: ({ children }) => <h4>{children}</h4>,
+  h3: ({ children }) => <h4>{children}</h4>,
+  h4: ({ children }) => <h4>{children}</h4>,
+  h5: ({ children }) => <h4>{children}</h4>,
+  h6: ({ children }) => <h4>{children}</h4>,
+
+  // ── Links ───────────────────────────────────────────────────────────────────
   a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer">
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-primary underline underline-offset-4 transition-colors hover:text-primary/70"
+    >
       {children}
     </a>
   ),

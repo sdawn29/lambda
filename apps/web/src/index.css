@@ -51,73 +51,157 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   COLOR HIERARCHY — 5 LEVELS
+   ─────────────────────────────────────────────────────────────────────
+   Base         Page background / root
+   Surface 1    Cards, elevated containers
+   Surface 2    Inputs, nested panels (secondary)
+   Surface 3    Muted / disabled areas
+   Overlay      Popovers, dropdowns (on top of cards)
+
+   Each level is ~1.5–2 stops darker than the one above it.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Jellybeans Light ─────────────────────────────────────────────── */
 :root {
-  --background: #f5f5f0;
-  --foreground: #1a1a1a;
-  --card: #ffffff;
-  --card-foreground: #1a1a1a;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
-  --primary: #1e6ef4;
-  --primary-foreground: #f8fbff;
-  --secondary: #e8e8e4;
-  --secondary-foreground: #1a1a1a;
-  --muted: #ececec;
-  --muted-foreground: #6a6a6a;
-  --accent: #ececec;
-  --accent-foreground: #1a1a1a;
-  --destructive: #b84838;
-  --border: #d8d8d4;
-  --input: #d8d8d4;
-  --ring: #1e6ef4;
-  --chart-1: #1e6ef4;
-  --chart-2: #6a8a4a;
-  --chart-3: #b89838;
-  --chart-4: #8878a8;
-  --chart-5: #b84838;
-  --radius: 0.625rem;
-  --sidebar: #eaeae6;
-  --sidebar-foreground: #1a1a1a;
-  --sidebar-primary: #5a7a92;
-  --sidebar-primary-foreground: #f5f5f0;
-  --sidebar-accent: #e0e0dc;
-  --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #d8d8d4;
-  --sidebar-ring: #7898b0;
+  /* ── Base: warm off-white page background ── */
+  --background: #f3efe8;
+  --foreground: #1a1815;
+
+  /* ── Card: near-white — floats above base without a heavy border ── */
+  --card: #fdfbf8;
+  --card-foreground: #1a1815;
+
+  /* ── Popover: same as base ── */
+  --popover: #f3efe8;
+  --popover-foreground: #1a1815;
+
+  /* ── Secondary: recessed inputs / nested panels ── */
+  --secondary: #ebe7df;
+  --secondary-foreground: #1a1815;
+
+  /* ── Muted: disabled / faded areas ── */
+  --muted: #dedad2;
+  --muted-foreground: #6a6560;
+
+  /* ── Accent: hover / selection highlight ── */
+  --accent: #d3cfc7;
+  --accent-foreground: #1a1815;
+
+  /* ── Primary (jellybeans steel blue, darker) ── */
+  --primary: #1a4080;
+  --primary-foreground: #f3efe8;
+
+  /* ── Destructive (jellybeans error red) ── */
+  --destructive: #902020;
+
+  /* ── Border: barely-there separators · Input: form field outlines ── */
+  --border: #e6e1d9;
+  --input:  #d4cfc7;
+  --ring: #1a4080;
+
+  /* ── Charts (jellybeans syntax colors, darkened for light bg) ── */
+  --chart-1: #1a4080;
+  --chart-2: #5a7842;
+  --chart-3: #c4870a;
+  --chart-4: #9f4e32;
+  --chart-5: #a06820;
+
+  /* ── Radius ── */
+  --radius: 0.5rem;
+
+  /* ── Sidebar: clearly distinct from base, no hard border needed ── */
+  --sidebar: #e8e4dd;
+  --sidebar-foreground: #1a1815;
+  --sidebar-primary: #1a4080;
+  --sidebar-primary-foreground: #f3efe8;
+  --sidebar-accent: #dedad3;
+  --sidebar-accent-foreground: #1a1815;
+  --sidebar-border: #e0dbd4;
+  --sidebar-ring: #1a4080;
 }
 
+/* ── Jellybeans Dark ──────────────────────────────────────────────── */
 .dark {
-  --background: #101010;
-  --foreground: #c8c8c8;
-  --card: #171717;
-  --card-foreground: #c8c8c8;
-  --popover: #171717;
-  --popover-foreground: #c8c8c8;
-  --primary: #1e6ef4;
-  --primary-foreground: #f8fbff;
-  --secondary: #282828;
-  --secondary-foreground: #c8c8c8;
-  --muted: #1c1c1c;
+  /* ── Base ── */
+  --background: #121212;
+  --foreground: #e8e8d3;
+
+  /* ── Surface 1 · card: +6 above base, heavier/darker feel ── */
+  --card: #181818;
+  --card-foreground: #e8e8d3;
+
+  /* ── Overlay · popover: same as main background ── */
+  --popover: #121212;
+  --popover-foreground: #e8e8d3;
+
+  /* ── Surface 2 · secondary: recessed inputs/panels ── */
+  --secondary: #1d1d1d;
+  --secondary-foreground: #e8e8d3;
+
+  /* ── Surface 3 · muted: disabled / faded areas ── */
+  --muted: #242424;
   --muted-foreground: #888888;
-  --accent: #212121;
-  --accent-foreground: #c8c8c8;
-  --destructive: #c86858;
+
+  /* ── Accent · hover / selection highlight ── */
+  --accent: #303030;
+  --accent-foreground: #e8e8d3;
+
+  /* ── Primary (jellybeans keyword steel blue, darker) ── */
+  --primary: #3a6090;
+  --primary-foreground: #e8e8d3;
+
+  /* ── Destructive (jellybeans error red) ── */
+  --destructive: #cc3333;
+
+  /* ── Borders: subtle separators · Input: border of form fields ── */
   --border: #212121;
-  --input: #212121;
-  --ring: #4d8cf6;
-  --chart-1: #1e6ef4;
-  --chart-2: #7a9a5a;
-  --chart-3: #c8a848;
-  --chart-4: #a898c8;
-  --chart-5: #c86858;
-  --sidebar: #0e0e0e;
-  --sidebar-foreground: #c8c8c8;
-  --sidebar-primary: #7898b0;
-  --sidebar-primary-foreground: #020202;
-  --sidebar-accent: #1a1a1a;
-  --sidebar-accent-foreground: #c8c8c8;
-  --sidebar-border: #212121;
-  --sidebar-ring: #4a6880;
+  --input:  #1f1f1f;
+  --ring: #3a6090;
+
+  /* ── Charts (jellybeans full syntax palette) ── */
+  --chart-1: #3a6090;
+  --chart-2: #99ad6a;
+  --chart-3: #fad07a;
+  --chart-4: #cf6a4c;
+  --chart-5: #ffb964;
+
+  /* ── Sidebar: deeper than base · accent jumps to card level for contrast ── */
+  --sidebar: #0c0c0c;
+  --sidebar-foreground: #e8e8d3;
+  --sidebar-primary: #3a6090;
+  --sidebar-primary-foreground: #e8e8d3;
+  --sidebar-accent: #181818;
+  --sidebar-accent-foreground: #e8e8d3;
+  --sidebar-border: #161616;
+  --sidebar-ring: #3a6090;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PROSE STYLES — Use CSS variables so colors follow the theme
+   ════════════════════════════════════════════════════════════════════ */
+@layer components {
+  /* Base prose: use CSS variables for all color tokens */
+  .prose,
+  .prose-invert {
+    --tw-prose-body: var(--foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-lead: var(--foreground);
+    --tw-prose-links: var(--primary);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--muted-foreground);
+    --tw-prose-hr: var(--border);
+    --tw-prose-quotes: var(--foreground);
+    --tw-prose-quote-borders: var(--border);
+    --tw-prose-captions: var(--muted-foreground);
+    --tw-prose-code: var(--foreground);
+    --tw-prose-pre-code: var(--foreground);
+    --tw-prose-pre-bg: var(--muted);
+    --tw-prose-th-borders: var(--border);
+    --tw-prose-td-borders: var(--border);
+  }
 }
 
 /* ── Thinking shimmer animation ────────────────────────────────────────── */
@@ -150,6 +234,124 @@
     user-select: none;
   }
 
+  /* Allow text selection in code blocks */
+  pre code,
+  pre span,
+  .syntax-highlighter,
+  .syntax-highlighter * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+
+  /* Line numbers should not be selectable or italic */
+  .line-number,
+  .syntax-highlighter .linenumber,
+  .react-syntax-highlighter-line-number {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+  }
+
+  /* ── Sonner toast theming ─────────────────────────────────────────────── */
+  .sonner-toast {
+    background: var(--popover) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--popover-foreground) !important;
+    font-family: var(--font-sans) !important;
+    border-radius: var(--radius) !important;
+  }
+  .sonner-toast[data-type="error"] {
+    border-color: color-mix(
+      in srgb,
+      var(--destructive) 25%,
+      var(--border)
+    ) !important;
+    background: color-mix(
+      in srgb,
+      var(--destructive) 6%,
+      var(--popover)
+    ) !important;
+  }
+
+  .sonner-toast-title {
+    color: var(--foreground) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+  }
+
+  .sonner-toast-description {
+    color: var(--muted-foreground) !important;
+    font-size: 0.75rem !important;
+    line-height: 1.5 !important;
+    margin-top: 0.125rem !important;
+  }
+
+  .sonner-toast-action {
+    background: var(--destructive) !important;
+    color: var(--primary-foreground) !important;
+    border-radius: calc(var(--radius) * 0.8) !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    padding: 0.375rem 0.75rem !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .sonner-toast-action:hover {
+    background: color-mix(in srgb, var(--destructive) 85%, black) !important;
+  }
+
+  .sonner-toast-action:active {
+    transform: scale(0.97) !important;
+  }
+
+  .sonner-toast-cancel {
+    background: var(--secondary) !important;
+    color: var(--secondary-foreground) !important;
+    border-radius: calc(var(--radius) * 0.8) !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    padding: 0.375rem 0.75rem !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .sonner-toast-cancel:hover {
+    background: color-mix(in srgb, var(--secondary) 80%, black) !important;
+  }
+
+  .sonner-toast-cancel:active {
+    transform: scale(0.97) !important;
+  }
+
+  .sonner-toast-close {
+    color: var(--muted-foreground) !important;
+    border-radius: calc(var(--radius) * 0.6) !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .sonner-toast-close:hover {
+    background: var(--secondary) !important;
+    color: var(--foreground) !important;
+  }
+
+  .sonner-toast-progress {
+    background: var(--primary) !important;
+    height: 2px !important;
+  }
+
+  .sonner-loading-bar {
+    background: var(--primary) !important;
+  }
+
+  .sonner-loader-circle {
+    border-color: var(--primary) !important;
+  }
+
+  .sonner-loader-dot {
+    background: var(--primary) !important;
+  }
+
   /* Re-enable selection where it makes sense */
   input,
   textarea,
@@ -169,9 +371,47 @@
 
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01", "ss02", "cv11";
+    background-image:
+      radial-gradient(
+        1100px 520px at 88% -10%,
+        color-mix(in srgb, var(--primary) 6%, transparent),
+        transparent 65%
+      ),
+      radial-gradient(
+        800px 440px at -8% 108%,
+        color-mix(in srgb, var(--primary) 4%, transparent),
+        transparent 65%
+      );
+    background-attachment: fixed;
   }
+
   html {
     @apply font-sans;
+  }
+
+  /* JetBrains Mono polish: ligatures + slashed zero for code surfaces */
+  pre,
+  code,
+  .prose code,
+  .prose pre,
+  .syntax-highlighter,
+  .syntax-highlighter * {
+    font-feature-settings:
+      "calt" 1,
+      "liga" 1,
+      "zero" 1,
+      "ss02" 1;
+    font-variant-ligatures: contextual;
+  }
+
+  /* Selection that picks up the primary, not browser default blue */
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 28%, transparent);
+    color: var(--foreground);
   }
 
   [data-slot="sidebar-container"] {

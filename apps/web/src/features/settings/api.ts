@@ -1,4 +1,4 @@
-import { apiFetch, getServerUrl } from "@/shared/lib/client"
+import { apiFetch, getServerWsUrl } from "@/shared/lib/client"
 
 // ── App settings ──────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ export interface OAuthProvider {
   loggedIn: boolean
 }
 
-export type OAuthSseEvent =
+export type OAuthWsEvent =
   | { type: "auth_url"; url: string; instructions?: string }
   | { type: "prompt"; promptId: string; message: string; placeholder?: string }
   | { type: "progress"; message: string }
@@ -59,9 +59,9 @@ export async function startOAuthLogin(providerId: string): Promise<string> {
   return res.loginId
 }
 
-export async function openOAuthEventSource(loginId: string): Promise<EventSource> {
-  const base = await getServerUrl()
-  return new EventSource(`${base}/auth/oauth/${loginId}/events`)
+export async function openOAuthWebSocket(loginId: string): Promise<WebSocket> {
+  const base = await getServerWsUrl()
+  return new WebSocket(`${base}/ws/auth/oauth/${loginId}/events`)
 }
 
 export async function respondToOAuthPrompt(

@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, type ReactNode } from "react"
 import { useNavigate } from "@tanstack/react-router"
 
-import { useSelectFolder } from "@/features/electron"
 import { useWorkspaces } from "./queries"
 import {
   useCreateWorkspace as useCreateWorkspaceMutation,
@@ -9,8 +8,11 @@ import {
   useCreateThread as useCreateThreadMutation,
   useDeleteThread as useDeleteThreadMutation,
   useArchiveThread as useArchiveThreadMutation,
+  usePinThread as usePinThreadMutation,
+  useUnpinThread as useUnpinThreadMutation,
   useUpdateThreadTitle,
   useResetAll as useResetAllMutation,
+  useCloneRepository,
 } from "./mutations"
 import { type WorkspaceDto, type ThreadDto } from "./api"
 
@@ -21,10 +23,13 @@ interface WorkspaceContextValue {
   workspaces: Workspace[]
   isLoading: boolean
   createWorkspace: (name: string, path: string) => Promise<Workspace>
+  cloneRepository: (url: string, path: string) => Promise<Workspace>
   deleteWorkspace: (workspace: Workspace) => Promise<void>
   createThread: (workspaceId: string) => Promise<Thread>
   deleteThread: (workspaceId: string, threadId: string) => Promise<void>
   archiveThread: (workspaceId: string, threadId: string) => Promise<void>
+  pinThread: (workspaceId: string, threadId: string) => Promise<void>
+  unpinThread: (workspaceId: string, threadId: string) => Promise<void>
   setThreadTitle: (workspaceId: string, threadId: string, title: string) => void
   resetAll: () => Promise<void>
 }
@@ -39,8 +44,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const createThreadMutation = useCreateThreadMutation()
   const deleteThreadMutation = useDeleteThreadMutation()
   const archiveThreadMutation = useArchiveThreadMutation()
+  const pinThreadMutation = usePinThreadMutation()
+  const unpinThreadMutation = useUnpinThreadMutation()
   const updateTitleMutation = useUpdateThreadTitle()
   const resetAllMutation = useResetAllMutation()
+  const cloneRepositoryMutation = useCloneRepository()
 
   const createWorkspace = useCallback(
     async (name: string, path: string): Promise<Workspace> => {
@@ -51,6 +59,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return workspace
     },
     [createWorkspaceMutation]
+  )
+
+  const cloneRepository = useCallback(
+    async (url: string, path: string): Promise<Workspace> => {
+      await cloneRepositoryMutation.mutateAsync({ url, path })
+      const folderName = path.split(/[/\\]/).pop() || path
+      const { workspace } = await createWorkspaceMutation.mutateAsync({
+        name: folderName,
+        path,
+      })
+      return workspace
+    },
+    [cloneRepositoryMutation, createWorkspaceMutation]
   )
 
   const deleteWorkspace = useCallback(
@@ -76,10 +97,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   )
 
   const archiveThread = useCallback(
-    async (workspaceId: string, threadId: string): Promise<void> => {
-      await archiveThreadMutation.mutateAsync({ workspaceId, threadId })
+    async (_workspaceId: string, threadId: string): Promise<void> => {
+      await archiveThreadMutation.mutateAsync({ workspaceId: _workspaceId, threadId })
     },
     [archiveThreadMutation]
+  )
+
+  const pinThread = useCallback(
+    async (_workspaceId: string, threadId: string): Promise<void> => {
+      await pinThreadMutation.mutateAsync(threadId)
+      void _workspaceId // reserved for future use
+    },
+    [pinThreadMutation]
+  )
+
+  const unpinThread = useCallback(
+    async (_workspaceId: string, threadId: string): Promise<void> => {
+      await unpinThreadMutation.mutateAsync(threadId)
+      void _workspaceId // reserved for future use
+    },
+    [unpinThreadMutation]
   )
 
   const setThreadTitle = useCallback(
@@ -99,10 +136,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         workspaces,
         isLoading,
         createWorkspace,
+        cloneRepository,
         deleteWorkspace,
         createThread,
         deleteThread,
         archiveThread,
+        pinThread,
+        unpinThread,
         setThreadTitle,
         resetAll,
       }}
@@ -121,24 +161,37 @@ export function useWorkspace() {
 }
 
 export function useCreateWorkspaceAction() {
-  const { createWorkspace } = useWorkspace()
+  const { createWorkspace, cloneRepository } = useWorkspace()
   const navigate = useNavigate()
-  const selectFolderMutation = useSelectFolder()
 
-  return useCallback(async () => {
-    const folderPath = await selectFolderMutation.mutateAsync({
-      canCreateFolder: true,
-    })
-    if (!folderPath) return
+  const handleCreateLocal = useCallback(
+    async (path: string) => {
+      const folderName = path.split(/[/\\]/).pop() || path
+      const workspace = await createWorkspace(folderName, path)
+      const firstThread = workspace.threads[0]
+      if (firstThread) {
+        navigate({
+          to: "/workspace/$threadId",
+          params: { threadId: firstThread.id },
+        })
+      }
+    },
+    [createWorkspace, navigate]
+  )
 
-    const folderName = folderPath.split(/[/\\]/).pop() || folderPath
-    const workspace = await createWorkspace(folderName, folderPath)
-    const firstThread = workspace.threads[0]
-    if (firstThread) {
-      navigate({
-        to: "/workspace/$threadId",
-        params: { threadId: firstThread.id },
-      })
-    }
-  }, [createWorkspace, navigate, selectFolderMutation])
+  const handleCreateRemote = useCallback(
+    async (url: string, path: string) => {
+      const workspace = await cloneRepository(url, path)
+      const firstThread = workspace.threads[0]
+      if (firstThread) {
+        navigate({
+          to: "/workspace/$threadId",
+          params: { threadId: firstThread.id },
+        })
+      }
+    },
+    [cloneRepository, navigate]
+  )
+
+  return { handleCreateLocal, handleCreateRemote }
 }

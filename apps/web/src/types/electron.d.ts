@@ -30,9 +30,11 @@ interface ElectronAPI {
   onServerStatusChange: (callback: (status: ServerStatus) => void) => () => void
   restartServer: () => Promise<ServerStatus>
   openPath: (path: string) => Promise<void>
+  openDataDir: () => Promise<void>
   listOpenWithApps: () => Promise<OpenWithApp[]>
   getOpenWithAppIcon: (appId: string) => Promise<string | null>
   openWorkspaceWithApp: (workspacePath: string, appId?: string) => Promise<void>
+  openFileWithApp: (filePath: string, appId?: string) => Promise<void>
   openExternal: (url: string) => Promise<void>
   getFullscreen: () => Promise<boolean>
   onFullscreenChange: (callback: (isFullscreen: boolean) => void) => () => void

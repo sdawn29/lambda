@@ -12,6 +12,8 @@ import {
   deleteThread as apiDeleteThread,
   archiveThread as apiArchiveThread,
   unarchiveThread as apiUnarchiveThread,
+  pinThread as apiPinThread,
+  unpinThread as apiUnpinThread,
   updateThreadTitle as apiUpdateThreadTitle,
   updateThreadModel as apiUpdateThreadModel,
   updateThreadStopped as apiUpdateThreadStopped,
@@ -20,6 +22,7 @@ import {
   type WorkspaceDto,
 } from "./api"
 import { workspacesQueryKey } from "./queries"
+import { gitClone } from "@/features/git/api"
 import {
   createSession,
   deleteSession,
@@ -71,6 +74,15 @@ export function useCreateWorkspace() {
         upsertWorkspace(current, workspace)
       )
       queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function useCloneRepository() {
+  return useMutation({
+    mutationFn: async ({ url, path }: { url: string; path: string }) => {
+      await gitClone(url, path)
+      return path
     },
   })
 }
@@ -308,6 +320,46 @@ export function useUnarchiveThread() {
   return useMutation({
     mutationFn: (threadId: string) => apiUnarchiveThread(threadId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function usePinThread() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId: string) => apiPinThread(threadId),
+    onMutate: (threadId) => {
+      setWorkspacesData(queryClient, (workspaces) =>
+        workspaces.map((workspace) => ({
+          ...workspace,
+          threads: workspace.threads.map((t) =>
+            t.id === threadId ? { ...t, isPinned: true } : t
+          ),
+        }))
+      )
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+    },
+  })
+}
+
+export function useUnpinThread() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId: string) => apiUnpinThread(threadId),
+    onMutate: (threadId) => {
+      setWorkspacesData(queryClient, (workspaces) =>
+        workspaces.map((workspace) => ({
+          ...workspace,
+          threads: workspace.threads.map((t) =>
+            t.id === threadId ? { ...t, isPinned: false } : t
+          ),
+        }))
+      )
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
     },
   })

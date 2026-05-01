@@ -20,6 +20,7 @@ import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql"
 import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx"
 import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript"
 import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml"
+import { refractor } from "refractor/core"
 import type { CSSProperties } from "react"
 
 let languagesRegistered = false
@@ -40,11 +41,22 @@ function ensureLanguagesRegistered() {
   SyntaxHighlighter.registerLanguage("java", java)
   SyntaxHighlighter.registerLanguage("javascript", javascript)
   SyntaxHighlighter.registerLanguage("js", javascript)
+  SyntaxHighlighter.registerLanguage("mjs", javascript)
+  SyntaxHighlighter.registerLanguage("cjs", javascript)
   SyntaxHighlighter.registerLanguage("json", json)
   SyntaxHighlighter.registerLanguage("jsx", jsx)
+  SyntaxHighlighter.registerLanguage("mjsx", jsx)
+  SyntaxHighlighter.registerLanguage("cjsx", jsx)
   SyntaxHighlighter.registerLanguage("kotlin", kotlin)
   SyntaxHighlighter.registerLanguage("markdown", markdown)
   SyntaxHighlighter.registerLanguage("md", markdown)
+  // Prism's markdown grammar matches entire GFM tables as a single multi-line
+  // block token, producing phantom blank lines when split for line numbers.
+  // Patch the shared refractor singleton directly after registration.
+  const mdGrammar = (refractor as unknown as { languages?: Record<string, Record<string, unknown>> }).languages?.markdown
+  if (mdGrammar && "table" in mdGrammar) {
+    delete mdGrammar.table
+  }
   SyntaxHighlighter.registerLanguage("php", php)
   SyntaxHighlighter.registerLanguage("python", python)
   SyntaxHighlighter.registerLanguage("py", python)
@@ -56,6 +68,8 @@ function ensureLanguagesRegistered() {
   SyntaxHighlighter.registerLanguage("tsx", tsx)
   SyntaxHighlighter.registerLanguage("typescript", typescript)
   SyntaxHighlighter.registerLanguage("ts", typescript)
+  SyntaxHighlighter.registerLanguage("mts", typescript)
+  SyntaxHighlighter.registerLanguage("cts", typescript)
   SyntaxHighlighter.registerLanguage("yaml", yaml)
   SyntaxHighlighter.registerLanguage("yml", yaml)
 
@@ -87,6 +101,7 @@ export default function PrismCode({
       style={style}
       PreTag="div"
       showLineNumbers={showLineNumbers}
+      className="syntax-highlighter"
       lineNumberStyle={{
         minWidth: "2.5em",
         paddingRight: "1em",
@@ -97,6 +112,7 @@ export default function PrismCode({
         color: "var(--muted-foreground)",
         userSelect: "none",
         fontStyle: "normal",
+        fontWeight: "normal",
         fontSize,
       }}
       customStyle={{
@@ -107,6 +123,7 @@ export default function PrismCode({
         lineHeight: "1.6",
         background: "transparent",
         opacity,
+        userSelect: "text",
       }}
       codeTagProps={{
         style: {

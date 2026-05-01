@@ -39,12 +39,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   restartServer: (): Promise<ServerStatus> =>
     ipcRenderer.invoke("restart-server"),
   openPath: (path: string) => ipcRenderer.invoke("open-path", path),
+  openDataDir: () => ipcRenderer.invoke("open-data-dir"),
   listOpenWithApps: (): Promise<OpenWithApp[]> =>
     ipcRenderer.invoke("list-open-with-apps"),
   getOpenWithAppIcon: (appId: string): Promise<string | null> =>
     ipcRenderer.invoke("get-open-with-app-icon", appId),
   openWorkspaceWithApp: (workspacePath: string, appId?: string) =>
     ipcRenderer.invoke("open-workspace-with-app", { workspacePath, appId }),
+  openFileWithApp: (filePath: string, appId?: string) =>
+    ipcRenderer.invoke("open-file-with-app", { filePath, appId }),
   openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
   getFullscreen: () => ipcRenderer.invoke("get-fullscreen"),
   onFullscreenChange: (callback: (isFullscreen: boolean) => void) => {

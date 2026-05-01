@@ -55,7 +55,7 @@ export function useGitFileDiff(
     queryFn: () => gitFileDiff(sessionId, filePath, statusCode),
     enabled: enabled && !!sessionId && !!filePath,
     gcTime: 60 * 1000,
-    staleTime: 30_000,
+    staleTime: 0,
   })
 }
 
@@ -70,11 +70,6 @@ export function useGitDiffStat(sessionId: string) {
     enabled: !!sessionId,
     gcTime: 30 * 1000,
     staleTime: 0,
-    refetchInterval: () =>
-      typeof document === "undefined" || document.visibilityState !== "visible"
-        ? false
-        : 5000,
-    refetchIntervalInBackground: false,
   })
 }
 

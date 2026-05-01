@@ -12,11 +12,11 @@ import { Button } from "@/shared/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import {
   useModels,
-  useWorkspaceFiles,
   useSlashCommands,
   useContextUsage,
   type WorkspaceEntry,
 } from "../queries"
+import { useWorkspaceIndex } from "@/features/workspace/queries"
 import { BranchSelector } from "@/features/git"
 import { ModelCombobox } from "./model-combobox"
 import { ThinkingCombobox, type ThinkingLevel } from "./thinking-combobox"
@@ -31,7 +31,7 @@ import {
 import { FileMentionDropdown } from "./file-mention-dropdown"
 import { SlashCommandDropdown } from "./slash-command-dropdown"
 import { ContextChart } from "./context-chart"
-import type { SlashCommand } from "../api"
+import type { SessionStats, SlashCommand } from "../api"
 
 interface ChatTextboxProps {
   onSend?: (
@@ -49,8 +49,10 @@ interface ChatTextboxProps {
   onBranchSelect?: (branch: string) => void
   onBranchError?: (message: string) => void
   sessionId?: string
+  workspaceId?: string
   selectedModelId?: string | null
   onModelChange?: (modelId: string) => void
+  sessionStats?: SessionStats | null
 }
 
 export const ChatTextbox = memo(
@@ -66,8 +68,10 @@ export const ChatTextbox = memo(
       onBranchSelect,
       onBranchError,
       sessionId,
+      workspaceId,
       selectedModelId: controlledModelId,
       onModelChange,
+      sessionStats,
     }: ChatTextboxProps,
     ref
   ) {
@@ -106,6 +110,22 @@ export const ChatTextbox = memo(
       models[0] ??
       null
 
+    const availableLevels = selectedModel?.thinkingLevels ?? []
+
+    React.useEffect(() => {
+      if (!availableLevels.length) return
+      // When thinking is available, default to "medium" if not set or not in available levels
+      if (!availableLevels.includes(thinkingLevel)) {
+        const mediumIndex = availableLevels.indexOf("medium")
+        if (mediumIndex !== -1) {
+          setThinkingLevel("medium")
+        } else {
+          // Fall back to first available level
+          setThinkingLevel(availableLevels[0] as ThinkingLevel)
+        }
+      }
+    }, [availableLevels])
+
     const grouped = React.useMemo(
       () =>
         Object.entries(
@@ -120,14 +140,32 @@ export const ChatTextbox = memo(
     const fileMentionOpen = atMention !== null
     const slashCommandOpen = slashMention !== null
 
-    const { data: fileData, isLoading: filesLoading } = useWorkspaceFiles(
-      sessionId,
+    const { data: indexedFiles, isLoading: filesLoading } = useWorkspaceIndex(
+      workspaceId,
       fileMentionOpen
     )
-    const { data: commandsData, isLoading: commandsLoading } = useSlashCommands(
-      sessionId,
-      slashCommandOpen
-    )
+    const fileData = React.useMemo((): WorkspaceEntry[] => {
+      if (!indexedFiles) return []
+      return indexedFiles.map((f) => ({
+        path: f.relativePath,
+        type: f.isDirectory ? "dir" : "file",
+      }))
+    }, [indexedFiles])
+    const {
+      data: commandsData,
+      isLoading: commandsLoading,
+      refetch: refetchSlashCommands,
+    } = useSlashCommands(sessionId, slashCommandOpen)
+
+    // Re-fetch skills / prompt-templates every time the slash-command dropdown
+    // opens (i.e. every time the user types "/" into the input).
+    const prevSlashCommandOpen = React.useRef(false)
+    React.useEffect(() => {
+      if (slashCommandOpen && !prevSlashCommandOpen.current) {
+        void refetchSlashCommands()
+      }
+      prevSlashCommandOpen.current = slashCommandOpen
+    }, [slashCommandOpen, refetchSlashCommands])
     const { data: contextUsage } = useContextUsage(sessionId)
 
     const mentionEntries2 = React.useMemo(() => {
@@ -161,8 +199,12 @@ export const ChatTextbox = memo(
       if (!canSend) return
       const text = richInputRef.current?.getValue() ?? ""
       if (!text.trim()) return
+      const safeLevel =
+        availableLevels.length && !availableLevels.includes(thinkingLevel)
+          ? ((availableLevels[availableLevels.length - 1] ?? "medium") as ThinkingLevel)
+          : thinkingLevel
       const effectiveThinkingLevel = selectedModel?.reasoning
-        ? thinkingLevel
+        ? safeLevel
         : undefined
       onSend?.(
         text,
@@ -383,13 +425,13 @@ export const ChatTextbox = memo(
                 <ThinkingCombobox
                   selected={thinkingLevel}
                   onSelect={setThinkingLevel}
-                  availableLevels={selectedModel.thinkingLevels}
+                  availableLevels={availableLevels}
                 />
               )}
             </div>
 
             <div className="flex items-center gap-1.5 pr-0.5">
-              <ContextChart contextUsage={contextUsage} sessionId={sessionId} />
+              <ContextChart contextUsage={contextUsage} sessionId={sessionId} sessionStats={sessionStats} />
               {isLoading ? (
                 <Tooltip>
                   <TooltipTrigger
@@ -398,7 +440,7 @@ export const ChatTextbox = memo(
                         size="icon-sm"
                         onClick={onStop}
                         aria-label="Stop generation"
-                        className="animate-in bg-destructive duration-150 fade-in-0 zoom-in-90 hover:bg-destructive/90"
+                        className="rounded-full animate-in bg-destructive duration-150 fade-in-0 zoom-in-90 hover:bg-destructive/90 aspect-square"
                       >
                         <div className="h-2.5 w-2.5 rounded-sm bg-white" />
                       </Button>
@@ -415,7 +457,7 @@ export const ChatTextbox = memo(
                         onClick={handleSend}
                         disabled={!canSend}
                         aria-label="Send message"
-                        className="animate-in duration-150 fade-in-0 zoom-in-90"
+                        className="rounded-full animate-in duration-150 fade-in-0 zoom-in-90 aspect-square"
                       >
                         <ArrowUpIcon />
                       </Button>

@@ -1,6 +1,6 @@
 # AGENTS.md — lamda (root)
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-28
 
 ## Purpose
 
@@ -63,9 +63,27 @@ lamda/
 
 ## Related
 
-- [apps/web](apps/web/AGENTS.md)
-- [apps/desktop](apps/desktop/AGENTS.md)
-- [apps/server](apps/server/AGENTS.md)
-- [packages/db](packages/db/AGENTS.md)
-- [packages/git](packages/git/AGENTS.md)
-- [packages/pi-sdk](packages/pi-sdk/AGENTS.md)
+- [apps/web](apps/web/AGENTS.md) — React UI layer with features: chat, git, terminal, settings, workspace
+- [apps/desktop](apps/desktop/AGENTS.md) — Electron shell that loads the web app
+- [apps/server/src/routes](apps/server/src/routes/AGENTS.md) — REST endpoints for sessions, threads, git, settings
+- [packages/db](packages/db/AGENTS.md) — Drizzle ORM + SQLite persistence
+- [packages/git](packages/git/AGENTS.md) — Git CLI wrappers
+- [packages/pi-sdk](packages/pi-sdk/AGENTS.md) — Wrapper around @mariozechner/pi-coding-agent
+
+## Feature Module AGENTS.md
+
+Detailed AGENTS.md files for complex web feature modules:
+
+| Feature | Path | Complexity |
+|---------|------|-------------|
+| [Chat](apps/web/src/features/chat/AGENTS.md) | `web/src/features/chat/` | 34 files, streaming architecture |
+| [Git](apps/web/src/features/git/AGENTS.md) | `web/src/features/git/` | 26 files, diff + staging workflow |
+| [Routes (server)](apps/server/src/routes/AGENTS.md) | `server/src/routes/` | REST endpoints: sessions, threads, git, files |
+| [Layout](apps/web/src/features/layout/AGENTS.md) | `web/src/features/layout/` | Title bar, navigation, panel toggles, editor integration |
+| [Terminal](apps/web/src/features/terminal/AGENTS.md) | `web/src/features/terminal/` | xterm.js + WebSocket PTY |
+| [Settings](apps/web/src/features/settings/AGENTS.md) | `web/src/features/settings/` | Provider config, API keys |
+| [Workspace](apps/web/src/features/workspace/AGENTS.md) | `web/src/features/workspace/` | 9 files, workspace/thread lifecycle |
+| [File Tree](apps/web/src/features/file-tree/AGENTS.md) | `web/src/features/file-tree/` | 4 files, file navigation |
+| [Electron](apps/web/src/features/electron/AGENTS.md) | `web/src/features/electron/` | 5 files, desktop integration |
+| [Command Palette](apps/web/src/features/command-palette/AGENTS.md) | `web/src/features/command-palette/` | 3 files, Cmd+K command interface |
+| [Shared](apps/web/src/shared/AGENTS.md) | `web/src/shared/` | 54+ files, UI components + utilities |

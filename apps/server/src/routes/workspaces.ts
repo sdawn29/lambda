@@ -12,11 +12,12 @@ import {
 import { store } from "../store.js";
 import { sessionEvents } from "../session-events.js";
 import { createSessionForThread } from "../services/session-service.js";
+import { workspaceIndexer } from "../services/workspace-indexer.js";
 
 const workspaces = new Hono();
 
 function mapThread(
-  t: { id: string; title: string | null; modelId: string | null; isStopped: boolean; createdAt: number },
+  t: { id: string; title: string | null; modelId: string | null; isStopped: boolean; createdAt: number; isPinned: boolean },
   workspaceId: string,
 ) {
   const session = store.getByThreadId(t.id);
@@ -26,6 +27,7 @@ function mapThread(
     title: t.title,
     modelId: t.modelId ?? null,
     isStopped: t.isStopped,
+    isPinned: t.isPinned,
     createdAt: t.createdAt,
     sessionId: session?.sessionId ?? null,
   };
@@ -70,6 +72,8 @@ workspaces.post("/workspace", async (c) => {
     model: body.model,
   });
 
+  workspaceIndexer.startIndexing(workspaceId, body.path);
+
   return c.json(
     {
       workspace: {
@@ -107,8 +111,27 @@ workspaces.delete("/reset", async (_c) => {
   return new Response(null, { status: 204 });
 });
 
+workspaces.get("/workspace/:id/files", (c) => {
+  const workspaceId = c.req.param("id");
+  const ws = getWorkspace(workspaceId);
+  if (!ws) return c.json({ error: "Workspace not found" }, 404);
+  workspaceIndexer.ensureIndexing(workspaceId, ws.path);
+  return c.json({ files: workspaceIndexer.listFiles(workspaceId) });
+});
+
+workspaces.post("/workspace/:id/reindex", async (c) => {
+  const workspaceId = c.req.param("id");
+  const ws = getWorkspace(workspaceId);
+  if (!ws) return c.json({ error: "Workspace not found" }, 404);
+  workspaceIndexer.reindex(workspaceId).catch((err) =>
+    console.error("[workspace-indexer] reindex failed:", err)
+  );
+  return c.json({ ok: true });
+});
+
 workspaces.delete("/workspace/:id", async (c) => {
   const workspaceId = c.req.param("id");
+  workspaceIndexer.stopIndexing(workspaceId);
   const ws = listWorkspacesWithThreads().find((w) => w.id === workspaceId);
   if (ws) {
     for (const thread of ws.threads) {

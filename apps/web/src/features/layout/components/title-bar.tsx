@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
   FileDiff,
+  FolderTree,
 } from "lucide-react"
 import {
   useRouter,
@@ -31,15 +32,20 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
 import { useWorkspace } from "@/features/workspace"
-import { useTerminal } from "@/features/terminal"
+import { useTerminalForWorkspace } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
+import { useFileTree } from "@/features/file-tree"
 import { useElectronFullscreen, useElectronPlatform } from "@/features/electron"
 import { CommitDialog } from "@/features/git"
 import { useGitDiffStat } from "@/features/git/queries"
 import { OpenWithButton } from "./open-with-button"
-import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
+import {
+  useShortcutHandler,
+  useShortcutBinding,
+} from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
+import { Separator } from "@/shared/ui/separator"
 
 const activeTitleBarButtonClassName =
   "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
@@ -51,8 +57,8 @@ export function TitleBar() {
   const isSettings = pathname === "/settings"
   const { isMobile, state, toggleSidebar } = useSidebar()
   const { workspaces, setThreadTitle, deleteThread } = useWorkspace()
-  const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminal()
   const { isOpen: diffOpen, toggle: toggleDiff } = useDiffPanel()
+  const { isOpen: fileTreeOpen, toggle: toggleFileTree } = useFileTree()
   const { threadId } = useParams({ strict: false }) as { threadId?: string }
   const activeThread = threadId
     ? workspaces.flatMap((w) => w.threads).find((t) => t.id === threadId)
@@ -60,6 +66,10 @@ export function TitleBar() {
   const activeWorkspace = activeThread
     ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id))
     : undefined
+  const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminalForWorkspace(
+    activeWorkspace?.id ?? "",
+    activeWorkspace?.path ?? ""
+  )
   const activeSessionId = activeThread?.sessionId ?? ""
   const { data: platform } = useElectronPlatform()
   const { data: isFullscreen = false } = useElectronFullscreen()
@@ -120,11 +130,30 @@ export function TitleBar() {
   const canGoForward = useSyncExternalStore(subscribe, getSnapshot, () => false)
 
   useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR, toggleSidebar)
-  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL, isSettings ? null : toggleDiff)
-  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_TERMINAL, isSettings ? null : toggleTerminal)
-  useShortcutHandler(SHORTCUT_ACTIONS.RENAME_THREAD, activeThread ? startRename : null)
-  useShortcutHandler(SHORTCUT_ACTIONS.NAVIGATE_BACK, canGoBack ? () => router.history.back() : null)
-  useShortcutHandler(SHORTCUT_ACTIONS.NAVIGATE_FORWARD, canGoForward ? () => router.history.forward() : null)
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL,
+    isSettings ? null : toggleDiff
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.TOGGLE_TERMINAL,
+    isSettings ? null : toggleTerminal
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.RENAME_THREAD,
+    activeThread ? startRename : null
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.NAVIGATE_BACK,
+    canGoBack ? () => router.history.back() : null
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.NAVIGATE_FORWARD,
+    canGoForward ? () => router.history.forward() : null
+  )
+  useShortcutHandler(
+    SHORTCUT_ACTIONS.TOGGLE_FILE_TREE,
+    activeWorkspace?.path ? toggleFileTree : null
+  )
 
   const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
   const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
@@ -132,6 +161,7 @@ export function TitleBar() {
   const diffBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL)
   const terminalBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_TERMINAL)
   const renameBinding = useShortcutBinding(SHORTCUT_ACTIONS.RENAME_THREAD)
+  const fileTreeBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_FILE_TREE)
 
   const navRef = useRef<HTMLDivElement>(null)
   const [navWidth, setNavWidth] = useState(0)
@@ -176,13 +206,16 @@ export function TitleBar() {
       <div
         ref={navRef}
         className={`absolute inset-y-0 left-0 flex items-center gap-1 transition-[padding-left] duration-500 ease-in-out ${
-          isMac && !isFullscreen ? "pl-20" : "pl-2"
+          isMac && !isFullscreen ? "pl-20" : "pl-4"
         }`}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <Tooltip>
           <TooltipTrigger render={<SidebarTrigger />} />
-          <TooltipContent>Toggle sidebar <ShortcutKbd binding={sidebarBinding} className="ml-1" /></TooltipContent>
+          <TooltipContent>
+            Toggle sidebar{" "}
+            <ShortcutKbd binding={sidebarBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -198,7 +231,9 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Go back <ShortcutKbd binding={backBinding} className="ml-1" /></TooltipContent>
+          <TooltipContent>
+            Go back <ShortcutKbd binding={backBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -214,7 +249,9 @@ export function TitleBar() {
               </Button>
             }
           />
-          <TooltipContent>Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" /></TooltipContent>
+          <TooltipContent>
+            Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" />
+          </TooltipContent>
         </Tooltip>
       </div>
 
@@ -255,10 +292,10 @@ export function TitleBar() {
                   if (e.key === "Enter") commitRename()
                   if (e.key === "Escape") setIsRenaming(false)
                 }}
-                className="min-w-0 w-48 bg-transparent text-sm font-medium outline-none"
+                className="w-48 min-w-0 bg-transparent text-sm font-medium outline-none"
               />
             ) : (
-              <span className="min-w-0 max-w-xs truncate text-sm font-medium">
+              <span className="max-w-xs min-w-0 truncate text-sm font-medium">
                 {activeThread.title}
               </span>
             )}
@@ -276,7 +313,10 @@ export function TitleBar() {
                   <DropdownMenuItem onClick={startRename}>
                     <Pencil className="mr-2 h-4 w-4" />
                     Rename
-                    <ShortcutKbd binding={renameBinding} className="ml-auto pl-2" />
+                    <ShortcutKbd
+                      binding={renameBinding}
+                      className="ml-auto pl-2"
+                    />
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -310,61 +350,88 @@ export function TitleBar() {
           workspacePath={activeWorkspace?.path}
           openWithAppId={activeWorkspace?.openWithAppId}
         />
-        {!isSettings && (
-          <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
-        )}
-        {!isSettings && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={toggleDiff}
-                  aria-pressed={diffOpen}
-                  data-active={diffOpen}
-                  disabled={!activeWorkspace?.path}
-                  className={`gap-1 px-1.5 ${activeTitleBarButtonClassName}`}
-                >
-                  <FileDiff className="size-3.5 shrink-0" />
-                  {diffStat &&
-                    (diffStat.additions > 0 || diffStat.deletions > 0) && (
-                      <span className="flex animate-in items-center gap-1 font-mono leading-none duration-200 fade-in-0 zoom-in-90">
-                        <span className="text-green-500">
-                          +{diffStat.additions}
-                        </span>
-                        <span className="text-red-500">
-                          -{diffStat.deletions}
-                        </span>
+        <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
+
+        <Separator orientation="vertical" className="mx-1" />
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleTerminal}
+                aria-pressed={terminalOpen}
+                data-active={terminalOpen}
+                className={activeTitleBarButtonClassName}
+              >
+                <TerminalSquare />
+                <span className="sr-only">Toggle terminal</span>
+              </Button>
+            }
+          />
+          <TooltipContent>
+            Toggle terminal{" "}
+            <ShortcutKbd binding={terminalBinding} className="ml-1" />
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="default"
+                onClick={toggleDiff}
+                aria-pressed={diffOpen}
+                data-active={diffOpen}
+                disabled={!activeWorkspace?.path}
+                className={`gap-1 px-1.5 ${activeTitleBarButtonClassName}`}
+              >
+                <FileDiff className="size-3.5 shrink-0" />
+                {diffStat &&
+                  (diffStat.additions > 0 || diffStat.deletions > 0) && (
+                    <span className="flex animate-in items-center gap-1 font-mono leading-none duration-200 fade-in-0 zoom-in-90">
+                      <span className="text-green-500">
+                        +{diffStat.additions}
                       </span>
-                    )}
-                  <span className="sr-only">Toggle diff panel</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Toggle diff panel <ShortcutKbd binding={diffBinding} className="ml-1" /></TooltipContent>
-          </Tooltip>
-        )}
-        {!isSettings && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleTerminal}
-                  aria-pressed={terminalOpen}
-                  data-active={terminalOpen}
-                  className={activeTitleBarButtonClassName}
-                >
-                  <TerminalSquare />
-                  <span className="sr-only">Toggle terminal</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Toggle terminal <ShortcutKbd binding={terminalBinding} className="ml-1" /></TooltipContent>
-          </Tooltip>
-        )}
+                      <span className="text-red-500">
+                        -{diffStat.deletions}
+                      </span>
+                    </span>
+                  )}
+                <span className="sr-only">Toggle diff panel</span>
+              </Button>
+            }
+          />
+          <TooltipContent>
+            Toggle diff panel{" "}
+            <ShortcutKbd binding={diffBinding} className="ml-1" />
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleFileTree}
+                aria-pressed={fileTreeOpen}
+                data-active={fileTreeOpen}
+                disabled={!activeWorkspace?.path}
+                className={activeTitleBarButtonClassName}
+              >
+                <FolderTree />
+                <span className="sr-only">Toggle file tree</span>
+              </Button>
+            }
+          />
+          <TooltipContent>
+            Toggle file tree{" "}
+            <ShortcutKbd binding={fileTreeBinding} className="ml-1" />
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

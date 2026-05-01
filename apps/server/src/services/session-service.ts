@@ -11,6 +11,14 @@ export async function createSessionForThread(
   const handle = await createManagedSession({ cwd, ...opts });
   const sessionId = store.create(handle, cwd, threadId);
   if (handle.sessionFile) updateThreadSessionFile(threadId, handle.sessionFile);
+  
+  // Start the event hub immediately so we start consuming events
+  // This ensures we capture tool_execution_start events even before the first prompt
+  const entry = store.get(sessionId);
+  if (entry) {
+    sessionEvents.ensure(sessionId, entry.threadId, entry.handle);
+  }
+  
   return sessionId;
 }
 

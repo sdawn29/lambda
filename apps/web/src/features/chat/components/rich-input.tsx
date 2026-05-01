@@ -1,8 +1,7 @@
 import * as React from "react"
 import { FileTextIcon, TerminalIcon, type LucideIcon } from "lucide-react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { getFileTypeColor } from "@/shared/lib/file-type-color"
-import { badgeVariants } from "@/shared/ui/badge"
+import { getIconName, buildCatppuccinSvgElement } from "@/shared/ui/file-icon"
 import { cn } from "@/shared/lib/utils"
 import type { SlashCommand } from "../api"
 
@@ -58,18 +57,23 @@ function isRichInputEmpty(root: Node): boolean {
 
 function hasFileExtension(p: string): boolean {
   const basename = p.replace(/\/+$/, "").split("/").pop() ?? p
+  // Dotfiles (.npmrc, .env, .gitignore) start with a dot — always a file
+  if (basename.startsWith(".")) return true
   return basename.lastIndexOf(".") > 0
 }
 
-function buildChipBase(className: string): HTMLSpanElement {
+const CHIP_CLASS =
+  "mx-0.5 inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 align-middle font-mono text-xs text-foreground select-none"
+
+function buildChipBase(className?: string): HTMLSpanElement {
   const chip = document.createElement("span")
   chip.contentEditable = "false"
-  chip.className = cn(
-    badgeVariants({ variant: "secondary" }),
-    "mx-0.5 gap-1 px-1.5 py-0.5 text-xs text-foreground select-none",
-    className
-  )
+  chip.className = cn(CHIP_CLASS, className)
   return chip
+}
+
+function buildIconifyIcon(iconName: string): SVGSVGElement {
+  return buildCatppuccinSvgElement(iconName, "size-3.5 shrink-0")
 }
 
 function buildLucideIcon(Icon: LucideIcon): SVGSVGElement {
@@ -88,52 +92,17 @@ function buildSlashCommandIcon(source: SlashCommand["source"]): SVGSVGElement {
 export function buildMentionChip(path: string): HTMLSpanElement {
   const isDir = !hasFileExtension(path)
   const basename = path.replace(/\/+$/, "").split("/").pop() ?? path
-  const chip = buildChipBase("border-primary/25 bg-primary/10 font-mono")
+  const chip = buildChipBase()
   chip.dataset.filePath = path
   chip.dataset.entryType = isDir ? "dir" : "file"
-  const svgNS = "http://www.w3.org/2000/svg"
-  const icon = document.createElementNS(svgNS, "svg")
-  icon.setAttribute("xmlns", svgNS)
-  icon.setAttribute("viewBox", "0 0 24 24")
-  icon.setAttribute("width", "10")
-  icon.setAttribute("height", "10")
-  icon.setAttribute("fill", "none")
-  icon.setAttribute("stroke-width", "2")
-  icon.setAttribute("stroke-linecap", "round")
-  icon.setAttribute("stroke-linejoin", "round")
-  icon.style.flexShrink = "0"
-  if (isDir) {
-    icon.setAttribute("stroke", "#60a5fa")
-    const folderPath = document.createElementNS(svgNS, "path")
-    folderPath.setAttribute(
-      "d",
-      "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
-    )
-    icon.appendChild(folderPath)
-  } else {
-    const color = getFileTypeColor(basename)
-    icon.setAttribute("stroke", color)
-    const filePath = document.createElementNS(svgNS, "path")
-    filePath.setAttribute(
-      "d",
-      "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
-    )
-    const fold = document.createElementNS(svgNS, "path")
-    fold.setAttribute("d", "M14 2v4a2 2 0 0 0 2 2h4")
-    icon.appendChild(filePath)
-    icon.appendChild(fold)
-  }
-  chip.appendChild(icon)
+  const iconName = isDir ? "folder" : getIconName(basename)
+  chip.appendChild(buildIconifyIcon(iconName))
   chip.appendChild(document.createTextNode(basename))
   return chip
 }
 
 export function buildSlashCommandChip(cmd: SlashCommand): HTMLSpanElement {
-  const chip = buildChipBase(
-    cmd.source === "skill"
-      ? "rounded-full border-emerald-500/25 bg-emerald-500/10"
-      : "rounded-full border-sky-500/25 bg-sky-500/10"
-  )
+  const chip = buildChipBase()
 
   const name = document.createElement("span")
   name.className = "font-mono"
@@ -450,7 +419,15 @@ export const RichInput = React.forwardRef<
         frag.appendChild(buildMentionChip(path))
         frag.appendChild(document.createTextNode("\u200B"))
       } else if (part) {
-        frag.appendChild(document.createTextNode(part))
+        const lines = part.split("\n")
+        for (let i = 0; i < lines.length; i++) {
+          if (i > 0) {
+            frag.appendChild(document.createElement("br"))
+          }
+          if (lines[i]) {
+            frag.appendChild(document.createTextNode(lines[i]))
+          }
+        }
       }
     }
     range.insertNode(frag)

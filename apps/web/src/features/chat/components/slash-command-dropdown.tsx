@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { FileTextIcon, TerminalIcon } from "lucide-react"
 
+import { Button } from "@/shared/ui/button"
 import { cn } from "@/shared/lib/utils"
 import type { SlashCommand } from "../api"
 
@@ -43,17 +44,16 @@ export function SlashCommandDropdown({
         </div>
       ) : (
         commands.map((cmd, i) => (
-          <button
+          <Button
             key={cmd.name}
-            type="button"
+            variant="ghost"
             tabIndex={-1}
             onMouseDown={(e) => {
               e.preventDefault()
               onSelect(cmd)
             }}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs outline-none",
-              "hover:bg-accent hover:text-accent-foreground",
+              "h-auto w-full justify-start gap-2 rounded-sm px-2 py-1.5 text-xs",
               i === selectedIndex && "bg-accent text-accent-foreground"
             )}
           >
@@ -80,7 +80,7 @@ export function SlashCommandDropdown({
                 </span>
               )}
             </span>
-          </button>
+          </Button>
         ))
       )}
     </div>

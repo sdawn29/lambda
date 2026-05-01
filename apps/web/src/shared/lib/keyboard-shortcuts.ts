@@ -2,6 +2,8 @@ export const SHORTCUT_ACTIONS = {
   TOGGLE_SIDEBAR: "toggle_sidebar",
   TOGGLE_DIFF_PANEL: "toggle_diff_panel",
   TOGGLE_TERMINAL: "toggle_terminal",
+  TOGGLE_FILE_TREE: "toggle_file_tree",
+  TOGGLE_FULLSCREEN_DIFF: "toggle_fullscreen_diff",
   NEW_THREAD: "new_thread",
   NEW_WORKSPACE: "new_workspace",
   FOCUS_CHAT: "focus_chat",
@@ -14,6 +16,7 @@ export const SHORTCUT_ACTIONS = {
   OPEN_IN_EDITOR: "open_in_editor",
   SCROLL_TO_BOTTOM: "scroll_to_bottom",
   OPEN_COMMIT_DIALOG: "open_commit_dialog",
+  OPEN_COMMAND_PALETTE: "open_command_palette",
 } as const
 
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[keyof typeof SHORTCUT_ACTIONS]
@@ -22,6 +25,8 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
   toggle_sidebar: "Toggle Sidebar",
   toggle_diff_panel: "Toggle Diff Panel",
   toggle_terminal: "Toggle Terminal",
+  toggle_file_tree: "Toggle File Tree",
+  toggle_fullscreen_diff: "Toggle Fullscreen Diff",
   new_thread: "New Thread",
   new_workspace: "New Workspace",
   focus_chat: "Focus Chat Input",
@@ -34,13 +39,17 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
   open_in_editor: "Open in Editor",
   scroll_to_bottom: "Scroll to Bottom",
   open_commit_dialog: "Open Commit Dialog",
+  open_command_palette: "Open Command Palette",
 }
 
 // Order for display in settings
 export const SHORTCUT_ACTION_ORDER: ShortcutAction[] = [
+  "open_command_palette",
   "toggle_sidebar",
   "toggle_diff_panel",
   "toggle_terminal",
+  "toggle_file_tree",
+  "toggle_fullscreen_diff",
   "new_thread",
   "new_workspace",
   "focus_chat",
@@ -60,6 +69,8 @@ export const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
   toggle_sidebar: "mod+b",
   toggle_diff_panel: "mod+shift+d",
   toggle_terminal: "ctrl+`",
+  toggle_file_tree: "mod+shift+f",
+  toggle_fullscreen_diff: "mod+shift+enter",
   new_thread: "mod+t",
   new_workspace: "mod+shift+n",
   focus_chat: "/",
@@ -72,6 +83,7 @@ export const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
   open_in_editor: "mod+shift+e",
   scroll_to_bottom: "mod+arrowdown",
   open_commit_dialog: "mod+shift+c",
+  open_command_palette: "mod+k",
 }
 
 // Actions that fire even when focus is in an editable element

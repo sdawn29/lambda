@@ -1,97 +1,99 @@
-import { useEffect, useRef, useCallback, useState, memo } from "react"
+import { useEffect, useRef, memo } from "react"
 import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
-import { X, GripHorizontal } from "lucide-react"
+import { Plus, Trash2, X, TerminalSquare } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useTheme } from "@/shared/components/theme-provider"
 import { useTerminal } from "../context"
 import { getServerUrl } from "@/shared/lib/client"
+import { cn } from "@/shared/lib/utils"
 import "@xterm/xterm/css/xterm.css"
 
-const MIN_HEIGHT = 120
-const DEFAULT_HEIGHT = 260
-const MIN_CONTENT_HEIGHT = 200
 const TERMINAL_OUTPUT_FLUSH_MS = 16
 const TERMINAL_IMMEDIATE_FLUSH_THRESHOLD = 8_192
 
 const DARK_TERMINAL_THEME = {
-  background: "#101010",
-  foreground: "#c8c8c8",
-  cursor: "#1e6ef4",
-  cursorAccent: "#101010",
-  selectionBackground: "#1e6ef428",
-  black: "#171717",
-  red: "#c86858",
-  green: "#7a9a5a",
-  yellow: "#c8a848",
-  blue: "#1e6ef4",
-  magenta: "#a898c8",
-  cyan: "#4d8cf6",
-  white: "#c8c8c8",
-  brightBlack: "#686868",
-  brightRed: "#d87868",
-  brightGreen: "#90b070",
-  brightYellow: "#d8b858",
-  brightBlue: "#7ca9ff",
-  brightMagenta: "#c0b0d8",
-  brightCyan: "#9bc3ff",
-  brightWhite: "#d8d8d8",
+  background: "#121212",
+  foreground: "#e8e8d3",
+  cursor: "#8197bf",
+  cursorAccent: "#0c0c0c",
+  selectionBackground: "#8197bf40",
+  black: "#1e1e1e",
+  red: "#cc3333",
+  green: "#99ad6a",
+  yellow: "#fad07a",
+  blue: "#8197bf",
+  magenta: "#c6b6ee",
+  cyan: "#8fbfdc",
+  white: "#e8e8d3",
+  brightBlack: "#888888",
+  brightRed: "#d05050",
+  brightGreen: "#a8bc78",
+  brightYellow: "#ffdf8e",
+  brightBlue: "#98a8cc",
+  brightMagenta: "#d4c4f0",
+  brightCyan: "#9fcee8",
+  brightWhite: "#f0f0e0",
 }
 
 const LIGHT_TERMINAL_THEME = {
-  background: "#f5f5f0",
-  foreground: "#1a1a1a",
-  cursor: "#1e6ef4",
-  cursorAccent: "#f5f5f0",
-  selectionBackground: "#1e6ef428",
-  black: "#1a1a1a",
-  red: "#b84838",
-  green: "#6a8a4a",
-  yellow: "#b89838",
-  blue: "#1e6ef4",
-  magenta: "#8878a8",
-  cyan: "#5a7a92",
-  white: "#d8d8d4",
-  brightBlack: "#6a6a6a",
-  brightRed: "#c86858",
-  brightGreen: "#7a9a5a",
-  brightYellow: "#c8a848",
-  brightBlue: "#4d8cf6",
-  brightMagenta: "#a898c8",
-  brightCyan: "#7898b0",
-  brightWhite: "#ffffff",
+  background: "#f3efe8",
+  foreground: "#1a1815",
+  cursor: "#4a6a9f",
+  cursorAccent: "#f3efe8",
+  selectionBackground: "#4a6a9f33",
+  black: "#1c1c1c",
+  red: "#902020",
+  green: "#5a7842",
+  yellow: "#c4870a",
+  blue: "#4a6a9f",
+  magenta: "#7c5aaf",
+  cyan: "#3a8fa8",
+  white: "#605958",
+  brightBlack: "#514948",
+  brightRed: "#a02525",
+  brightGreen: "#6a8850",
+  brightYellow: "#d4970c",
+  brightBlue: "#5a7abf",
+  brightMagenta: "#8c6abf",
+  brightCyan: "#4a9fb8",
+  brightWhite: "#2c2c2c",
 }
 
-interface TerminalPanelProps {
+// ─── Single terminal instance (keeps mounted when inactive for session persistence) ───
+
+interface TerminalInstanceProps {
+  id: string
   cwd: string
+  isActive: boolean
+  onTitleChange: (id: string, title: string) => void
 }
 
-export const TerminalPanel = memo(function TerminalPanel({
+const TerminalInstance = memo(function TerminalInstance({
+  id,
   cwd,
-}: TerminalPanelProps) {
-  const { close } = useTerminal()
+  isActive,
+  onTitleChange,
+}: TerminalInstanceProps) {
   const { resolvedTheme } = useTheme()
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const [height, setHeight] = useState(DEFAULT_HEIGHT)
-  const dragStartRef = useRef<{ y: number; h: number } | null>(null)
   const terminalTheme =
     resolvedTheme === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME
 
-  // Initialize xterm + WebSocket once
+  // Mount xterm + WebSocket once — cwd is fixed at tab creation time and never changes
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 13,
+      fontSize: 12,
       fontFamily:
         '"JetBrains Mono", "Menlo", "Monaco", "Courier New", monospace',
-      scrollback: 500,
+      scrollback: 5000,
       theme: document.documentElement.classList.contains("dark")
         ? DARK_TERMINAL_THEME
         : LIGHT_TERMINAL_THEME,
@@ -104,6 +106,10 @@ export const TerminalPanel = memo(function TerminalPanel({
 
     termRef.current = term
     fitAddonRef.current = fitAddon
+
+    term.onTitleChange((title) => {
+      if (title) onTitleChange(id, title)
+    })
 
     let cancelled = false
     let ws: WebSocket | null = null
@@ -126,6 +132,8 @@ export const TerminalPanel = memo(function TerminalPanel({
     }
 
     const resizeObserver = new ResizeObserver(() => {
+      // Skip fit when container is hidden/collapsed to 0 size
+      if (!container.offsetWidth || !container.offsetHeight) return
       fitAddon.fit()
       const dims = fitAddon.proposeDimensions()
       if (dims && ws?.readyState === WebSocket.OPEN) {
@@ -176,9 +184,7 @@ export const TerminalPanel = memo(function TerminalPanel({
 
     return () => {
       cancelled = true
-      if (flushTimeout !== null) {
-        window.clearTimeout(flushTimeout)
-      }
+      if (flushTimeout !== null) window.clearTimeout(flushTimeout)
       pendingOutput = ""
       resizeObserver.disconnect()
       ws?.close()
@@ -187,98 +193,155 @@ export const TerminalPanel = memo(function TerminalPanel({
       fitAddonRef.current = null
       wsRef.current = null
     }
-  }, [cwd])
+  // cwd is intentionally excluded — it's fixed at tab creation time and must not trigger re-mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
+  // Refit when this instance becomes active (was hidden)
+  useEffect(() => {
+    if (!isActive) return
+    const fit = fitAddonRef.current
+    const ws = wsRef.current
+    if (!fit) return
+    requestAnimationFrame(() => {
+      fit.fit()
+      const dims = fit.proposeDimensions()
+      if (dims && ws?.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
+        )
+      }
+      termRef.current?.focus()
+    })
+  }, [isActive])
+
+  // Sync theme
   useEffect(() => {
     const term = termRef.current
     if (!term) return
-
     term.options.theme = terminalTheme
   }, [terminalTheme])
 
-  // Re-fit when height changes
-  useEffect(() => {
-    const fitAddon = fitAddonRef.current
-    const ws = wsRef.current
-    if (!fitAddon) return
-    fitAddon.fit()
-    const dims = fitAddon.proposeDimensions()
-    if (dims && ws?.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
-      )
-    }
-  }, [height])
-
-  const onDragStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      dragStartRef.current = { y: e.clientY, h: height }
-      document.body.style.userSelect = "none"
-      document.body.style.cursor = "row-resize"
-
-      const onMove = (ev: MouseEvent) => {
-        if (!dragStartRef.current) return
-        const delta = dragStartRef.current.y - ev.clientY
-        const parentHeight =
-          panelRef.current?.parentElement?.clientHeight ?? window.innerHeight
-        const maxHeight = parentHeight - MIN_CONTENT_HEIGHT
-        setHeight(
-          Math.max(
-            MIN_HEIGHT,
-            Math.min(maxHeight, dragStartRef.current.h + delta)
-          )
-        )
-      }
-
-      const onUp = () => {
-        dragStartRef.current = null
-        document.body.style.userSelect = ""
-        document.body.style.cursor = ""
-        window.removeEventListener("mousemove", onMove)
-        window.removeEventListener("mouseup", onUp)
-      }
-
-      window.addEventListener("mousemove", onMove)
-      window.addEventListener("mouseup", onUp)
-    },
-    [height]
-  )
-
   return (
     <div
-      ref={panelRef}
-      className="flex shrink-0 flex-col border-t bg-background"
-      style={{ height, maxHeight: "80%" }}
-    >
-      {/* Drag handle / header */}
-      <div
-        className="flex h-8 shrink-0 cursor-row-resize items-center justify-between border-b px-3 select-none"
-        onMouseDown={onDragStart}
-      >
-        <div className="flex items-center gap-2">
-          <GripHorizontal className="h-3 w-3 text-muted-foreground" />
-          <span className="font-mono text-xs text-muted-foreground">
-            terminal
-          </span>
+      ref={containerRef}
+      className={cn(
+        "min-h-0 flex-1 overflow-hidden",
+        !isActive && "hidden"
+      )}
+      style={{ display: isActive ? undefined : "none", height: "100%", overflow: "hidden", padding: "0 8px" }}
+    />
+  )
+})
+
+// ─── Panel with tab bar ───────────────────────────────────────────────────────
+
+interface TerminalPanelProps {
+  activeWorkspaceId: string
+  cwd: string
+}
+
+export const TerminalPanel = memo(function TerminalPanel({
+  activeWorkspaceId,
+  cwd,
+}: TerminalPanelProps) {
+  const ctx = useTerminal()
+  const allStates = ctx.getAllStates()
+
+  const activeState = allStates.get(activeWorkspaceId)
+  const tabs = activeState?.tabs ?? []
+  const activeTabId = activeState?.activeTabId ?? null
+
+  return (
+    <div className="flex h-full shrink-0 flex-col border-t bg-background">
+      {/* Tab bar — shows only the active workspace's tabs */}
+      <div className="flex h-8 shrink-0 items-stretch border-b">
+        {/* Scrollable tab list */}
+        <div className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTabId
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => ctx.setActiveTab(activeWorkspaceId, tab.id)}
+                className={cn(
+                  "group relative flex shrink-0 items-center gap-1.5 border-r px-3 font-mono text-xs transition-colors",
+                  isActive
+                    ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <TerminalSquare className="h-3 w-3 shrink-0" />
+                <span className="max-w-30 truncate">{tab.title}</span>
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  aria-label={`Close ${tab.title}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    ctx.closeTab(activeWorkspaceId, tab.id)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.stopPropagation()
+                      ctx.closeTab(activeWorkspaceId, tab.id)
+                    }
+                  }}
+                  className={cn(
+                    "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm transition-colors hover:bg-muted-foreground/20",
+                    isActive
+                      ? "opacity-60 hover:opacity-100"
+                      : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
+                  )}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </span>
+              </button>
+            )
+          })}
+
+          {/* New tab */}
+          <button
+            type="button"
+            onClick={() => ctx.addTab(activeWorkspaceId, cwd)}
+            aria-label="New terminal tab"
+            className="flex items-center px-2 text-muted-foreground hover:text-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="h-5 w-5 text-muted-foreground hover:text-foreground"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={close}
-        >
-          <X className="h-3 w-3" />
-          <span className="sr-only">Close terminal</span>
-        </Button>
+
+        {/* Close panel */}
+        <div className="flex items-center border-l px-1.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="h-5 w-5 text-muted-foreground hover:text-destructive"
+            onClick={() => ctx.killAll(activeWorkspaceId)}
+            title="Kill all terminals"
+          >
+            <Trash2 className="h-3 w-3" />
+            <span className="sr-only">Kill all terminals</span>
+          </Button>
+        </div>
       </div>
 
-      {/* xterm container */}
-      <div
-        ref={containerRef}
-        className="min-h-0 flex-1 overflow-hidden px-2 py-1"
-      />
+      {/* Terminal instances — ALL workspace instances are mounted here.
+          Inactive workspace/tab instances are CSS-hidden so their PTY connections stay alive. */}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {Array.from(allStates.entries()).flatMap(([wsId, state]) =>
+          state.tabs.map((tab) => (
+            <TerminalInstance
+              key={tab.id}
+              id={tab.id}
+              cwd={tab.cwd}
+              isActive={wsId === activeWorkspaceId && tab.id === state.activeTabId}
+              onTitleChange={(id, title) => ctx.renameTab(wsId, id, title)}
+            />
+          ))
+        )}
+      </div>
     </div>
   )
 })

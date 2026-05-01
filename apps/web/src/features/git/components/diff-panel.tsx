@@ -1,686 +1,135 @@
-import { useCallback, useEffect, useRef, useState, useMemo, memo } from "react"
 import {
-  ChevronRight,
-  GripVertical,
-  Loader2,
-  X,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  memo,
+  Suspense,
+} from "react"
+import {
+  Archive,
+  Check,
   Columns2,
   AlignLeft,
-  PackagePlus,
-  PackageMinus,
-  RefreshCw,
-  Plus,
-  Minus,
-  Archive,
-  Trash2,
-  GitBranch,
-  PackageOpen,
-  Download,
-  ArrowUpDown,
-  Check,
-  Undo2,
   GitCompare,
+  Loader2,
+  PackageMinus,
+  PackagePlus,
+  Plus,
+  X,
+  ArrowUpDown,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
 } from "lucide-react"
+import { Alert, AlertDescription } from "@/shared/ui/alert"
+import { Icon } from "@iconify/react"
+import { getIconName } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/shared/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
-import { DiffView, type DiffMode } from "./diff-view"
-import { useDiffPanel } from "../context"
-import { cn } from "@/shared/lib/utils"
-import {
-  useGitStatus,
-  useGitStashList,
-  useGitFileDiff,
-} from "../queries"
+import { FileSearchModal } from "@/features/file-tree"
+import { useDiffPanel, type DiffPanelTab } from "../context"
+import { useWorkspace } from "@/features/workspace"
+import { useGitStatus } from "../queries"
 import {
   useGitStage,
   useGitStageAll,
   useGitStashMutations,
   useGitRevertFile,
 } from "../mutations"
+import { type ChangedFile, parseStatusLine } from "./status-badge"
+import { type DiffMode } from "./diff-view"
+import { StashInputBar } from "./stash-input-bar"
+import { StashSection } from "./stash-section"
+import { FilesSection } from "./files-section"
+import { FileHeader } from "./file-header"
+import { SORT_OPTIONS, type SortMode, applySortMode } from "./sort-utils"
+import { cn } from "@/shared/lib/utils"
+import { useTheme } from "@/shared/components/theme-provider"
+import {
+  useShortcutHandler,
+  useShortcutBinding,
+} from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
+import { ShortcutKbd } from "@/shared/ui/kbd"
+import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
+import { getServerUrl } from "@/shared/lib/client"
+import { useElectronPlatform, useOpenWithApps } from "@/features/electron"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
-const MIN_WIDTH = 300
-const DEFAULT_WIDTH = 440
-const MIN_CHAT_WIDTH = 200
-
-// ── Status helpers ──────────────────────────────────────────────────────────
-
-interface ChangedFile {
-  raw: string
-  filePath: string
-  isStaged: boolean
-  isUntracked: boolean
-}
-
-function parseStatusLine(line: string): ChangedFile {
-  const raw = line.slice(0, 2)
-  const filePath = line.slice(3)
-  const X = raw[0] ?? " "
-  const isUntracked = raw.trim() === "??"
-  const isStaged = !isUntracked && X !== " "
-  return { raw, filePath, isStaged, isUntracked }
-}
-
-function statusLabel(file: ChangedFile): string {
-  if (file.isUntracked) return "U"
-  const X = file.raw[0] ?? " "
-  const Y = file.raw[1] ?? " "
-  if (X !== " " && Y !== " ") return "M*"
-  if (X !== " ") return X
-  return Y
-}
-
-function statusColor(file: ChangedFile) {
-  const label = statusLabel(file)
-  if (label === "M" || label === "M*")
-    return "text-yellow-500 dark:text-yellow-400"
-  if (label === "A") return "text-green-600 dark:text-green-400"
-  if (label === "D") return "text-red-500 dark:text-red-400"
-  if (label === "U") return "text-blue-500 dark:text-blue-400"
-  if (label === "R") return "text-purple-500 dark:text-purple-400"
-  return "text-muted-foreground"
-}
-
-// ── Stash list ──────────────────────────────────────────────────────────────
-
-interface StashEntry {
-  ref: string
-  index: number
-  branch: string
-  message: string
-}
-
-function parseStashList(raw: string): StashEntry[] {
-  return raw
-    .split("\n")
-    .map((l) => l.trimEnd())
-    .filter(Boolean)
-    .map((l) => {
-      const tab = l.indexOf("\t")
-      const ref = tab === -1 ? l : l.slice(0, tab)
-      const rest = tab === -1 ? l : l.slice(tab + 1)
-
-      const indexMatch = ref.match(/\{(\d+)\}/)
-      const index = indexMatch ? parseInt(indexMatch[1], 10) : 0
-
-      // "On branch: msg" or "WIP on branch: msg"
-      const branchMatch = rest.match(/^(?:WIP )?[Oo]n ([^:]+):?\s*(.*)/)
-      const branch = branchMatch?.[1]?.trim() ?? ""
-      const message = branchMatch?.[2]?.trim() || rest
-
-      return { ref, index, branch, message: message || "WIP changes" }
-    })
-}
-
-// ── Stash input bar (VS Code style) ─────────────────────────────────────────
-
-function StashInputBar({
-  onConfirm,
-  onCancel,
-}: {
-  onConfirm: (message: string) => Promise<void>
-  onCancel: () => void
-}) {
-  const [message, setMessage] = useState("")
-  const [stashing, setStashing] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  async function handleConfirm() {
-    if (stashing) return
-    setStashing(true)
-    try {
-      await onConfirm(message.trim())
-    } finally {
-      setStashing(false)
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/30 px-3 py-2">
-      <input
-        ref={inputRef}
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleConfirm()
-          if (e.key === "Escape") onCancel()
-        }}
-        placeholder="Stash message (optional, Enter to confirm)"
-        className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
-      />
-      {stashing ? (
-        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-      ) : (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={onCancel}
-        >
-          <X className="h-3 w-3" />
-          <span className="sr-only">Cancel</span>
-        </Button>
-      )}
-    </div>
-  )
-}
-
-// ── File accordion item ─────────────────────────────────────────────────────
-
-function parseDiffCounts(diff: string): { added: number; removed: number } {
-  let added = 0
-  let removed = 0
-  for (const line of diff.split("\n")) {
-    if (line.startsWith("+") && !line.startsWith("+++")) added++
-    else if (line.startsWith("-") && !line.startsWith("---")) removed++
-  }
-  return { added, removed }
-}
-
-function FileAccordionItem({
-  file,
-  sessionId,
-  mode,
-  onStageToggle,
-  onRevert,
-}: {
-  file: ChangedFile
-  sessionId: string
-  mode: DiffMode
-  onStageToggle: (file: ChangedFile) => Promise<void>
-  onRevert: (file: ChangedFile) => Promise<void>
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const [toggling, setToggling] = useState(false)
-  const [reverting, setReverting] = useState(false)
-  const { data: diff, isLoading: diffLoading } = useGitFileDiff(
-    sessionId,
-    file.filePath,
-    file.raw,
-    true
-  )
-
-  const counts = useMemo(() => (diff != null ? parseDiffCounts(diff) : null), [diff])
-
-  async function handleToggle(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (toggling) return
-    setToggling(true)
-    try {
-      await onStageToggle(file)
-    } finally {
-      setToggling(false)
-    }
-  }
-
-  async function handleRevert(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (reverting) return
-    setReverting(true)
-    try {
-      await onRevert(file)
-    } finally {
-      setReverting(false)
-    }
-  }
-
-  const label = statusLabel(file)
-  const pathParts = file.filePath.split("/")
-  const fileName = pathParts[pathParts.length - 1] ?? file.filePath
-  const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") : null
-
-  return (
-    <div className="group/file border-b border-border/40 last:border-0">
-      <div className="relative flex w-full items-center">
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-2 pr-14 pl-2 text-left transition-colors hover:bg-muted/40"
-        >
-          <ChevronRight
-            className={cn(
-              "size-3 shrink-0 text-muted-foreground transition-transform duration-150",
-              expanded && "rotate-90"
-            )}
-          />
-          <span
-            className={cn("w-6 shrink-0 font-mono text-xs", statusColor(file))}
-          >
-            {label}
-          </span>
-          <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-            <span className="shrink-0 font-mono text-xs text-foreground/90">
-              {fileName}
-            </span>
-            {dirPath && (
-              <span className="truncate font-mono text-[10px] text-muted-foreground/50">
-                {dirPath}
-              </span>
-            )}
-            {counts != null && (
-              <span className="flex shrink-0 items-baseline gap-0.5 font-mono text-[10px]">
-                {counts.added > 0 && (
-                  <span className="text-green-600 dark:text-green-400">+{counts.added}</span>
-                )}
-                {counts.removed > 0 && (
-                  <span className="text-red-500 dark:text-red-400">-{counts.removed}</span>
-                )}
-              </span>
-            )}
-          </span>
-        </button>
-
-        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/file:opacity-100">
-          {!file.isUntracked && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    disabled={reverting}
-                    onClick={handleRevert}
-                  >
-                    {reverting ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Undo2 className="h-3 w-3" />
-                    )}
-                    <span className="sr-only">Revert changes</span>
-                  </Button>
-                }
-              />
-              <TooltipContent>Revert changes</TooltipContent>
-            </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  disabled={toggling}
-                  onClick={handleToggle}
-                >
-                  {toggling ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : file.isStaged ? (
-                    <Minus className="h-3 w-3" />
-                  ) : (
-                    <Plus className="h-3 w-3" />
-                  )}
-                  <span className="sr-only">
-                    {file.isStaged ? "Unstage" : "Stage"}
-                  </span>
-                </Button>
-              }
-            />
-            <TooltipContent>
-              {file.isStaged ? "Unstage file" : "Stage file"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="animate-in border-t border-border/40 px-3 pb-3 duration-150 fade-in-0 slide-in-from-top-1">
-          {diffLoading ? (
-            <div className="flex items-center gap-1.5 py-2 text-xs text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" />
-              Loading diff…
-            </div>
-          ) : diff != null ? (
-            <DiffView
-              diff={diff}
-              filePath={file.filePath}
-              mode={mode}
-              className="mt-2 rounded-md border-border/50"
-            />
-          ) : null}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Stash entry row ─────────────────────────────────────────────────────────
-
-function StashEntryRow({
-  entry,
-  onApply,
-  onPop,
-  onDrop,
-}: {
-  entry: StashEntry
-  onApply: (ref: string) => Promise<void>
-  onPop: (ref: string) => Promise<void>
-  onDrop: (ref: string) => Promise<void>
-}) {
-  const [working, setWorking] = useState<"apply" | "pop" | "drop" | null>(null)
-
-  async function run(action: "apply" | "pop" | "drop") {
-    if (working) return
-    setWorking(action)
-    try {
-      if (action === "apply") await onApply(entry.ref)
-      else if (action === "pop") await onPop(entry.ref)
-      else await onDrop(entry.ref)
-    } finally {
-      setWorking(null)
-    }
-  }
-
-  return (
-    <div className="group flex items-start gap-2.5 px-3 py-2 hover:bg-muted/40">
-      {/* Index badge + icon */}
-      <div className="relative mt-0.5 shrink-0">
-        <Archive className="h-3.5 w-3.5 text-muted-foreground/50" />
-        <span className="absolute -top-1.5 -right-1.5 flex h-3 min-w-3 items-center justify-center rounded-full bg-muted px-0.5 text-[8px] font-semibold text-muted-foreground">
-          {entry.index}
-        </span>
-      </div>
-
-      {/* Label + branch */}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs text-foreground/85">{entry.message}</p>
-        {entry.branch && (
-          <div className="mt-0.5 flex items-center gap-1">
-            <GitBranch className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
-            <span className="truncate font-mono text-[10px] text-muted-foreground/50">
-              {entry.branch}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      {working ? (
-        <Loader2 className="mt-0.5 h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-      ) : (
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                  onClick={() => run("pop")}
-                >
-                  <PackageOpen className="h-3 w-3" />
-                  <span className="sr-only">Pop</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Pop stash</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                  onClick={() => run("apply")}
-                >
-                  <Download className="h-3 w-3" />
-                  <span className="sr-only">Apply</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Apply stash</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-5 w-5 text-destructive/60 hover:text-destructive"
-                  onClick={() => run("drop")}
-                >
-                  <Trash2 className="h-3 w-3" />
-                  <span className="sr-only">Drop</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Drop stash</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Stash section ───────────────────────────────────────────────────────────
-
-function StashSection({ sessionId }: { sessionId: string }) {
-  const [collapsed, setCollapsed] = useState(false)
-
-  const { data: stashRaw, isLoading } = useGitStashList(sessionId)
-  const { apply, pop, drop } = useGitStashMutations(sessionId)
-
-  const stashes = useMemo(() => parseStashList(stashRaw ?? ""), [stashRaw])
-
-  const handleApply = useCallback(
-    (ref: string) => apply.mutateAsync(ref),
-    [apply]
-  )
-  const handlePop = useCallback((ref: string) => pop.mutateAsync(ref), [pop])
-  const handleDrop = useCallback((ref: string) => drop.mutateAsync(ref), [drop])
-
-  return (
-    <div className="shrink-0 border-t border-border/60">
-      <button
-        onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center gap-1.5 bg-muted/30 px-2 py-1.5 text-left transition-colors duration-150 hover:bg-muted/60"
-      >
-        <ChevronRight
-          className={cn(
-            "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150",
-            !collapsed && "rotate-90"
-          )}
-        />
-        <Archive className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-        <span className="flex-1 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
-          Stashes
-        </span>
-        {isLoading && (
-          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
-        )}
-        {!isLoading && stashes.length > 0 && (
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            {stashes.length}
-          </span>
-        )}
-      </button>
-
-      {!collapsed && (
-        <div className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
-          {!isLoading && stashes.length === 0 && (
-            <p className="px-4 py-2.5 text-xs text-muted-foreground/40">
-              No stashes
-            </p>
-          )}
-          {stashes.map((s) => (
-            <StashEntryRow
-              key={s.ref}
-              entry={s}
-              onApply={handleApply}
-              onPop={handlePop}
-              onDrop={handleDrop}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Files section ───────────────────────────────────────────────────────────
-
-function FilesSection({
-  label,
-  files,
-  sessionId,
-  mode,
-  onStageToggle,
-  onRevert,
-  emptyText,
-}: {
-  label: string
-  files: ChangedFile[]
-  sessionId: string
-  mode: DiffMode
-  onStageToggle: (file: ChangedFile) => Promise<void>
-  onRevert: (file: ChangedFile) => Promise<void>
-  emptyText?: string
-}) {
-  const [collapsed, setCollapsed] = useState(false)
-
-  return (
-    <div className="border-b border-border/40 last:border-0">
-      <button
-        onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center gap-1.5 bg-muted/30 px-2 py-1.5 text-left transition-colors duration-150 hover:bg-muted/60"
-      >
-        <ChevronRight
-          className={cn(
-            "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150",
-            !collapsed && "rotate-90"
-          )}
-        />
-        <span className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
-          {label}
-        </span>
-        {files.length > 0 && (
-          <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            {files.length}
-          </span>
-        )}
-      </button>
-
-      {!collapsed && (
-        <div className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
-          {files.length === 0 && emptyText && (
-            <p className="px-3 py-2 text-xs text-muted-foreground/50">
-              {emptyText}
-            </p>
-          )}
-          {files.map((file, i) => (
-            <FileAccordionItem
-              key={i}
-              file={file}
-              sessionId={sessionId}
-              mode={mode}
-              onStageToggle={onStageToggle}
-              onRevert={onRevert}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Sort ────────────────────────────────────────────────────────────────────
-
-type SortMode = "name" | "name-desc" | "status" | "path"
-
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "name", label: "Name (A → Z)" },
-  { value: "name-desc", label: "Name (Z → A)" },
-  { value: "status", label: "Status" },
-  { value: "path", label: "Path" },
-]
-
-const STATUS_ORDER: Record<string, number> = { A: 0, M: 1, R: 2, D: 3, U: 4 }
-
-function applySortMode(files: ChangedFile[], sort: SortMode): ChangedFile[] {
-  const sorted = [...files]
-  switch (sort) {
-    case "name":
-      return sorted.sort((a, b) => {
-        const na = a.filePath.split("/").pop() ?? a.filePath
-        const nb = b.filePath.split("/").pop() ?? b.filePath
-        return na.localeCompare(nb)
-      })
-    case "name-desc":
-      return sorted.sort((a, b) => {
-        const na = a.filePath.split("/").pop() ?? a.filePath
-        const nb = b.filePath.split("/").pop() ?? b.filePath
-        return nb.localeCompare(na)
-      })
-    case "status":
-      return sorted.sort((a, b) => {
-        const la = statusLabel(a)
-        const lb = statusLabel(b)
-        return (
-          (STATUS_ORDER[la] ?? 5) - (STATUS_ORDER[lb] ?? 5) ||
-          a.filePath.localeCompare(b.filePath)
-        )
-      })
-    case "path":
-      return sorted.sort((a, b) => a.filePath.localeCompare(b.filePath))
-  }
-}
-
-// ── DiffPanel ───────────────────────────────────────────────────────────────
+const PrismCode = lazy(() =>
+  import("@/features/chat/components/prism-code").then((m) => ({
+    default: m.default,
+  }))
+)
 
 interface DiffPanelProps {
   sessionId: string
+  openWithAppId?: string | null
 }
 
-export const DiffPanel = memo(function DiffPanel({
+const LANGUAGE_MAP: Record<string, string> = {
+  ts: "typescript",
+  tsx: "tsx",
+  mts: "typescript",
+  cts: "typescript",
+  js: "javascript",
+  jsx: "jsx",
+  mjs: "javascript",
+  cjs: "javascript",
+  mjsx: "jsx",
+  cjsx: "jsx",
+  py: "python",
+  rb: "ruby",
+  rs: "rust",
+  yml: "yaml",
+  md: "markdown",
+}
+
+// ─── Source Control Content ───────────────────────────────────────────────────
+
+const SourceControlContent = memo(function SourceControlContent({
   sessionId,
-}: DiffPanelProps) {
-  const { close } = useDiffPanel()
-  const [width, setWidth] = useState(DEFAULT_WIDTH)
+}: {
+  sessionId: string
+}) {
   const [mode, setMode] = useState<DiffMode>("inline")
   const [sortMode, setSortMode] = useState<SortMode>("name")
   const [stashInputOpen, setStashInputOpen] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const dragStartRef = useRef<{ x: number; w: number } | null>(null)
 
   const {
     data: statusRaw,
     isLoading: loading,
     error: statusError,
-    refetch,
   } = useGitStatus(sessionId)
+
   const { staged, unstaged } = useMemo(() => {
     const all = (statusRaw ?? "")
       .split("\n")
-      .map((l) => l.trimEnd())
+      .map((l: string) => l.trimEnd())
       .filter(Boolean)
       .map(parseStatusLine)
     return {
       staged: applySortMode(
-        all.filter((f) => f.isStaged),
+        all.filter((f: ChangedFile) => f.isStaged),
         sortMode
       ),
       unstaged: applySortMode(
-        all.filter((f) => !f.isStaged),
+        all.filter((f: ChangedFile) => !f.isStaged),
         sortMode
       ),
     }
   }, [statusRaw, sortMode])
+
   const files = useMemo(() => [...staged, ...unstaged], [staged, unstaged])
   const error = statusError instanceof Error ? statusError.message : null
 
@@ -719,123 +168,23 @@ export const DiffPanel = memo(function DiffPanel({
 
   const handleStashConfirm = useCallback(
     async (message: string) => {
-      await stash.mutateAsync(message || undefined)
-      setStashInputOpen(false)
+      try {
+        await stash.mutateAsync(message || undefined)
+        setStashInputOpen(false)
+      } catch {
+        // keep input bar open on failure
+      }
     },
     [stash]
   )
 
-  const onDragStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      dragStartRef.current = { x: e.clientX, w: width }
-      document.body.style.userSelect = "none"
-      document.body.style.cursor = "col-resize"
-
-      const onMove = (ev: MouseEvent) => {
-        if (!dragStartRef.current) return
-        const delta = dragStartRef.current.x - ev.clientX
-        const parentWidth =
-          panelRef.current?.parentElement?.clientWidth ?? window.innerWidth
-        const maxWidth = parentWidth - MIN_CHAT_WIDTH
-        setWidth(
-          Math.max(
-            MIN_WIDTH,
-            Math.min(maxWidth, dragStartRef.current.w + delta)
-          )
-        )
-      }
-
-      const onUp = () => {
-        dragStartRef.current = null
-        document.body.style.userSelect = ""
-        document.body.style.cursor = ""
-        window.removeEventListener("mousemove", onMove)
-        window.removeEventListener("mouseup", onUp)
-      }
-
-      window.addEventListener("mousemove", onMove)
-      window.addEventListener("mouseup", onUp)
-    },
-    [width]
-  )
-
-  const stagedCount = staged.length
-  const hasStaged = stagedCount > 0
+  const hasStaged = staged.length > 0
   const hasUnstaged = unstaged.length > 0
   const hasChanges = files.length > 0
 
   return (
-    <div
-      ref={panelRef}
-      className="relative flex h-full shrink-0 flex-col border-l bg-background"
-      style={{ width, maxWidth: "80%" }}
-    >
-      {/* Left-edge drag handle */}
-      <div
-        className="group absolute inset-y-0 left-0 flex w-2 cursor-col-resize items-center justify-center transition-[background-color,width] duration-150 hover:w-2 hover:bg-border/40"
-        onMouseDown={onDragStart}
-      >
-        <GripVertical className="h-4 w-3 text-muted-foreground/20 transition-[color,opacity] duration-150 group-hover:text-muted-foreground/70" />
-      </div>
-
-      {/* Header – Row 1: title + status badges + refresh + close */}
-      <div className="flex h-10 min-w-0 shrink-0 items-center gap-2 border-b border-border/60 pr-2 pl-4">
-        <GitCompare className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-        <span className="text-xs font-semibold tracking-wide">
-          Source Control
-        </span>
-        <div className="flex flex-1 items-center justify-end gap-1">
-          {hasStaged && (
-            <span className="rounded-full bg-green-500/10 px-1.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-              {stagedCount} staged
-            </span>
-          )}
-          {unstaged.length > 0 && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {unstaged.length} changed
-            </span>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => refetch()}
-                  className="h-6 w-6 text-muted-foreground"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  <span className="sr-only">Refresh</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Refresh</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={close}
-                  className="h-6 w-6"
-                >
-                  <X className="h-3 w-3" />
-                  <span className="sr-only">Close panel</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Close panel</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
-      {/* Header – Row 2: action toolbar */}
-      <div className="flex h-8 min-w-0 shrink-0 items-center gap-0.5 border-b border-border/60 bg-muted/20 px-2">
-        {/* Stage / unstage all */}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-8 min-w-0 shrink-0 items-center gap-0.5 border-b border-border/50 bg-muted/20 px-2">
         <Tooltip>
           <TooltipTrigger
             render={
@@ -844,12 +193,12 @@ export const DiffPanel = memo(function DiffPanel({
                 size="icon-sm"
                 onClick={handleStageAll}
                 disabled={bulkWorking || !hasUnstaged}
-                className="h-6 w-6"
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
-                {bulkWorking ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                {stageAll.isPending ? (
+                  <Loader2 className="animate-spin" />
                 ) : (
-                  <PackagePlus className="h-3 w-3" />
+                  <PackagePlus />
                 )}
                 <span className="sr-only">Stage all</span>
               </Button>
@@ -866,9 +215,13 @@ export const DiffPanel = memo(function DiffPanel({
                 size="icon-sm"
                 onClick={handleUnstageAll}
                 disabled={bulkWorking || !hasStaged}
-                className="h-6 w-6"
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
-                <PackageMinus className="h-3 w-3" />
+                {unstageAll.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <PackageMinus />
+                )}
                 <span className="sr-only">Unstage all</span>
               </Button>
             }
@@ -876,9 +229,8 @@ export const DiffPanel = memo(function DiffPanel({
           <TooltipContent>Unstage all changes</TooltipContent>
         </Tooltip>
 
-        <div className="mx-1 h-4 w-px bg-border/60" />
+        <div className="mx-1.5 h-4 w-px bg-border/50" />
 
-        {/* View mode */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -887,14 +239,14 @@ export const DiffPanel = memo(function DiffPanel({
                 size="icon-sm"
                 onClick={() => setMode("inline")}
                 data-active={mode === "inline"}
-                className="h-6 w-6 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
               >
-                <AlignLeft className="h-3 w-3" />
+                <AlignLeft />
                 <span className="sr-only">Inline view</span>
               </Button>
             }
           />
-          <TooltipContent>Inline view</TooltipContent>
+          <TooltipContent>Inline diff</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -905,28 +257,33 @@ export const DiffPanel = memo(function DiffPanel({
                 size="icon-sm"
                 onClick={() => setMode("side-by-side")}
                 data-active={mode === "side-by-side"}
-                className="h-6 w-6 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
               >
-                <Columns2 className="h-3 w-3" />
+                <Columns2 />
                 <span className="sr-only">Side-by-side</span>
               </Button>
             }
           />
-          <TooltipContent>Side-by-side view</TooltipContent>
+          <TooltipContent>Side-by-side diff</TooltipContent>
         </Tooltip>
 
-        <div className="mx-1 h-4 w-px bg-border/60" />
+        <div className="mx-1.5 h-4 w-px bg-border/50" />
 
-        {/* Sort */}
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger
               render={
                 <DropdownMenuTrigger
-                  className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-                  data-active={sortMode !== "name"}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      data-active={sortMode !== "name"}
+                      className="text-muted-foreground/70 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                    />
+                  }
                 >
-                  <ArrowUpDown className="h-3 w-3" />
+                  <ArrowUpDown />
                   <span className="sr-only">Sort files</span>
                 </DropdownMenuTrigger>
               }
@@ -949,9 +306,8 @@ export const DiffPanel = memo(function DiffPanel({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="mx-1 h-4 w-px bg-border/60" />
+        <div className="mx-1.5 h-4 w-px bg-border/50" />
 
-        {/* Stash */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -960,9 +316,9 @@ export const DiffPanel = memo(function DiffPanel({
                 size="icon-sm"
                 onClick={() => setStashInputOpen(true)}
                 disabled={!hasChanges}
-                className="h-6 w-6"
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
               >
-                <Archive className="h-3 w-3" />
+                <Archive />
                 <span className="sr-only">Stash changes</span>
               </Button>
             }
@@ -971,57 +327,576 @@ export const DiffPanel = memo(function DiffPanel({
         </Tooltip>
       </div>
 
-      {/* File list + stash input */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {/* VS Code-style stash message input bar */}
-        {stashInputOpen && (
-          <StashInputBar
-            onConfirm={handleStashConfirm}
-            onCancel={() => setStashInputOpen(false)}
-          />
-        )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {stashInputOpen && (
+            <StashInputBar
+              onConfirm={handleStashConfirm}
+              onCancel={() => setStashInputOpen(false)}
+            />
+          )}
 
-        {loading && files.length === 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-3 text-xs text-muted-foreground">
+          {loading && files.length === 0 && (
+            <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              Loading status…
+            </div>
+          )}
+
+          {!loading && error && (
+            <Alert variant="destructive" className="mx-3 mt-3">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {!loading && !error && files.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                <GitCompare className="h-4 w-4 text-muted-foreground/50" />
+              </div>
+              <p className="text-xs text-muted-foreground/50">No changes</p>
+            </div>
+          )}
+
+          {!loading && !error && (staged.length > 0 || unstaged.length > 0) && (
+            <FilesSection
+              label="Staged"
+              files={staged}
+              sessionId={sessionId}
+              mode={mode}
+              onStageToggle={handleStageToggle}
+              onRevert={handleRevert}
+              emptyText="No staged changes"
+            />
+          )}
+
+          {!loading && !error && unstaged.length > 0 && (
+            <FilesSection
+              label="Changes"
+              files={unstaged}
+              sessionId={sessionId}
+              mode={mode}
+              onStageToggle={handleStageToggle}
+              onRevert={handleRevert}
+            />
+          )}
+        </div>
+
+        <StashSection sessionId={sessionId} />
+      </div>
+    </div>
+  )
+})
+
+// ─── File Content ─────────────────────────────────────────────────────────────
+
+function resolveFilePath(currentFilePath: string, href: string): string {
+  const dir = currentFilePath.split(/[/\\]/).slice(0, -1).join("/")
+  const parts = `${dir}/${href}`.split("/")
+  const resolved: string[] = []
+  for (const part of parts) {
+    if (part === "..") resolved.pop()
+    else if (part !== ".") resolved.push(part)
+  }
+  return resolved.join("/")
+}
+
+const FileContent = memo(function FileContent({
+  filePath,
+  openWithAppId,
+  workspacePath,
+}: {
+  filePath: string
+  openWithAppId?: string | null
+  workspacePath?: string
+}) {
+  const [content, setContent] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [serverUrl, setServerUrl] = useState<string>("")
+  const { addTab, open: openPanel } = useDiffPanel()
+  const [markdownPreview, setMarkdownPreview] = useState(false)
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
+  // Get available apps for default editor selection
+  const { data: platform } = useElectronPlatform()
+  const isMac = platform === "darwin"
+  const { data: apps = [] } = useOpenWithApps(isMac)
+
+  // Determine the effective editor to use (same logic as OpenWithButton)
+  const effectiveAppId = useMemo(() => {
+    if (!isMac || apps.length === 0) return undefined
+    // Use user-selected app, or fall back to first app (default)
+    return openWithAppId ?? apps[0].id
+  }, [isMac, apps, openWithAppId])
+
+  // Extract relative path from workspace
+  const relativePath = workspacePath
+    ? filePath.startsWith(workspacePath)
+      ? filePath.slice(workspacePath.length).replace(/^[/\\]+/, "")
+      : filePath
+    : filePath
+  const pathParts = relativePath.split(/[/\\]/).filter(Boolean)
+  const fileName = pathParts[pathParts.length - 1] ?? ""
+  const fileExtension = fileName.split(".").pop()?.toLowerCase() ?? ""
+  const isMarkdown = fileExtension === "md" || fileExtension === "markdown"
+  const isImage = /^(png|jpe?g|gif|svg|webp|bmp|ico|tiff?|avif)$/.test(
+    fileExtension
+  )
+  const isHtml = fileExtension === "html" || fileExtension === "htm"
+  const isPdf = fileExtension === "pdf"
+
+  const markdownLinkComponents = useMemo(
+    () => ({
+      a: ({ href, children }: React.ComponentProps<"a">) => {
+        const isExternal = !href || /^(https?:|mailto:|#)/.test(href)
+        if (isExternal) {
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4"
+            >
+              {children}
+            </a>
+          )
+        }
+        const resolvedPath = href.startsWith("/")
+          ? href
+          : resolveFilePath(filePath, href)
+        const linkFileName = resolvedPath.split(/[/\\]/).pop() || resolvedPath
+        return (
+          <button
+            type="button"
+            onClick={() => {
+              openPanel()
+              addTab({
+                title: linkFileName,
+                type: "file",
+                filePath: resolvedPath,
+              })
+            }}
+            className="cursor-pointer underline underline-offset-4"
+          >
+            {children}
+          </button>
+        )
+      },
+      img: ({ src, alt }: { src?: string; alt?: string }) => {
+        if (!src) return null
+        const resolvedSrc = /^https?:/.test(src)
+          ? src
+          : `${serverUrl}/file?path=${encodeURIComponent(
+              src.startsWith("/") ? src : resolveFilePath(filePath, src)
+            )}`
+        return (
+          <img
+            src={resolvedSrc}
+            alt={alt ?? ""}
+            className="max-w-full rounded"
+          />
+        )
+      },
+    }),
+    [filePath, serverUrl, addTab, openPanel]
+  )
+
+  // Enable rich text preview by default for markdown files
+  useEffect(() => {
+    setMarkdownPreview(isMarkdown)
+  }, [filePath])
+  const language = LANGUAGE_MAP[fileExtension] ?? fileExtension
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    setContent(null)
+
+    const loadFile = async () => {
+      try {
+        const url = await getServerUrl()
+        if (!cancelled) setServerUrl(url)
+
+        if (isImage) {
+          if (!cancelled) setLoading(false)
+          return
+        }
+
+        const response = await fetch(
+          `${url}/file?path=${encodeURIComponent(filePath)}`
+        )
+        if (!response.ok) {
+          throw new Error(`Failed to load file: ${response.statusText}`)
+        }
+        const text = await response.text()
+        if (!cancelled) {
+          setContent(text)
+          setLoading(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load file")
+          setLoading(false)
+        }
+      }
+    }
+
+    loadFile()
+    return () => {
+      cancelled = true
+    }
+  }, [filePath, isImage])
+
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="border-b border-border/50">
+          <FileHeader
+            pathParts={pathParts}
+            filePath={filePath}
+            openWithAppId={effectiveAppId}
+          />
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="size-3 animate-spin" />
-            Loading…
+            Loading file…
           </div>
-        )}
-        {!loading && error && (
-          <p className="px-3 py-3 text-xs text-destructive">{error}</p>
-        )}
-        {!loading && !error && files.length === 0 && (
-          <p className="px-3 py-3 text-xs text-muted-foreground">No changes</p>
-        )}
+        </div>
+      </div>
+    )
+  }
 
-        {/* Staged section */}
-        {!loading && !error && (staged.length > 0 || unstaged.length > 0) && (
-          <FilesSection
-            label="Staged"
-            files={staged}
-            sessionId={sessionId}
-            mode={mode}
-            onStageToggle={handleStageToggle}
-            onRevert={handleRevert}
-            emptyText="No staged changes"
+  if (error) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="border-b border-border/50">
+          <FileHeader
+            pathParts={pathParts}
+            filePath={filePath}
+            openWithAppId={effectiveAppId}
           />
-        )}
+        </div>
+        <div className="flex flex-1 items-center justify-center p-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    )
+  }
 
-        {/* Unstaged section */}
-        {!loading && !error && unstaged.length > 0 && (
-          <FilesSection
-            label="Changes"
-            files={unstaged}
-            sessionId={sessionId}
-            mode={mode}
-            onStageToggle={handleStageToggle}
-            onRevert={handleRevert}
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border/50">
+        <FileHeader
+          pathParts={pathParts}
+          filePath={filePath}
+          openWithAppId={effectiveAppId}
+          isMarkdown={isMarkdown}
+          markdownPreview={markdownPreview}
+          onToggleMarkdownPreview={
+            isMarkdown ? () => setMarkdownPreview(!markdownPreview) : undefined
+          }
+          isHtml={isHtml}
+          isPdf={isPdf}
+        />
+      </div>
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-auto",
+          isImage && "flex items-center justify-center p-4",
+          !isImage &&
+            markdownPreview &&
+            "prose prose-sm max-w-none p-4 dark:prose-invert",
+          !isImage && !markdownPreview && "file-viewer-code pl-4"
+        )}
+        style={markdownPreview ? undefined : { userSelect: "text" }}
+      >
+        {isImage ? (
+          <img
+            src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
+            alt={fileName}
+            className="max-h-full max-w-full object-contain"
           />
+        ) : markdownPreview ? (
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownLinkComponents}
+          >
+            {content ?? ""}
+          </ReactMarkdown>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                Loading…
+              </div>
+            }
+          >
+            <PrismCode
+              code={content ?? ""}
+              language={language}
+              style={isDark ? jellybeansdark : jellybeanslight}
+              showLineNumbers
+              fontSize="0.75rem"
+            />
+          </Suspense>
         )}
       </div>
-
-      {/* Stash section */}
-      <StashSection sessionId={sessionId} />
     </div>
+  )
+})
+
+// ─── Tab Content Router ───────────────────────────────────────────────────────
+
+function TabContent({
+  tab,
+  sessionId,
+  openWithAppId,
+  workspacePath,
+}: {
+  tab: DiffPanelTab
+  sessionId: string
+  openWithAppId?: string | null
+  workspacePath?: string
+}) {
+  if (tab.type === "source-control") {
+    return <SourceControlContent sessionId={sessionId} />
+  }
+  if (tab.type === "file" && tab.filePath) {
+    return (
+      <FileContent
+        filePath={tab.filePath}
+        openWithAppId={openWithAppId}
+        workspacePath={workspacePath}
+      />
+    )
+  }
+  return (
+    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+      Unknown tab type
+    </div>
+  )
+}
+
+// ─── Main DiffPanel ────────────────────────────────────────────────────────────
+
+export const DiffPanel = memo(function DiffPanel({
+  sessionId,
+  openWithAppId,
+}: DiffPanelProps) {
+  const {
+    close,
+    toggleFullscreen,
+    isFullscreen,
+    tabs,
+    activeTabId,
+    pendingTabId,
+    addTab,
+    closeTab,
+    setActiveTab,
+    clearPendingTab,
+    currentWorkspacePath,
+  } = useDiffPanel()
+  const { workspaces } = useWorkspace()
+  const currentWorkspaceId = workspaces.find(
+    (ws) => ws.path === currentWorkspacePath
+  )?.id
+  const [showAddMenu, setShowAddMenu] = useState(false)
+  const [fileSearchOpen, setFileSearchOpen] = useState(false)
+  const tabRefs = useRef<Map<string, HTMLElement>>(new Map())
+
+  useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF, toggleFullscreen)
+  const fullscreenBinding = useShortcutBinding(
+    SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF
+  )
+
+  const activeTab = useMemo(
+    () => tabs.find((t) => t.id === activeTabId),
+    [tabs, activeTabId]
+  )
+
+  // Focus the active tab whenever activeTabId changes
+  useEffect(() => {
+    if (activeTabId) {
+      // Focus the newly added or active tab
+      const tabEl = tabRefs.current.get(activeTabId)
+      if (tabEl) {
+        tabEl.scrollIntoView({ block: "nearest", inline: "nearest" })
+        tabEl.focus()
+      }
+      // Clear pending tab after focus
+      if (pendingTabId === activeTabId) {
+        clearPendingTab()
+      }
+    }
+  }, [activeTabId, pendingTabId, clearPendingTab])
+
+  const handleAddFileTab = useCallback(() => {
+    setShowAddMenu(false)
+    setFileSearchOpen(true)
+  }, [])
+
+  const handleFileSelect = useCallback(
+    (relativePath: string) => {
+      const filePath = currentWorkspacePath
+        ? `${currentWorkspacePath}/${relativePath}`
+        : relativePath
+      const fileName = relativePath.split(/[/\\]/).pop() || relativePath
+      addTab({ title: fileName, type: "file", filePath })
+    },
+    [addTab, currentWorkspacePath]
+  )
+
+  return (
+    <>
+      {currentWorkspaceId && (
+        <FileSearchModal
+          open={fileSearchOpen}
+          onOpenChange={setFileSearchOpen}
+          workspaceId={currentWorkspaceId}
+          onSelect={handleFileSelect}
+        />
+      )}
+      <div className="flex h-full w-full flex-col bg-background">
+        {/* Tab bar */}
+        <div className="flex h-8 shrink-0 items-stretch border-b">
+          <div className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTabId
+              return (
+                <div
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  ref={(el) => {
+                    if (el) {
+                      tabRefs.current.set(tab.id, el)
+                    } else {
+                      tabRefs.current.delete(tab.id)
+                    }
+                  }}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "group relative flex h-full shrink-0 cursor-pointer items-center gap-1.5 rounded-none border-r pr-1 pl-3 text-xs select-none",
+                    isActive
+                      ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
+                      : "bg-muted/40 text-muted-foreground"
+                  )}
+                >
+                  {tab.type === "source-control" ? (
+                    <GitCompare className="size-3.5 shrink-0" />
+                  ) : (
+                    <Icon
+                      icon={`catppuccin:${getIconName(tab.title)}`}
+                      className="size-3.5 shrink-0"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="max-w-30 truncate">{tab.title}</span>
+                  {tab.type !== "source-control" && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={`Close ${tab.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        closeTab(tab.id)
+                      }}
+                      className={cn(
+                        "ml-auto shrink-0",
+                        isActive
+                          ? "opacity-60 hover:opacity-100"
+                          : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
+                      )}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Add tab dropdown */}
+            <DropdownMenu open={showAddMenu} onOpenChange={setShowAddMenu}>
+              <DropdownMenuTrigger className="flex items-center px-2 text-muted-foreground hover:text-foreground">
+                <Plus className="h-3.5 w-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuItem onClick={handleAddFileTab}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open File
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Right side buttons */}
+          <div className="flex shrink-0 items-center gap-0.5 border-l px-1">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={toggleFullscreen}
+                    className="text-muted-foreground/60 hover:text-foreground"
+                  >
+                    {isFullscreen ? <Minimize2 /> : <Maximize2 />}
+                    <span className="sr-only">
+                      {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                    </span>
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                {isFullscreen ? "Exit fullscreen" : "Fullscreen"}{" "}
+                <ShortcutKbd binding={fullscreenBinding} className="ml-1" />
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={close}
+                    className="text-muted-foreground/60 hover:text-foreground"
+                  >
+                    <X />
+                    <span className="sr-only">Close panel</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>Close panel</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* Tab content */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {activeTab ? (
+            <TabContent
+              tab={activeTab}
+              sessionId={sessionId}
+              openWithAppId={openWithAppId}
+              workspacePath={currentWorkspacePath ?? undefined}
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <GitCompare className="h-5 w-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-xs">Select or add a tab to view content</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   )
 })

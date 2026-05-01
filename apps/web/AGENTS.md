@@ -1,10 +1,10 @@
 # AGENTS.md — web
 
-> Auto-generated context for coding agents. Last updated: 2026-04-07
+> Auto-generated context for coding agents. Last updated: 2026-04-27
 
 ## Purpose
 
-React web UI layer — the primary user interface for the lamda desktop app, providing chat interface, workspace management, and session controls.
+React web UI layer — the primary user interface for the lamda desktop app, providing chat interface, workspace management, diff panel, terminal, file browser, and settings.
 
 ## Quick Reference
 
@@ -14,51 +14,82 @@ React web UI layer — the primary user interface for the lamda desktop app, pro
 | Build     | `npm run build -w web`       |
 | Lint      | `npm run lint -w web`        |
 | Typecheck | `npm run check-types -w web` |
-| Preview   | `npm run preview -w web`     |
+| Preview   | `npm run preview -w web`    |
 
 ## Architecture
 
-Single-page React app using Vite + TanStack Router for file-based routing. UI components use shadcn/ui (base-ui preset) with Tailwind CSS 4 for styling. Communicates with the Hono server via an API client layer.
+Single-page React app using Vite + TanStack Router for file-based routing. UI components use shadcn/ui (base-ui preset) with Tailwind CSS 4 for styling. Code is organized into feature modules.
 
 ### Key Directories
 
 - `src/routes/` — TanStack Router file-based routes
-- `src/components/` — React UI components (includes shadcn/ui in `ui/`)
-- `src/api/` — Server API client and data models
-- `src/queries/` — TanStack Query query definitions
-- `src/mutations/` — TanStack Query mutation definitions
-- `src/hooks/` — Custom React hooks
-- `src/lib/` — Utility functions
+- `src/features/` — Feature modules (chat, git, workspace, settings, terminal, layout, electron, file-tree)
+- `src/shared/` — Shared UI components used across features
 - `src/types/` — TypeScript type definitions
+
+### Feature Modules
+
+Each feature module follows a consistent structure with `api.ts`, `queries.ts`, `mutations.ts`, `context.tsx`, and `components/` subdirectory:
+
+- `features/chat/` — Chat interface, message rendering, streaming, tool calls, thinking indicators
+- `features/chat/hooks/` — Streaming hooks: `useSessionStream`, `useChatSyncEngine`, `useVisibleMessages`, `useScrollMeta`, `usePrefetchMessages`, `useApiErrorToasts`
+- `features/git/` — Git diff panel, branch selector, staging, committing, stash management
+- `features/workspace/` — Workspace/sidebar management, thread creation, app sidebar
+- `features/settings/` — Settings modal, provider configuration
+- `features/terminal/` — xterm.js terminal panel
+- `features/layout/` — Title bar, navigation, panel toggles, editor integration
+- `features/electron/` — Electron-specific APIs (server port discovery)
+- `features/file-tree/` — File browser with directory listing via server API
+- `features/command-palette/` — Cmd+K command interface for quick actions
+- `features/chat-v2/` — (scaffold for future work, not currently used)
+
+### Routes (src/routes/)
+
+| File                  | Route                  | Purpose                                   |
+| --------------------- | ---------------------- | ----------------------------------------- |
+| `__root.tsx`          | `/`                    | Root layout with sidebar, workspace list  |
+| `index.tsx`           | `/`                    | Redirects to last active thread           |
+| `workspace.$threadId` | `/workspace/:threadId` | Main workspace view with chat/diff/tree   |
+| `settings.tsx`        | `/settings`            | Settings page route                       |
 
 ## Key Files
 
 - `src/main.tsx` — React app entry point
-- `src/routes/__root.tsx` — Root route layout
-- `src/routes/index.tsx` — Main page route
+- `src/routes/__root.tsx` — Root route layout with sidebar and workspace navigation
+- `src/routes/index.tsx` — Redirects to last thread or workspace list
+- `src/routes/workspace.$threadId.tsx` — Thread view with ChatView, DiffPanel, TerminalPanel, FileTree
+- `src/routes/settings.tsx` — Settings page route
 - `src/routeTree.gen.ts` — Auto-generated route tree (do not edit manually)
-- `src/api/client.ts` — HTTP client for server communication
-- `src/components/chat-view.tsx` — Main chat interface component
-- `src/components/chat-textbox.tsx` — Chat input component
-- `src/components/app-sidebar.tsx` — Application sidebar navigation
-- `src/components/theme-provider.tsx` — Theme context provider
-- `src/components/title-bar.tsx` — Custom title bar (for Electron integration)
-- `src/components/branch-selector.tsx` — Git branch selection dropdown
-- `src/components/commit-dialog.tsx` — Git commit dialog modal
-- `src/components/diff-view.tsx` — Git diff rendering component
-- `src/components/diff-panel.tsx` — Side panel for diff display
-- `src/components/terminal-panel.tsx` — Terminal output panel
-- `src/components/tool-call-block.tsx` — Tool call rendering
-- `src/hooks/workspace-context.tsx` — Workspace context provider
+- `src/features/chat/` — Chat feature module
+  - `api.ts` — API client for session endpoints
+  - `index.ts` — Barrel exports: ChatView, useSessionStream, sync engine, error handling
+  - `queries.ts` — TanStack Query hooks (useSessionStats, useContextUsage, useThinkingLevels)
+  - `mutations.ts` — TanStack Mutation hooks for prompts
+  - `types.ts` — TypeScript types for messages, tool calls, errors
+  - `session-events.ts` — Event type definitions and subscription helpers
+  - `hooks/` — Streaming hooks (useSessionStream, useChatSyncEngine)
+  - `components/` — Chat UI components (ChatView, MessageRow, ToolCallBlock, ContextChart)
+- `src/features/chat/components/context-chart.tsx` — Context usage and cost display component
+- `src/features/chat/hooks/use-chat-sync-engine.ts` — Message persistence sync engine
+- `src/features/git/components/diff-panel.tsx` — Git diff side panel
+- `src/features/workspace/components/app-sidebar.tsx` — Application sidebar navigation
+- `src/features/terminal/components/terminal-panel.tsx` — Terminal output panel
+- `src/features/layout/components/title-bar.tsx` — Custom title bar (for Electron frameless window)
+- `src/features/file-tree/` — File browser feature module
+- `src/shared/ui/` — shadcn/ui components
 
 ## Conventions
 
+- **Feature-based architecture** — Each feature (chat, git, workspace, etc.) is a self-contained module
+- **Feature index.ts** — Each feature exports its public API via `index.ts` barrel file
 - **File-based routing** — Routes defined in `src/routes/` using TanStack Router conventions
-- **Component naming** — kebab-case for files (e.g., `chat-view.tsx`), PascalCase for exported components
-- **UI components** — shadcn/ui components live in `src/components/ui/` — regenerate via `npx shadcn` CLI
-- **Data fetching** — use TanStack Query via `queries/` and `mutations/` directories, not inline fetch calls
-- **Styling** — Tailwind CSS 4 with `@tailwindcss/vite` plugin; use `cn()` utility from `lib/utils` for conditional classes
+- **Component naming** — kebab-case for files, PascalCase for exported components
+- **UI components** — shadcn/ui components live in `src/shared/ui/` — regenerate via `npx shadcn` CLI
+- **Data fetching** — use TanStack Query via feature-level `queries.ts` and `mutations.ts`
+- **Styling** — Tailwind CSS 4 with `@tailwindcss/vite` plugin; use `cn()` utility for conditional classes
 - **React Compiler** — enabled via `babel-plugin-react-compiler` in Vite config
+- **Lazy loading** — Heavy components (DiffPanel, TerminalPanel, FileTree) use `React.lazy()` with Suspense
+- **Chat streaming** — `useSessionStream` hook manages SSE connection and real-time UI updates
 
 ## Dependencies
 
@@ -71,6 +102,10 @@ Single-page React app using Vite + TanStack Router for file-based routing. UI co
 - `lucide-react` — Icon library
 - `class-variance-authority` — Component variant management
 - `@xterm/xterm` + `@xterm/addon-fit` — Terminal emulation
+- `react-resizable-panels` — Resizable panel layout for chat/diff/terminal
+- `cmdk` — Command menu component
+- `sonner` — Toast notifications
+- `next-themes` — Theme management
 
 ## Gotchas
 
@@ -79,6 +114,23 @@ Single-page React app using Vite + TanStack Router for file-based routing. UI co
 - Tailwind CSS 4 uses a different config approach than v3 — check `index.css` for theme configuration
 - The `title-bar` component is designed for Electron frameless window integration
 - xterm.js requires the fit addon to properly resize in the terminal panel
+- FileTree fetches directory contents from `/api/directory` endpoint; requires server to support this route
+- Heavy components (DiffPanel, TerminalPanel, FileTree) are lazily loaded with Suspense for code splitting
+- ToolCallBlock: All tools start collapsed by default (only edit tools auto-expand)
+
+## Feature Module Deep Dives
+
+For complex feature modules with significant internal structure:
+
+- [**Chat Feature**](src/features/chat/AGENTS.md) — Real-time messaging, streaming, error handling (34 files, ~5000 LOC)
+- [**Git Feature**](src/features/git/AGENTS.md) — Diff rendering, staging, branching, commits (26 files, ~2400 LOC)
+- [**Workspace Feature**](src/features/workspace/AGENTS.md) — Workspace/thread lifecycle, sidebar navigation (9 files)
+- [**Terminal Feature**](src/features/terminal/AGENTS.md) — xterm.js terminal with WebSocket PTY
+- [**Settings Feature**](src/features/settings/AGENTS.md) — Provider config, API keys, preferences
+- [**Electron Feature**](src/features/electron/AGENTS.md) — Desktop integration, server lifecycle, updates
+- [**Layout Feature**](src/features/layout/AGENTS.md) — Title bar, navigation, panel toggles, editor integration
+- [**Command Palette Feature**](src/features/command-palette/AGENTS.md) — Cmd+K command interface, quick navigation (3 files)
+- [**Shared Utilities**](src/shared/AGENTS.md) — UI components, hooks, utilities (54+ files)
 
 ## Related
 

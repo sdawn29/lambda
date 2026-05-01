@@ -1,39 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { insertMessage } from "@lamda/db";
+import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, updateToolBlockPartialResult, listRunningToolBlocks } from "@lamda/db";
 import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
-import { messageBuffer } from "./message-buffer.js";
-import { threadStatusBroadcaster } from "./thread-status-broadcaster.js";
+import { threadStatusBroadcaster, type ThreadStatus } from "./thread-status-broadcaster.js";
 
 const MAX_RECENT_EVENTS = 512;
 
-type MessageStartEvent = {
-  message?: { role?: string };
-};
-
-type AssistantMessageDeltaEvent = {
-  assistantMessageEvent?:
-    | { type: "text_delta"; delta: string; partial?: { model?: string; provider?: string } }
-    | { type: "thinking_delta"; delta: string; partial?: { model?: string; provider?: string } }
-    | { type: string; delta?: string; partial?: { model?: string; provider?: string } };
-};
-
-type ToolExecutionStartEvent = {
-  toolCallId: string;
-  toolName: string;
-  args: unknown;
-};
-
-type ToolExecutionEndEvent = {
-  toolCallId: string;
-  toolName?: string;
-  args?: unknown;
-  result: unknown;
-  isError: boolean;
-};
+type ServerErrorEvent = { type: "server_error"; message: string };
+type HubEvent = SessionEvent | ServerErrorEvent;
 
 type SessionEventRecord = {
   id: number;
-  event: SessionEvent;
+  event: HubEvent;
   data: string;
 };
 
@@ -48,7 +25,7 @@ type SessionEventSubscription = {
   closed: Promise<void>;
 };
 
-function serializeEvent(event: SessionEvent): string {
+function serializeEvent(event: HubEvent): string {
   try {
     return JSON.stringify(event);
   } catch {
@@ -62,27 +39,57 @@ function parseEventId(value?: string): number | null {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
+interface TurnContext {
+  assistantBlockId: string | null;
+  startTime: number;
+  model?: string;
+  provider?: string;
+  thinkingLevel?: string;
+}
+
+interface ToolContext {
+  toolBlockId: string;
+  startTime: number;
+}
+
+interface ToolMeta {
+  toolCallId: string;
+  toolName: string;
+  args: unknown;
+}
+
 class SessionEventHub {
   private subscribers = new Map<string, SessionEventSubscriber>();
   private recentEvents: SessionEventRecord[] = [];
   private currentRunEvents: SessionEventRecord[] = [];
-  private toolMeta = new Map<string, { toolName: string; args: unknown }>();
+  private toolMetaMap = new Map<string, ToolMeta>();
   private generator: AsyncGenerator<SessionEvent> | null = null;
   private consumeTask: Promise<void> | null = null;
   private nextEventId = 0;
   private runInProgress = false;
   private disposed = false;
-  private turnStartTime: number | null = null;
+  private turnContext: TurnContext | null = null;
   private pendingThinkingLevel: string | null = null;
+  private currentToolBlocks = new Map<string, ToolContext>();
 
   constructor(
     private readonly sessionId: string,
     private readonly threadId: string,
     private readonly handle: ManagedSessionHandle,
-  ) {}
+  ) {
+    // Start consuming immediately so we don't miss any events
+    this.ensureStarted();
+  }
 
   setNextThinkingLevel(level: string) {
     this.pendingThinkingLevel = level;
+  }
+
+  emitError(message: string) {
+    if (this.disposed) return;
+    const event: ServerErrorEvent = { type: "server_error", message };
+    this.persist(event);
+    this.emit(event);
   }
 
   ensureStarted() {
@@ -132,8 +139,8 @@ class SessionEventHub {
     if (this.disposed) return;
     this.disposed = true;
 
-    messageBuffer.flush(this.sessionId);
-    this.toolMeta.clear();
+    this.toolMetaMap.clear();
+    this.currentToolBlocks.clear();
     this.currentRunEvents = [];
     this.runInProgress = false;
 
@@ -143,9 +150,6 @@ class SessionEventHub {
       subscriber.close();
     }
 
-    // Fire-and-forget: generator.return() may never resolve if the underlying
-    // SDK stream is still connected. Since disposed=true already stops all
-    // processing in consume(), we don't need to await cleanup here.
     this.generator?.return(undefined).catch(() => undefined);
     this.consumeTask?.catch(() => undefined);
   }
@@ -153,12 +157,32 @@ class SessionEventHub {
   private getReplayEvents(lastEventId?: string): SessionEventRecord[] {
     const parsedLastEventId = parseEventId(lastEventId);
     if (parsedLastEventId === null) {
-      return this.runInProgress ? [...this.currentRunEvents] : [];
+      // New connection without lastEventId - replay all recent events
+      // to allow client to restore state from server snapshot
+      if (this.recentEvents.length > 0) {
+        return [...this.recentEvents];
+      }
+      if (this.runInProgress) {
+        // Include running tool blocks from DB for new subscribers
+        const toolBlocks = listRunningToolBlocks(this.threadId);
+        const toolEvents: SessionEventRecord[] = toolBlocks
+          .filter((b) => b.role === "tool" && b.toolStatus === "running")
+          .map((block) => ({
+            id: 0,
+            event: {
+              type: "tool_execution_start",
+              toolCallId: block.toolCallId ?? "",
+              toolName: block.toolName ?? "",
+              args: block.toolArgs ? JSON.parse(block.toolArgs) : {},
+            } as any,
+            data: "",
+          }));
+        return [...this.currentRunEvents, ...toolEvents];
+      }
+      return [];
     }
-
     const currentRunStartId = this.currentRunEvents[0]?.id;
     const currentRunEndId = this.currentRunEvents.at(-1)?.id;
-
     if (
       currentRunStartId !== undefined &&
       currentRunEndId !== undefined &&
@@ -170,7 +194,6 @@ class SessionEventHub {
             (record) => record.id > parsedLastEventId,
           );
     }
-
     return this.recentEvents.filter((record) => record.id > parsedLastEventId);
   }
 
@@ -186,101 +209,154 @@ class SessionEventHub {
     } catch (error) {
       if (!this.disposed) {
         const message = error instanceof Error ? error.message : String(error);
-        messageBuffer.flush(this.sessionId);
-        this.toolMeta.clear();
+        this.toolMetaMap.clear();
+        this.currentToolBlocks.clear();
         this.runInProgress = false;
         this.currentRunEvents = [];
-        this.emit({ type: "sdk_error", message });
+        this.emit({ type: "server_error", message });
       }
     }
   }
 
-  private persist(event: SessionEvent) {
+  private persist(event: HubEvent) {
+    // Handle server error events - don't persist to DB
+    if (event.type === "server_error") return;
+
+    // message_start - create assistant block
     if (event.type === "message_start") {
-      const data = event as MessageStartEvent;
-      if (data.message?.role === "assistant") {
-        this.turnStartTime = Date.now();
-        messageBuffer.startAssistant(this.sessionId, this.threadId);
-        if (this.pendingThinkingLevel) {
-          messageBuffer.setThinkingLevel(this.sessionId, this.pendingThinkingLevel);
-          this.pendingThinkingLevel = null;
-        }
+      const msg = event as { message?: { role?: string } };
+      if (msg.message?.role === "assistant") {
+        this.runInProgress = true;
+        this.currentRunEvents = [];
+        threadStatusBroadcaster.broadcast(this.threadId, "streaming");
+
+        // Create assistant block in DB
+        const blockId = insertAssistantStartBlock(this.threadId);
+        this.turnContext = {
+          assistantBlockId: blockId,
+          startTime: Date.now(),
+          thinkingLevel: this.pendingThinkingLevel ?? undefined,
+        };
+        this.pendingThinkingLevel = null;
       }
       return;
     }
 
+    // message_update - streaming content
     if (event.type === "message_update") {
-      const data = event as AssistantMessageDeltaEvent;
-      if (
-        data.assistantMessageEvent?.type === "text_delta" &&
-        typeof data.assistantMessageEvent.delta === "string"
-      ) {
-        messageBuffer.appendTextDelta(
-          this.sessionId,
-          data.assistantMessageEvent.delta,
-        );
-        const partial = data.assistantMessageEvent.partial;
-        if (partial?.model) messageBuffer.setModel(this.sessionId, partial.model);
-        if (partial?.provider) messageBuffer.setProvider(this.sessionId, partial.provider);
-      } else if (
-        data.assistantMessageEvent?.type === "thinking_delta" &&
-        typeof data.assistantMessageEvent.delta === "string"
-      ) {
-        messageBuffer.appendThinkingDelta(
-          this.sessionId,
-          data.assistantMessageEvent.delta,
-        );
-        const partial = data.assistantMessageEvent.partial;
-        if (partial?.model) messageBuffer.setModel(this.sessionId, partial.model);
-        if (partial?.provider) messageBuffer.setProvider(this.sessionId, partial.provider);
+      const msg = event as {
+        assistantMessageEvent?: {
+          type: string;
+          delta?: string;
+          partial?: { model?: string; provider?: string };
+        };
+      };
+      const assistantEvent = msg.assistantMessageEvent;
+
+      if (!assistantEvent || !this.turnContext?.assistantBlockId) return;
+
+      const blockId = this.turnContext.assistantBlockId;
+
+      if (assistantEvent.type === "text_delta" && typeof assistantEvent.delta === "string") {
+        appendAssistantTextDelta(blockId, assistantEvent.delta);
+      } else if (assistantEvent.type === "thinking_delta" && typeof assistantEvent.delta === "string") {
+        appendAssistantThinkingDelta(blockId, assistantEvent.delta);
+      }
+
+      // Track model/provider from partial info
+      if (assistantEvent.partial?.model && !this.turnContext.model) {
+        this.turnContext.model = assistantEvent.partial.model;
+      }
+      if (assistantEvent.partial?.provider && !this.turnContext.provider) {
+        this.turnContext.provider = assistantEvent.partial.provider;
       }
       return;
     }
 
+    // tool_execution_start - create tool block
     if (event.type === "tool_execution_start") {
-      const data = event as ToolExecutionStartEvent;
-      this.toolMeta.set(data.toolCallId, {
-        toolName: data.toolName,
-        args: data.args,
+      const msg = event as { toolCallId: string; toolName: string; args: unknown };
+      this.toolMetaMap.set(msg.toolCallId, {
+        toolCallId: msg.toolCallId,
+        toolName: msg.toolName,
+        args: msg.args,
+      });
+
+      // Create tool block in DB
+      const blockId = insertToolBlock(
+        this.threadId,
+        msg.toolCallId,
+        msg.toolName,
+        JSON.stringify(msg.args ?? {})
+      );
+      this.currentToolBlocks.set(msg.toolCallId, {
+        toolBlockId: blockId,
+        startTime: Date.now(),
       });
       return;
     }
 
+    // tool_execution_end - update tool block with result
     if (event.type === "tool_execution_end") {
-      const data = event as ToolExecutionEndEvent;
-      const meta = this.toolMeta.get(data.toolCallId);
-      this.toolMeta.delete(data.toolCallId);
-      insertMessage(
-        this.threadId,
-        "tool",
-        JSON.stringify({
-          toolCallId: data.toolCallId,
-          toolName: meta?.toolName ?? data.toolName ?? "",
-          args: meta?.args ?? data.args ?? {},
-          result: data.result,
-          status: data.isError ? "error" : "done",
-        }),
-      );
-      return;
-    }
+      const msg = event as {
+        toolCallId: string;
+        toolName?: string;
+        args?: unknown;
+        result: unknown;
+        isError: boolean;
+      };
 
-    if (event.type === "agent_end") {
-      this.toolMeta.clear();
-      if (this.turnStartTime !== null) {
-        messageBuffer.setResponseTime(this.sessionId, Date.now() - this.turnStartTime);
-        this.turnStartTime = null;
+      const toolContext = this.currentToolBlocks.get(msg.toolCallId);
+      this.currentToolBlocks.delete(msg.toolCallId);
+
+      if (toolContext) {
+        const duration = Date.now() - toolContext.startTime;
+        updateToolBlockResult(toolContext.toolBlockId, {
+          status: msg.isError ? "error" : "done",
+          result: JSON.stringify(msg.result),
+          duration,
+        });
       }
-      messageBuffer.flush(this.sessionId);
       return;
     }
 
-    if (event.type === "sdk_error") {
-      this.toolMeta.clear();
-      messageBuffer.flush(this.sessionId);
+    // tool_execution_update - update tool block with partial result
+    if (event.type === "tool_execution_update") {
+      const msg = event as {
+        toolCallId: string;
+        partialResult?: unknown;
+      };
+
+      const toolContext = this.currentToolBlocks.get(msg.toolCallId);
+      if (toolContext && msg.partialResult !== undefined) {
+        updateToolBlockPartialResult(
+          toolContext.toolBlockId,
+          JSON.stringify(msg.partialResult)
+        );
+      }
+      return;
+    }
+
+    // agent_end - finalize assistant block and clear tool tracking
+    if (event.type === "agent_end") {
+      this.toolMetaMap.clear();
+      this.currentToolBlocks.clear();
+
+      if (this.turnContext) {
+        const responseTime = Date.now() - this.turnContext.startTime;
+        finalizeAssistantBlock(this.turnContext.assistantBlockId!, {
+          responseTime,
+          model: this.turnContext.model,
+          provider: this.turnContext.provider,
+          thinkingLevel: this.turnContext.thinkingLevel,
+        });
+        this.turnContext = null;
+      }
+      return;
     }
   }
 
-  private emit(event: SessionEvent) {
+  private emit(event: HubEvent) {
     const record: SessionEventRecord = {
       id: ++this.nextEventId,
       event,
@@ -288,11 +364,9 @@ class SessionEventHub {
     };
 
     if (event.type === "message_start") {
-      const data = event as MessageStartEvent;
-      if (data.message?.role === "assistant") {
+      const msg = event as { message?: { role?: string } };
+      if (msg.message?.role === "assistant") {
         this.runInProgress = true;
-        this.currentRunEvents = [];
-        threadStatusBroadcaster.broadcast(this.threadId, "running");
       }
     }
 
@@ -305,7 +379,7 @@ class SessionEventHub {
       this.recentEvents.shift();
     }
 
-    if (event.type === "agent_end" || event.type === "sdk_error") {
+    if (event.type === "agent_end" || event.type === "server_error") {
       this.runInProgress = false;
       threadStatusBroadcaster.broadcast(this.threadId, "idle");
     }
@@ -337,8 +411,11 @@ class SessionEventRegistry {
   }
 
   setNextThinkingLevel(sessionId: string, level: string) {
-    const hub = this.hubs.get(sessionId);
-    hub?.setNextThinkingLevel(level);
+    this.hubs.get(sessionId)?.setNextThinkingLevel(level);
+  }
+
+  emitError(sessionId: string, message: string) {
+    this.hubs.get(sessionId)?.emitError(message);
   }
 
   async dispose(sessionId: string) {
@@ -350,4 +427,3 @@ class SessionEventRegistry {
 }
 
 export const sessionEvents = new SessionEventRegistry();
-export const SESSION_SSE_RETRY_MS = 1000;
