@@ -102,40 +102,49 @@ function AssistantMessageBlock({
       )}
 
       {hasError && (
-        <div className="flex items-center gap-1.5 text-xs text-destructive/70">
-          <AlertCircleIcon className="h-3.5 w-3.5 shrink-0" />
-          <span>{message.errorMessage}</span>
+        <div className="w-full rounded-lg border border-destructive/30 text-xs transition-colors">
+          <div className="flex items-center gap-2 px-2.5 py-1.5">
+            <span className="flex shrink-0 items-center gap-1.5 rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
+              <AlertCircleIcon className="h-3 w-3 shrink-0" />
+              <span className="leading-none">Error</span>
+            </span>
+            <span className="min-w-0 flex-1 truncate text-muted-foreground/70">
+              {message.errorMessage}
+            </span>
+          </div>
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        {hasMeta && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {providerMeta && (
-              <span className="flex shrink-0 items-center">
-                {providerMeta.icon}
-              </span>
-            )}
-            {message.model && <span>{message.model}</span>}
-            {thinkingLabel && (
-              <>
-                <span className="opacity-40">·</span>
-                <span>{thinkingLabel}</span>
-              </>
-            )}
-            {message.responseTime != null && (
-              <>
-                <span className="opacity-40">·</span>
-                <span>{formatDuration(message.responseTime)}</span>
-              </>
-            )}
-          </div>
-        )}
-        {message.createdAt != null && (
-          <TimeStamp timestamp={message.createdAt} />
-        )}
-        <CopyButton text={assistantCopyText(message, showThinking)} />
-      </div>
+      {!hasError && (
+        <div className="flex items-center gap-3">
+          {hasMeta && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {providerMeta && (
+                <span className="flex shrink-0 items-center">
+                  {providerMeta.icon}
+                </span>
+              )}
+              {message.model && <span>{message.model}</span>}
+              {thinkingLabel && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span>{thinkingLabel}</span>
+                </>
+              )}
+              {message.responseTime != null && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span>{formatDuration(message.responseTime)}</span>
+                </>
+              )}
+            </div>
+          )}
+          {message.createdAt != null && (
+            <TimeStamp timestamp={message.createdAt} />
+          )}
+          <CopyButton text={assistantCopyText(message, showThinking)} />
+        </div>
+      )}
     </div>
   )
 }

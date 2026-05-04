@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { ErrorAction } from "../types"
 import {
-  SparklesIcon,
   ArrowDownIcon,
   Code2Icon,
   BugIcon,
@@ -24,7 +23,6 @@ import {
   AlertDialogAction,
 } from "@/shared/ui/alert-dialog"
 import { Button } from "@/shared/ui/button"
-import { Badge } from "@/shared/ui/badge"
 import { useWorkspace } from "@/features/workspace"
 import { useSlashCommands, useSessionStats, chatKeys } from "../queries"
 import { useBranch } from "@/features/git/queries"
@@ -34,6 +32,7 @@ import { useAbortSession, useGenerateTitle, useSendPrompt } from "../mutations"
 import { useModels } from "../queries"
 import { useConfigureProvider } from "@/features/settings"
 import { ThinkingIndicator } from "./thinking-indicator"
+import { CompactingIndicator } from "./compacting-indicator"
 import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
 import {
   useUpdateThreadModel,
@@ -446,14 +445,7 @@ export function ChatView({
           )}
           <div className="mx-auto w-full max-w-3xl px-6">
             {isLoading && <ThinkingIndicator className="py-0.5" />}
-            {isCompacting && (
-              <div className="flex animate-in duration-200 fade-in-0">
-                <Badge variant="secondary" className="gap-1">
-                  <SparklesIcon />
-                  Compacting context…
-                </Badge>
-              </div>
-            )}
+            {isCompacting && <CompactingIndicator />}
           </div>
 
           {/* File changes card - shown after chat completion */}

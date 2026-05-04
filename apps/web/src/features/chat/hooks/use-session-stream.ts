@@ -464,7 +464,7 @@ export function useSessionStream({
             callbacksRef.current.onIsCompactingChange?.(false)
             if (errorMessage && !aborted) {
               callbacksRef.current.onPendingErrorChange?.(
-                createErrorMessage("Compaction Failed", errorMessage)
+                createErrorMessage("Compaction Failed", errorMessage, { action: { type: "dismiss" } })
               )
               callbacksRef.current.onError?.()
             } else {

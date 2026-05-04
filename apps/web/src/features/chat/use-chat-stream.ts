@@ -11,7 +11,7 @@
  * new session's WebSocket opening (which calls onIsLoadingChange(true) via
  * onMessageStart). No explicit session change handling is needed here.
  */
-import { useCallback, useState, useMemo } from "react"
+import { useCallback, useState, useMemo, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSessionStream } from "./hooks/use-session-stream"
@@ -53,16 +53,29 @@ export function useChatStream({
   const [pendingError, setPendingError] = useState<ReturnType<typeof createErrorMessage> | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Track whether a live message_start fired in this session. Only errors that
+  // follow a live stream should mark the thread as "error" — replayed agent_end
+  // events from a previous run must not re-raise the red dot on refresh or
+  // when switching back to this thread.
+  const hadLiveLoadingRef = useRef(false)
+
   const { messages } = useVisibleMessages({ sessionId, pendingError })
 
+  const handleIsLoadingChange = useCallback((loading: boolean) => {
+    if (loading) hadLiveLoadingRef.current = true
+    setIsLoading(loading)
+  }, [])
+
   const handleError = useCallback(() => {
-    setThreadStatus(threadId, "error")
+    if (hadLiveLoadingRef.current) {
+      setThreadStatus(threadId, "error")
+    }
   }, [setThreadStatus, threadId])
 
   // Connect to WebSocket stream
   const { lastPromptRef, pendingThinkingLevelRef } = useSessionStream({
     sessionId,
-    onIsLoadingChange: setIsLoading,
+    onIsLoadingChange: handleIsLoadingChange,
     onIsCompactingChange: setIsCompacting,
     onPendingErrorChange: setPendingError,
     onError: handleError,

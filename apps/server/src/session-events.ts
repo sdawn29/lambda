@@ -357,11 +357,16 @@ class SessionEventHub {
 
       if (this.turnContext) {
         const responseTime = Date.now() - this.turnContext.startTime;
+        const agentEndMsg = event as { messages?: { role: string; stopReason?: string; errorMessage?: string }[] };
+        const assistantError = agentEndMsg.messages?.slice().reverse().find(
+          (m) => m.role === "assistant" && m.stopReason === "error" && !!m.errorMessage
+        );
         finalizeAssistantBlock(this.turnContext.assistantBlockId!, {
           responseTime,
           model: this.turnContext.model,
           provider: this.turnContext.provider,
           thinkingLevel: this.turnContext.thinkingLevel,
+          errorMessage: assistantError?.errorMessage,
         });
         this.turnContext = null;
       }

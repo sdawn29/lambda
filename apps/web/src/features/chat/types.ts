@@ -160,6 +160,24 @@ export interface StoredMessageDto {
 
 // ── Conversion Functions ──────────────────────────────────────────────────────
 
+function parseErrorMessage(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    if (parsed?.error && typeof (parsed.error as Record<string, unknown>)?.message === "string")
+      return (parsed.error as Record<string, unknown>).message as string
+    if (typeof parsed?.error === "string") return parsed.error
+  } catch {
+    const jsonStart = raw.indexOf("{")
+    if (jsonStart > 0) {
+      try {
+        const inner = (JSON.parse(raw.slice(jsonStart)) as Record<string, unknown>)?.error as Record<string, unknown> | undefined
+        if (typeof inner?.message === "string") return inner.message
+      } catch { /* fall through */ }
+    }
+  }
+  return raw
+}
+
 /**
  * Convert a database MessageBlock to a UI Message.
  * This handles the transformation from block storage to view format.
@@ -182,7 +200,7 @@ export function blockToMessage(block: MessageBlock): Message {
         provider: block.provider ?? undefined,
         thinkingLevel: block.thinkingLevel ?? undefined,
         responseTime: block.responseTime ?? undefined,
-        errorMessage: block.errorMessage ?? undefined,
+        errorMessage: block.errorMessage ? parseErrorMessage(block.errorMessage) : undefined,
         createdAt: block.createdAt,
       }
 

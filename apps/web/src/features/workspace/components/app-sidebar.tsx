@@ -65,7 +65,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/shared/ui/alert-dialog"
-import { cn } from "@/shared/lib/utils"
 
 function relativeTime(ts: number, now = Date.now()): string {
   const diff = Math.floor((now - ts) / 1000)
@@ -145,7 +144,7 @@ function ThreadRow({
               className="hidden size-auto text-muted-foreground/40 transition-colors group-hover/thread:flex"
             />
           </span>
-          <span className="truncate">{thread.title}</span>
+          <span className="min-w-0 truncate">{thread.title}</span>
           <div className="ml-auto grid shrink-0 items-center">
             <span className="col-start-1 row-start-1 text-xs text-muted-foreground/50 group-hover/thread:invisible">
               {relativeTime(thread.createdAt, now)}

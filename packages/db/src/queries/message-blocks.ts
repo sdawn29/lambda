@@ -207,6 +207,7 @@ export function finalizeAssistantBlock(
     model?: string;
     provider?: string;
     thinkingLevel?: string;
+    errorMessage?: string;
   }
 ): void {
   const setClause: Record<string, unknown> = {};
@@ -214,6 +215,7 @@ export function finalizeAssistantBlock(
   if (metadata.model !== undefined) setClause.model = metadata.model;
   if (metadata.provider !== undefined) setClause.provider = metadata.provider;
   if (metadata.thinkingLevel !== undefined) setClause.thinkingLevel = metadata.thinkingLevel;
+  if (metadata.errorMessage !== undefined) setClause.errorMessage = metadata.errorMessage;
   
   db.update(messageBlocks)
     .set(setClause)
