@@ -2,11 +2,8 @@ import {
   AuthStorage,
   ModelRegistry,
 } from "@mariozechner/pi-coding-agent";
-import { supportsXhigh } from "@mariozechner/pi-ai";
+import { getSupportedThinkingLevels } from "@mariozechner/pi-ai";
 import type { ModelInfo } from "./types.js";
-
-const BASE_THINKING_LEVELS = ["low", "medium", "high"];
-const XHIGH_THINKING_LEVELS = ["low", "medium", "high", "xhigh"];
 
 // Cached instances for getAvailableModels()
 let cachedAuthStorage: AuthStorage | undefined;
@@ -32,9 +29,7 @@ export function getAvailableModels(): ModelInfo[] {
       provider: m.provider,
       reasoning,
       thinkingLevels: reasoning
-        ? supportsXhigh(m)
-          ? XHIGH_THINKING_LEVELS
-          : BASE_THINKING_LEVELS
+        ? getSupportedThinkingLevels(m).filter((level) => level !== "off")
         : [],
     };
   });
