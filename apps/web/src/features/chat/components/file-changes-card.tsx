@@ -8,87 +8,12 @@ import {
 import { useGitStatus, useGitDiffStat, useGitFileDiff, parseDiffCounts } from "@/features/git"
 import { useDiffPanel } from "@/features/git/context"
 import { Button } from "@/shared/ui/button"
-import { parseStatusLine, type ChangedFile, statusLabel } from "@/features/git/components/status-badge"
+import { type ChangedFile, parseStatusLine } from "@/features/git/components/status-badge"
 import { cn } from "@/shared/lib/utils"
-import { getFileIcon } from "@/shared/ui/file-icon"
+import { FileRow } from "@/features/git/components/file-list-item"
 
 interface FileChangesCardProps {
   sessionId: string
-}
-
-interface FileRowProps {
-  file: ChangedFile
-  sessionId: string
-  onOpenDiff: (filePath: string) => void
-}
-
-function FileRow({ file, sessionId, onOpenDiff }: FileRowProps) {
-  const pathParts = file.filePath.split("/")
-  const fileName = pathParts[pathParts.length - 1] ?? file.filePath
-  const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") + "/" : null
-
-  // Fetch diff for this file to get line counts
-  const { data: diff, isLoading: diffLoading } = useGitFileDiff(
-    sessionId,
-    file.filePath,
-    file.raw,
-    true
-  )
-
-  const counts = useMemo(() => (diff ? parseDiffCounts(diff) : null), [diff])
-
-  return (
-    <div
-      className="flex w-full cursor-pointer items-center gap-2 border-t border-border/20 px-4 py-2 text-left first:border-t-0 transition-colors hover:bg-muted/40"
-      onClick={() => onOpenDiff(file.filePath)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          onOpenDiff(file.filePath)
-        }
-      }}
-    >
-      <span
-        className={cn(
-          "flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-0.5 font-mono text-[10px] leading-none font-semibold",
-          file.isUntracked
-            ? "bg-blue-500/15 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400"
-            : "bg-yellow-500/15 dark:bg-yellow-400/10 text-yellow-600 dark:text-yellow-400"
-        )}
-      >
-        {statusLabel(file)}
-      </span>
-      
-      {(() => { const FileIconComponent = getFileIcon(fileName); return <FileIconComponent className="h-3.5 w-3.5 shrink-0" /> })()}
-      
-      <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
-        <span className="shrink-0 font-mono text-xs font-medium text-foreground/85">
-          {fileName}
-        </span>
-        {dirPath && (
-          <span className="truncate font-mono text-[10px] text-muted-foreground/40">
-            {dirPath}
-          </span>
-        )}
-      </span>
-
-      {/* Per-file line stats */}
-      {diffLoading ? (
-        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/30 shrink-0" />
-      ) : counts && (counts.added > 0 || counts.removed > 0) ? (
-        <span className="flex shrink-0 items-center gap-1 font-mono text-[10px]">
-          {counts.added > 0 && (
-            <span className="text-green-600 dark:text-green-400">+{counts.added}</span>
-          )}
-          {counts.removed > 0 && (
-            <span className="text-red-500 dark:text-red-400">-{counts.removed}</span>
-          )}
-        </span>
-      ) : null}
-    </div>
-  )
 }
 
 export const FileChangesCard = memo(function FileChangesCard({
@@ -116,14 +41,14 @@ export const FileChangesCard = memo(function FileChangesCard({
     addTab({ title: "Source Control", type: "source-control" })
   }
 
-  const handleOpenFileDiff = (relativePath: string) => {
+  const handleOpenFileDiff = (filePath: string) => {
     openDiffPanel()
     // Construct the full file path using the workspace path
-    const filePath = currentWorkspacePath
-      ? `${currentWorkspacePath}/${relativePath}`
-      : relativePath
-    const fileName = relativePath.split("/").pop() || relativePath
-    addTab({ title: fileName, type: "file", filePath })
+    const fullPath = currentWorkspacePath
+      ? `${currentWorkspacePath}/${filePath}`
+      : filePath
+    const fileName = filePath.split("/").pop() || filePath
+    addTab({ title: fileName, type: "file", filePath: fullPath })
   }
 
   if (!hasChanges && !isLoading) {
@@ -214,7 +139,7 @@ export const FileChangesCard = memo(function FileChangesCard({
                 key={`${file.filePath}-${index}`}
                 file={file}
                 sessionId={sessionId}
-                onOpenDiff={handleOpenFileDiff}
+                onClick={handleOpenFileDiff}
               />
             ))}
           </div>
