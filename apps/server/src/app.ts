@@ -9,6 +9,7 @@ import sessions from "./routes/sessions.js";
 import git from "./routes/git.js";
 import auth from "./routes/auth.js";
 import file from "./routes/file.js";
+import { mcpRouter } from "./routes/mcp.js";
 
 const app = new Hono();
 
@@ -23,5 +24,6 @@ app.route("/", sessions);
 app.route("/", git);
 app.route("/", auth);
 app.route("/", file);
+app.route("/mcp", mcpRouter);
 
 export default app;

@@ -14,6 +14,7 @@ import {
   Trash2,
   FileDiff,
   FolderTree,
+  Server,
 } from "lucide-react"
 import {
   useRouter,
@@ -46,6 +47,7 @@ import {
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { Separator } from "@/shared/ui/separator"
+import { McpDialog } from "@/features/mcp"
 
 const activeTitleBarButtonClassName =
   "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
@@ -79,6 +81,7 @@ export function TitleBar() {
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
 
   const startRename = () => {
     setRenameValue(activeThread?.title ?? "")
@@ -351,6 +354,22 @@ export function TitleBar() {
           openWithAppId={activeWorkspace?.openWithAppId}
         />
         <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setMcpDialogOpen(true)}
+                className={activeTitleBarButtonClassName}
+              >
+                <Server />
+                <span className="sr-only">MCP servers</span>
+              </Button>
+            }
+          />
+          <TooltipContent>MCP servers</TooltipContent>
+        </Tooltip>
 
         <Separator orientation="vertical" className="mx-1" />
 
@@ -433,6 +452,12 @@ export function TitleBar() {
           </TooltipContent>
         </Tooltip>
       </div>
+
+      <McpDialog
+        open={mcpDialogOpen}
+        onOpenChange={setMcpDialogOpen}
+        workspaceId={activeWorkspace?.id}
+      />
     </div>
   )
 }

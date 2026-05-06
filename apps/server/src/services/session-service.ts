@@ -1,34 +1,35 @@
-import { createManagedSession, type SdkConfig } from "@lamda/pi-sdk";
-import { updateThreadSessionFile } from "@lamda/db";
-import { store } from "../store.js";
-import { sessionEvents } from "../session-events.js";
+import { createManagedSession, type SdkConfig } from "@lamda/pi-sdk"
+import { updateThreadSessionFile } from "@lamda/db"
+import { store } from "../store.js"
+import { sessionEvents } from "../session-events.js"
 
 export async function createSessionForThread(
   threadId: string,
   cwd: string,
+  workspaceId?: string,
   opts: Omit<Partial<SdkConfig>, "cwd"> = {},
 ): Promise<string> {
-  const handle = await createManagedSession({ cwd, ...opts });
-  const sessionId = store.create(handle, cwd, threadId);
-  if (handle.sessionFile) updateThreadSessionFile(threadId, handle.sessionFile);
+  const customTools = workspaceId ? await import("./mcp-service.js").then(m => m.getMcpToolsForSession(workspaceId)) : undefined
+  const handle = await createManagedSession({ cwd, customTools, ...opts })
+  const sessionId = store.create(handle, cwd, threadId, workspaceId)
   
-  // Start the event hub immediately so we start consuming events
-  // This ensures we capture tool_execution_start events even before the first prompt
-  const entry = store.get(sessionId);
-  if (entry) {
-    sessionEvents.ensure(sessionId, entry.threadId, entry.handle);
+  if (handle.sessionFile) {
+    updateThreadSessionFile(threadId, handle.sessionFile)
   }
   
-  return sessionId;
+  // Start the event hub immediately so we capture tool_execution_start events
+  const entry = store.get(sessionId)
+  if (entry) {
+    sessionEvents.ensure(sessionId, entry.threadId, entry.handle)
+  }
+  
+  return sessionId
 }
 
-export function ensureSessionEventHub(
-  sessionId: string,
-  entry: NonNullable<ReturnType<typeof store.get>>,
-) {
-  return sessionEvents.ensure(sessionId, entry.threadId, entry.handle);
+export function ensureSessionEventHub(sessionId: string, entry: NonNullable<ReturnType<typeof store.get>>) {
+  return sessionEvents.ensure(sessionId, entry.threadId, entry.handle)
 }
 
 export function gitCwd(id: string): string | null {
-  return store.getCwd(id) ?? null;
+  return store.getCwd(id) ?? null
 }

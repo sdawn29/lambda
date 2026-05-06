@@ -6,15 +6,16 @@ interface StoredSession {
   createdAt: number;
   cwd: string;
   threadId: string;
+  workspaceId?: string;
 }
 
 class SessionStore {
   private sessions = new Map<string, StoredSession>();
   private threadIndex = new Map<string, string>(); // threadId → sessionId
 
-  create(handle: ManagedSessionHandle, cwd: string, threadId: string): string {
+  create(handle: ManagedSessionHandle, cwd: string, threadId: string, workspaceId?: string): string {
     const id = randomUUID();
-    this.sessions.set(id, { handle, createdAt: Date.now(), cwd, threadId });
+    this.sessions.set(id, { handle, createdAt: Date.now(), cwd, threadId, workspaceId });
     this.threadIndex.set(threadId, id);
     return id;
   }

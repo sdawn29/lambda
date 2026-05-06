@@ -29,7 +29,7 @@ sessions.post("/session", async (c) => {
   const resolvedCwd = body.cwd ?? process.cwd();
   const workspaceId = insertWorkspace("Untitled", resolvedCwd);
   const threadId = insertThread(workspaceId);
-  const sessionId = await createSessionForThread(threadId, resolvedCwd, {
+  const sessionId = await createSessionForThread(threadId, resolvedCwd, workspaceId, {
     anthropicApiKey: body.anthropicApiKey,
     provider: body.provider,
     model: body.model,

@@ -29,11 +29,7 @@ import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-} from "@/shared/ui/progress"
+import { Progress, ProgressLabel, ProgressValue } from "@/shared/ui/progress"
 import { Switch } from "@/shared/ui/switch"
 import {
   Dialog,
@@ -208,7 +204,14 @@ const SECTIONS: SettingsSection[] = [
     label: "Updates",
     icon: RefreshCw,
     description: "App version and automatic update controls",
-    keywords: ["update", "version", "install", "download", "upgrade", "release"],
+    keywords: [
+      "update",
+      "version",
+      "install",
+      "download",
+      "upgrade",
+      "release",
+    ],
   },
   {
     id: "data",
@@ -449,7 +452,9 @@ export function SettingsPage() {
             {visibleSections.some((s) => s.id === "subscriptions") && (
               <section
                 id="subscriptions"
-                ref={(el) => { sectionRefs.current["subscriptions"] = el }}
+                ref={(el) => {
+                  sectionRefs.current["subscriptions"] = el
+                }}
                 className="scroll-mt-8"
               >
                 <SectionHeader
@@ -469,7 +474,9 @@ export function SettingsPage() {
             {visibleSections.some((s) => s.id === "api-keys") && (
               <section
                 id="api-keys"
-                ref={(el) => { sectionRefs.current["api-keys"] = el }}
+                ref={(el) => {
+                  sectionRefs.current["api-keys"] = el
+                }}
                 className="scroll-mt-8"
               >
                 <SectionHeader
@@ -742,11 +749,14 @@ function ChatPreferencesCard() {
     DEFAULT_THINKING_PHRASES.join("\n")
   const [phrasesValue, setPhrasesValue] = useState(persistedPhrasesRaw)
   const [phrasesSaved, setPhrasesSaved] = useState(false)
-  const phrasesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const phrasesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
   useEffect(() => {
     return () => {
-      if (phrasesSavedTimerRef.current) clearTimeout(phrasesSavedTimerRef.current)
+      if (phrasesSavedTimerRef.current)
+        clearTimeout(phrasesSavedTimerRef.current)
     }
   }, [])
 
@@ -776,7 +786,10 @@ function ChatPreferencesCard() {
     })
     setPhrasesSaved(true)
     if (phrasesSavedTimerRef.current) clearTimeout(phrasesSavedTimerRef.current)
-    phrasesSavedTimerRef.current = setTimeout(() => setPhrasesSaved(false), 1500)
+    phrasesSavedTimerRef.current = setTimeout(
+      () => setPhrasesSaved(false),
+      1500
+    )
   }
 
   function handleResetPhrases() {
@@ -990,16 +1003,31 @@ function KeyboardShortcutsCard() {
 
 // ── Provider entry card ────────────────────────────────────────────────────────
 
-function ProviderEntryCard({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
+function ProviderEntryCard({
+  title,
+  description,
+  onClick,
+}: {
+  title: string
+  description: string
+  onClick: () => void
+}) {
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium">{title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {description}
+            </p>
           </div>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={onClick}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={onClick}
+          >
             Configure
             <ChevronRight className="ml-1 h-3.5 w-3.5" />
           </Button>
@@ -1107,7 +1135,9 @@ function UpdateStatusRow({
       return (
         <Progress value={status.percent} className="flex-col gap-1.5">
           <ProgressLabel>Downloading update…</ProgressLabel>
-          <ProgressValue>{() => `${Math.round(status.percent)}%`}</ProgressValue>
+          <ProgressValue>
+            {() => `${Math.round(status.percent)}%`}
+          </ProgressValue>
         </Progress>
       )
     case "ready":
@@ -1128,7 +1158,9 @@ function UpdateStatusRow({
       return (
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertDescription className="truncate">{status.message}</AlertDescription>
+          <AlertDescription className="truncate">
+            {status.message}
+          </AlertDescription>
         </Alert>
       )
   }
@@ -1296,7 +1328,9 @@ function RetrySettingsCard() {
 
   // Use persistedValue directly as the source of truth, but allow local edits.
   // Initialize local state from persistedValue to avoid hydration mismatch.
-  const [localSettings, setLocalSettings] = useState<RetrySettings>(() => persistedValue)
+  const [localSettings, setLocalSettings] = useState<RetrySettings>(
+    () => persistedValue
+  )
   const [saved, setSaved] = useState(false)
   const retrySavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1339,7 +1373,8 @@ function RetrySettingsCard() {
     }))
   }
 
-  const isDefault = JSON.stringify(localSettings) === JSON.stringify(DEFAULT_RETRY_SETTINGS)
+  const isDefault =
+    JSON.stringify(localSettings) === JSON.stringify(DEFAULT_RETRY_SETTINGS)
 
   return (
     <Card>
@@ -1382,7 +1417,10 @@ function RetrySettingsCard() {
                   onChange={(e) =>
                     setLocalSettings((prev) => ({
                       ...prev,
-                      maxRetries: Math.max(0, parseInt(e.target.value, 10) || 0),
+                      maxRetries: Math.max(
+                        0,
+                        parseInt(e.target.value, 10) || 0
+                      ),
                     }))
                   }
                   className="mt-1.5 w-28"
@@ -1420,7 +1458,10 @@ function RetrySettingsCard() {
                 step={1000}
                 value={localSettings.provider.timeoutMs}
                 onChange={(e) =>
-                  updateProvider("timeoutMs", Math.max(0, parseInt(e.target.value, 10) || 0))
+                  updateProvider(
+                    "timeoutMs",
+                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                  )
                 }
                 className="mt-1.5 w-36"
               />
@@ -1440,7 +1481,10 @@ function RetrySettingsCard() {
                 max={20}
                 value={localSettings.provider.maxRetries}
                 onChange={(e) =>
-                  updateProvider("maxRetries", Math.max(0, parseInt(e.target.value, 10) || 0))
+                  updateProvider(
+                    "maxRetries",
+                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                  )
                 }
                 className="mt-1.5 w-28"
               />
@@ -1461,7 +1505,10 @@ function RetrySettingsCard() {
                 step={1000}
                 value={localSettings.provider.maxRetryDelayMs}
                 onChange={(e) =>
-                  updateProvider("maxRetryDelayMs", Math.max(0, parseInt(e.target.value, 10) || 0))
+                  updateProvider(
+                    "maxRetryDelayMs",
+                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                  )
                 }
                 className="mt-1.5 w-36"
               />

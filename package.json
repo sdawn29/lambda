@@ -25,6 +25,7 @@
   ],
   "dependencies": {
     "@fontsource-variable/merriweather": "^5.2.6",
-    "@fontsource-variable/merriweather-sans": "^5.2.7"
+    "@fontsource-variable/merriweather-sans": "^5.2.7",
+    "@modelcontextprotocol/sdk": "^1.0.0"
   }
 }
