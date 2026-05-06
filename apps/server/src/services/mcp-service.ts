@@ -65,10 +65,24 @@ export async function getMcpServerStatus(workspaceId: string) {
 
 export async function getMcpTools(workspaceId: string) {
   const { servers } = getMcpSettings(workspaceId)
-  return servers.flatMap((s) => {
-    const client = clientPool.get(workspaceId)?.get(s.name)
-    return (client ? client.listTools() : Promise.resolve([])) as Promise<Array<{ name: string; description?: string; serverName: string }>>
-  })
+  const tools: Array<{ name: string; description?: string; serverName: string }> = []
+
+  for (const s of servers) {
+    try {
+      const client = getClient(workspaceId, s)
+      if (!client.isConnected(s.name)) {
+        await client.connect(s)
+      }
+      const mcpTools = await client.listTools()
+      for (const tool of mcpTools) {
+        tools.push({ name: tool.name, description: tool.description, serverName: s.name })
+      }
+    } catch (e) {
+      console.warn(`[MCP] Failed to list tools from ${s.name}:`, e)
+    }
+  }
+
+  return tools
 }
 
 export async function testMcpConnection(server: McpServerConfig) {

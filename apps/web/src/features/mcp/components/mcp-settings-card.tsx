@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/shared/ui/card"
 import { Button } from "@/shared/ui/button"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Separator } from "@/shared/ui/separator"
-import { useMcpSettings, useMcpServerStatus } from "../queries"
+import { useMcpSettings, useMcpServerStatus, useMcpTools } from "../queries"
 import { useSaveMcpSettings } from "../mutations"
 import { ServerListItem, useServerManagement } from "./server-form"
 import { FormDialog, DeleteConfirmDialog } from "./server-form"
@@ -15,6 +15,7 @@ interface McpSettingsCardProps {
 export function McpSettingsCard({ workspaceId = "default" }: McpSettingsCardProps) {
   const { data: settings, isLoading } = useMcpSettings(workspaceId)
   const { data: serverStatus } = useMcpServerStatus(workspaceId)
+  const { data: allTools } = useMcpTools(workspaceId)
   const saveSettings = useSaveMcpSettings()
   const servers = settings?.servers ?? []
 
@@ -24,6 +25,10 @@ export function McpSettingsCard({ workspaceId = "default" }: McpSettingsCardProp
 
   function getStatus(name: string) {
     return serverStatus?.find((s) => s.name === name)
+  }
+
+  function getServerTools(name: string) {
+    return allTools?.filter((t) => t.serverName === name)
   }
 
   if (isLoading) {
@@ -73,6 +78,7 @@ export function McpSettingsCard({ workspaceId = "default" }: McpSettingsCardProp
                   key={server.name}
                   server={server}
                   status={getStatus(server.name)}
+                  tools={getServerTools(server.name)}
                   onEdit={() => openEditDialog(server)}
                   onDelete={() => handleDelete(server.name)}
                 />
@@ -80,9 +86,9 @@ export function McpSettingsCard({ workspaceId = "default" }: McpSettingsCardProp
             </div>
           )}
 
-          <Alert variant="outline">
-            <Info className="h-3.5 w-3.5" />
-            <AlertDescription className="text-xs">
+          <Alert>
+            <Info />
+            <AlertDescription>
               MCP servers are configured per-workspace. Tools from connected servers are automatically available to the agent.
             </AlertDescription>
           </Alert>

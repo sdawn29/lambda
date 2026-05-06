@@ -19,9 +19,21 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
   const saveSettings = useSaveMcpSettings()
   const servers = settings?.servers ?? []
 
-  const { showDialog, editingServer, formState, formErrors, serverToDelete, openAddDialog,
-    openEditDialog, handleSave, handleDelete, confirmDelete, setFormState, setFormErrors } =
-    useServerManagement({ workspaceId, servers, saveSettings })
+  const {
+    showDialog,
+    setShowDialog,
+    editingServer,
+    formState,
+    formErrors,
+    serverToDelete,
+    openAddDialog,
+    openEditDialog,
+    handleSave,
+    handleDelete,
+    confirmDelete,
+    setFormState,
+    setFormErrors,
+  } = useServerManagement({ workspaceId, servers, saveSettings })
 
   function getStatus(name: string) {
     return serverStatus?.find((s) => s.name === name)
@@ -30,39 +42,46 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Server className="h-5 w-5" />
-              MCP Servers
-            </DialogTitle>
-            <DialogDescription>
-              Configure Model Context Protocol servers to enable additional tools for the agent.
-            </DialogDescription>
+        <DialogContent
+          showCloseButton
+          className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        >
+          <DialogHeader className="shrink-0 border-b px-5 pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-muted/50">
+                <Server className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+              <div>
+                <DialogTitle>MCP Servers</DialogTitle>
+                <DialogDescription>
+                  Configure Model Context Protocol servers to enable additional tools.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
-              </div>
-            ) : servers.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-12 text-center">
-                <Server className="h-10 w-10 text-muted-foreground/40" />
-                <div>
-                  <p className="text-sm font-medium">No MCP servers configured</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Add a server to enable additional tools for the agent
-                  </p>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="space-y-3 p-5">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
                 </div>
-                <Button size="sm" onClick={openAddDialog}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Add Server
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-col gap-3 py-4">
+              ) : servers.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <Server className="h-10 w-10 text-muted-foreground/40" />
+                  <div>
+                    <p className="text-sm font-medium">No MCP servers configured</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Add a server to enable additional tools for the agent
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={openAddDialog}>
+                    <Plus />
+                    Add Server
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
                   {servers.map((server) => (
                     <ServerListItem
                       key={server.name}
@@ -73,28 +92,33 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
                     />
                   ))}
                 </div>
-                <div className="flex justify-center">
-                  <Button size="sm" variant="outline" onClick={openAddDialog}>
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    Add Server
-                  </Button>
-                </div>
-              </>
-            )}
+              )}
 
-            <Alert variant="outline" className="mt-4">
-              <Info className="h-3.5 w-3.5" />
-              <AlertDescription className="text-xs">
-                MCP servers are configured per-workspace. Tools from connected servers are automatically available to the agent.
-              </AlertDescription>
-            </Alert>
+              <Alert>
+                <Info />
+                <AlertDescription>
+                  MCP servers are configured per-workspace. Connected tools are automatically available to the agent.
+                </AlertDescription>
+              </Alert>
+            </div>
           </div>
+
+          {servers.length > 0 && (
+            <div className="shrink-0 border-t px-5 py-4">
+              <div className="flex justify-end">
+                <Button size="sm" onClick={openAddDialog}>
+                  <Plus />
+                  Add Server
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
       <FormDialog
         open={showDialog}
-        onOpenChange={(v) => { if (!v) handleSave() }}
+        onOpenChange={setShowDialog}
         server={editingServer}
         formState={formState}
         setFormState={setFormState}
