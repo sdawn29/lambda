@@ -370,16 +370,17 @@ export function TitleBar() {
             render={
               <Button
                 variant="outline"
-                size={mcpConnectedCount > 0 ? "sm" : "icon"}
+                size="icon"
                 onClick={() => setMcpDialogOpen(true)}
-                className={activeTitleBarButtonClassName}
+                className={`w-auto gap-1 px-2 ${activeTitleBarButtonClassName}`}
               >
-                <Server />
-                {mcpConnectedCount > 0 && (
-                  <span className="text-[11px] font-semibold tabular-nums text-green-500">
+                <Server className="shrink-0" />
+                {mcpConnectedCount > 0 ? (
+                  <span className="flex items-center gap-1 text-[11px] font-medium tabular-nums">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
                     {mcpConnectedCount}
                   </span>
-                )}
+                ) : null}
                 <span className="sr-only">MCP servers</span>
               </Button>
             }
