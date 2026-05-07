@@ -23,6 +23,8 @@ interface ClientEntry {
   client: McpClient
   config: McpServerConfig
   enabled: boolean
+  /** Whether the server was manually stopped (don't auto-connect) */
+  manuallyStopped: boolean
 }
 
 const clientPool = new Map<string, Map<string, ClientEntry>>()
@@ -32,7 +34,7 @@ function getClientEntry(workspaceId: string, config: McpServerConfig): ClientEnt
   let entry = pool.get(config.name)
   if (!entry) {
     const client = createMcpClient()
-    entry = { client, config, enabled: true }
+    entry = { client, config, enabled: true, manuallyStopped: false }
     pool.set(config.name, entry)
     clientPool.set(workspaceId, pool)
   }
@@ -65,6 +67,13 @@ export function getMcpSettings(workspaceId: string): McpSettings {
 }
 
 export function saveMcpSettings(workspaceId: string, settings: McpSettings): void {
+  // Reset manuallyStopped state when settings are saved
+  const pool = clientPool.get(workspaceId)
+  if (pool) {
+    for (const entry of pool.values()) {
+      entry.manuallyStopped = false
+    }
+  }
   saveMcpServers(workspaceId, settings.servers)
 }
 
@@ -88,13 +97,16 @@ export async function startMcpServer(workspaceId: string, name: string): Promise
   const config = dbToMcpConfig(server)
   const entry = getClientEntry(workspaceId, config)
 
+  // Clear manually stopped flag when starting
+  entry.manuallyStopped = false
+  entry.enabled = true
+
   if (entry.client.isConnected(name)) {
     return { success: true, toolCount: (await entry.client.listTools()).length }
   }
 
   try {
     await entry.client.connect(config)
-    entry.enabled = true
     const tools = await entry.client.listTools()
     return { success: true, toolCount: tools.length }
   } catch (e) {
@@ -114,11 +126,16 @@ export async function stopMcpServer(workspaceId: string, name: string): Promise<
   }
 
   try {
+    // Disconnect the specific server
     await entry.client.disconnect(name)
-    entry.enabled = false
+    // Mark as manually stopped so status doesn't auto-reconnect
+    entry.manuallyStopped = true
     return { success: true }
   } catch (e) {
-    return { success: false, error: String(e) }
+    console.error(`[MCP] Error stopping server ${name}:`, e)
+    // Even if disconnect throws, mark as stopped
+    entry.manuallyStopped = true
+    return { success: true }
   }
 }
 
@@ -129,6 +146,10 @@ export function setServerEnabled(workspaceId: string, name: string, enabled: boo
     const entry = pool.get(name)
     if (entry) {
       entry.enabled = enabled
+      // Reset manually stopped when enabling
+      if (enabled) {
+        entry.manuallyStopped = false
+      }
     }
   }
 }
@@ -142,10 +163,17 @@ export async function getMcpServerStatus(workspaceId: string) {
       const config = dbToMcpConfig(s)
       const entry = getClientEntry(workspaceId, config)
 
-      if (!s.enabled) {
-        return { name: s.name, connected: false, toolCount: 0, enabled: false }
+      // If disabled or manually stopped, don't auto-connect
+      if (!s.enabled || entry.manuallyStopped) {
+        const connected = entry.client.isConnected(s.name)
+        // If still connected somehow, disconnect it
+        if (connected && entry.manuallyStopped) {
+          await entry.client.disconnect(s.name)
+        }
+        return { name: s.name, connected: false, toolCount: 0, enabled: s.enabled }
       }
 
+      // Auto-connect if not connected
       if (!entry.client.isConnected(s.name)) {
         await entry.client.connect(config)
       }
@@ -165,6 +193,12 @@ export async function getMcpTools(workspaceId: string) {
     try {
       const config = dbToMcpConfig(s)
       const entry = getClientEntry(workspaceId, config)
+      
+      // Don't connect servers that were manually stopped
+      if (entry.manuallyStopped) {
+        continue
+      }
+      
       if (!entry.client.isConnected(s.name)) {
         await entry.client.connect(config)
       }
@@ -203,6 +237,12 @@ export async function getMcpToolsForSession(workspaceId: string): Promise<ToolDe
     try {
       const config = dbToMcpConfig(s)
       const entry = getClientEntry(workspaceId, config)
+      
+      // Don't connect servers that were manually stopped
+      if (entry.manuallyStopped) {
+        continue
+      }
+      
       if (!entry.client.isConnected(s.name)) {
         await entry.client.connect(config)
       }

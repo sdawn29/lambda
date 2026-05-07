@@ -8,17 +8,17 @@ import {
   XCircle,
   Terminal,
   ChevronDown,
-  Copy,
+  FileJson,
   Settings2,
   Wrench,
   Zap,
   Play,
   Square,
+  AlertTriangle,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent } from "@/shared/ui/card"
 import { Input } from "@/shared/ui/input"
 import { Separator } from "@/shared/ui/separator"
 import { Textarea } from "@/shared/ui/textarea"
@@ -38,7 +38,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/shared/ui/field"
-import { Badge } from "@/shared/ui/badge"
 import { cn } from "@/shared/lib/utils"
 import type { McpServerConfig, ServerFormState } from "../types"
 import { createEmptyServerForm, formStateToConfig, configToFormState } from "../types"
@@ -124,21 +123,23 @@ function JsonImport({ onImport }: JsonImportProps) {
         type="button"
         onClick={() => setExpanded(!expanded)}
         className={cn(
-          "flex w-full items-center justify-between px-4 py-3 text-xs font-medium transition-colors hover:bg-muted/50",
-          expanded ? "bg-muted/50 text-foreground" : "text-muted-foreground hover:text-foreground"
+          "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-xs font-medium transition-colors",
+          expanded
+            ? "bg-muted/50 text-foreground"
+            : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
         )}
       >
-        <span>Paste JSON Configuration</span>
+        <div className="flex items-center gap-2">
+          <FileJson className="h-3.5 w-3.5" />
+          Import from JSON config
+        </div>
         <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 transition-transform duration-200",
-            expanded && "rotate-180"
-          )}
+          className={cn("h-3.5 w-3.5 transition-transform duration-200", expanded && "rotate-180")}
         />
       </button>
 
       {expanded && (
-        <div className="space-y-3 border-t p-4">
+        <div className="space-y-3 border-t p-3">
           <Textarea
             value={jsonText}
             onChange={(e) => {
@@ -146,11 +147,11 @@ function JsonImport({ onImport }: JsonImportProps) {
               setError("")
             }}
             placeholder={'{\n  "name": "my-server",\n  "command": "npx",\n  "args": ["-y", "package-name"]\n}'}
-            className="min-h-[100px] resize-none font-mono text-xs"
+            className="min-h-[96px] resize-none font-mono text-xs"
             rows={5}
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <Button size="sm" onClick={handleImport} disabled={!jsonText.trim()}>
               Import
             </Button>
@@ -158,10 +159,13 @@ function JsonImport({ onImport }: JsonImportProps) {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => navigator.clipboard.writeText(jsonText)}
+                onClick={() => {
+                  setJsonText("")
+                  setError("")
+                }}
+                className="text-muted-foreground"
               >
-                <Copy />
-                Copy
+                Clear
               </Button>
             )}
           </div>
@@ -205,10 +209,7 @@ export function FormDialog({
     }
   }, [formState.envVars.length])
 
-  function updateField<K extends keyof ServerFormState>(
-    key: K,
-    value: ServerFormState[K]
-  ) {
+  function updateField<K extends keyof ServerFormState>(key: K, value: ServerFormState[K]) {
     setFormState({ ...formState, [key]: value })
     const next = { ...formErrors }
     delete (next as Record<string, string>)[key as string]
@@ -226,9 +227,7 @@ export function FormDialog({
   function updateEnvVar(index: number, field: "key" | "value", value: string) {
     setFormState({
       ...formState,
-      envVars: formState.envVars.map((v, i) =>
-        i === index ? { ...v, [field]: value } : v
-      ),
+      envVars: formState.envVars.map((v, i) => (i === index ? { ...v, [field]: value } : v)),
     })
   }
 
@@ -246,20 +245,20 @@ export function FormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
       >
         {/* Header */}
         <DialogHeader className="shrink-0 border-b px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-muted/50">
-              <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-primary/5">
+              <Terminal className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <DialogTitle>
-                {server ? "Edit MCP Server" : "Add MCP Server"}
-              </DialogTitle>
+              <DialogTitle>{server ? "Edit MCP Server" : "Add MCP Server"}</DialogTitle>
               <DialogDescription>
-                Connect a Model Context Protocol server to extend the agent with additional tools.
+                {server
+                  ? `Update the configuration for ${server.name}.`
+                  : "Connect an MCP server to extend the agent with additional tools."}
               </DialogDescription>
             </div>
           </div>
@@ -267,95 +266,86 @@ export function FormDialog({
 
         {/* Scrollable body */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-4 p-5">
+          <div className="space-y-5 p-5">
+            {/* JSON Quick Import */}
+            <JsonImport onImport={(config) => setFormState(configToFormState(config))} />
 
-            {/* Core config */}
-            <Card>
-              <CardContent className="flex flex-col gap-4 p-4">
-                <FieldGroup>
-                  <Field data-invalid={formErrors.name ? true : undefined}>
-                    <FieldLabel htmlFor="server-name">
-                      Server Name <span className="text-destructive">*</span>
-                    </FieldLabel>
-                    <FieldDescription>
-                      Unique identifier — lowercase letters, numbers, hyphens, or underscores.
-                    </FieldDescription>
-                    <Input
-                      id="server-name"
-                      value={formState.name}
-                      onChange={(e) => updateField("name", e.target.value)}
-                      placeholder="my-mcp-server"
-                      disabled={!!server}
-                      autoFocus
-                      className="mt-1.5"
-                    />
-                    {formErrors.name && (
-                      <FieldError>{formErrors.name}</FieldError>
-                    )}
-                  </Field>
+            {/* Core configuration */}
+            <FieldGroup>
+              {/* Name + Command in a 2-col grid */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field data-invalid={formErrors.name ? true : undefined}>
+                  <FieldLabel htmlFor="server-name">
+                    Name <span className="text-destructive">*</span>
+                  </FieldLabel>
+                  <FieldDescription>Unique identifier for this server.</FieldDescription>
+                  <Input
+                    id="server-name"
+                    value={formState.name}
+                    onChange={(e) => updateField("name", e.target.value)}
+                    placeholder="my-mcp-server"
+                    disabled={!!server}
+                    autoFocus
+                    className="mt-1.5"
+                  />
+                  {formErrors.name && <FieldError>{formErrors.name}</FieldError>}
+                </Field>
 
-                  <Field data-invalid={formErrors.command ? true : undefined}>
-                    <FieldLabel htmlFor="server-command">
-                      Command <span className="text-destructive">*</span>
-                    </FieldLabel>
-                    <FieldDescription>
-                      Executable to start the server — e.g. npx, node, python, uvx.
-                    </FieldDescription>
-                    <Input
-                      id="server-command"
-                      value={formState.command}
-                      onChange={(e) => updateField("command", e.target.value)}
-                      placeholder="npx"
-                      className="mt-1.5"
-                    />
-                    {formErrors.command && (
-                      <FieldError>{formErrors.command}</FieldError>
-                    )}
-                  </Field>
+                <Field data-invalid={formErrors.command ? true : undefined}>
+                  <FieldLabel htmlFor="server-command">
+                    Command <span className="text-destructive">*</span>
+                  </FieldLabel>
+                  <FieldDescription>Executable to run — e.g. npx, uvx.</FieldDescription>
+                  <Input
+                    id="server-command"
+                    value={formState.command}
+                    onChange={(e) => updateField("command", e.target.value)}
+                    placeholder="npx"
+                    className="mt-1.5 font-mono"
+                  />
+                  {formErrors.command && <FieldError>{formErrors.command}</FieldError>}
+                </Field>
+              </div>
 
-                  <Field>
-                    <FieldLabel htmlFor="server-args">Arguments</FieldLabel>
-                    <FieldDescription>
-                      Space-separated arguments passed to the command.
-                    </FieldDescription>
-                    <Input
-                      id="server-args"
-                      value={formState.args}
-                      onChange={(e) => updateField("args", e.target.value)}
-                      placeholder="-y @modelcontextprotocol/server-filesystem ./path"
-                      className="mt-1.5 font-mono text-xs"
-                    />
-                  </Field>
-                </FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="server-args">Arguments</FieldLabel>
+                <FieldDescription>
+                  Space-separated arguments passed to the command.
+                </FieldDescription>
+                <Input
+                  id="server-args"
+                  value={formState.args}
+                  onChange={(e) => updateField("args", e.target.value)}
+                  placeholder="-y @modelcontextprotocol/server-filesystem ./path"
+                  className="mt-1.5 font-mono text-xs"
+                />
+              </Field>
 
-                {formState.command && (
-                  <div className="rounded-md border bg-muted/50 px-3 py-2.5">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Preview
-                    </p>
-                    <code className="break-all font-mono text-xs">
-                      {formState.command}
-                      {formState.args && ` ${formState.args}`}
-                    </code>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              {/* Command preview — shown when command is filled */}
+              {formState.command && (
+                <div className="rounded-md bg-muted/50 px-3 py-2.5">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Preview
+                  </p>
+                  <code className="break-all font-mono text-xs">
+                    {formState.command}
+                    {formState.args && ` ${formState.args}`}
+                  </code>
+                </div>
+              )}
 
-            {/* Description */}
-            <Field>
-              <FieldLabel htmlFor="server-description">Description</FieldLabel>
-              <FieldDescription>
-                Short summary of what this server provides (optional).
-              </FieldDescription>
-              <Input
-                id="server-description"
-                value={formState.description}
-                onChange={(e) => updateField("description", e.target.value)}
-                placeholder="File system access with read/write capabilities"
-                className="mt-1.5"
-              />
-            </Field>
+              <Field>
+                <FieldLabel htmlFor="server-description">Description</FieldLabel>
+                <FieldDescription>Short summary of what this server provides.</FieldDescription>
+                <Input
+                  id="server-description"
+                  value={formState.description}
+                  onChange={(e) => updateField("description", e.target.value)}
+                  placeholder="File system access with read/write capabilities"
+                  className="mt-1.5"
+                />
+              </Field>
+            </FieldGroup>
 
             {/* Advanced Options */}
             <div className="overflow-hidden rounded-lg border">
@@ -372,6 +362,11 @@ export function FormDialog({
                 <div className="flex items-center gap-2">
                   <Settings2 className="h-3.5 w-3.5" />
                   Advanced Options
+                  {formState.envVars.length > 0 && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
+                      {formState.envVars.length}
+                    </span>
+                  )}
                 </div>
                 <ChevronDown
                   className={cn(
@@ -425,17 +420,15 @@ export function FormDialog({
                             key={index}
                             envVar={envVar}
                             index={index}
-                            onChange={(field, value) =>
-                              updateEnvVar(index, field, value)
-                            }
+                            onChange={(field, value) => updateEnvVar(index, field, value)}
                             onRemove={() => removeEnvVar(index)}
                           />
                         ))}
                       </div>
                     ) : (
-                      <div className="rounded-md border border-dashed px-4 py-5 text-center">
+                      <div className="rounded-md border border-dashed px-4 py-4 text-center">
                         <p className="text-xs text-muted-foreground">
-                          No environment variables configured.
+                          No environment variables configured
                         </p>
                       </div>
                     )}
@@ -444,92 +437,77 @@ export function FormDialog({
               )}
             </div>
 
-            {/* JSON Import */}
-            <JsonImport
-              onImport={(config) => setFormState(configToFormState(config))}
-            />
-
             {/* Test Connection */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-medium">Test Connection</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Verify the server can be started successfully.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      testConnection.mutate(formStateToConfig(formState))
-                    }
-                    disabled={testConnection.isPending || !canTest}
-                    className="shrink-0"
-                  >
-                    {testConnection.isPending ? (
-                      <>
-                        <Loader2 className="animate-spin" />
-                        Testing…
-                      </>
-                    ) : (
-                      <>
-                        <Terminal />
-                        Run Test
-                      </>
-                    )}
-                  </Button>
+            <div className="rounded-lg border">
+              <div className="flex items-center justify-between gap-4 px-4 py-3">
+                <div>
+                  <p className="text-xs font-medium">Test Connection</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Verify the server starts and lists its tools.
+                  </p>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => testConnection.mutate(formStateToConfig(formState))}
+                  disabled={testConnection.isPending || !canTest}
+                  className="shrink-0"
+                >
+                  {testConnection.isPending ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      Testing…
+                    </>
+                  ) : (
+                    <>
+                      <Terminal />
+                      Run Test
+                    </>
+                  )}
+                </Button>
+              </div>
 
-                {testConnection.data && (
-                  <div className="mt-3">
-                    <Alert
-                      variant={testConnection.data.success ? "default" : "destructive"}
-                      className="animate-in fade-in-50"
-                    >
+              {testConnection.data && (
+                <div className="border-t">
+                  <Alert
+                    variant={testConnection.data.success ? "default" : "destructive"}
+                    className="animate-in fade-in-50 rounded-none rounded-b-lg border-0"
+                  >
+                    {testConnection.data.success ? (
+                      <CheckCircle className="text-green-500" />
+                    ) : (
+                      <XCircle />
+                    )}
+                    <AlertDescription>
                       {testConnection.data.success ? (
-                        <CheckCircle className="text-green-500" />
-                      ) : (
-                        <XCircle />
-                      )}
-                      <AlertDescription>
-                        {testConnection.data.success ? (
-                          <div>
-                            <p className="font-medium text-foreground">
-                              Connection successful
+                        <div>
+                          <p className="font-medium text-foreground">Connection successful</p>
+                          {testConnection.data.toolCount > 0 ? (
+                            <p className="mt-0.5">
+                              {testConnection.data.toolCount} tool
+                              {testConnection.data.toolCount !== 1 ? "s" : ""} available
+                              {testConnection.data.tools && testConnection.data.tools.length > 0 && (
+                                <span className="text-muted-foreground">
+                                  {" — "}
+                                  {testConnection.data.tools.map((t) => t.name).join(", ")}
+                                </span>
+                              )}
                             </p>
-                            {testConnection.data.toolCount > 0 ? (
-                              <p className="mt-0.5">
-                                {testConnection.data.toolCount} tool
-                                {testConnection.data.toolCount !== 1 ? "s" : ""} available
-                                {testConnection.data.tools &&
-                                  testConnection.data.tools.length > 0 && (
-                                    <span className="text-muted-foreground">
-                                      {" "}
-                                      —{" "}
-                                      {testConnection.data.tools
-                                        .map((t) => t.name)
-                                        .join(", ")}
-                                    </span>
-                                  )}
-                              </p>
-                            ) : (
-                              <p className="mt-0.5">No tools available.</p>
-                            )}
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="font-medium">Connection failed</p>
-                            <p className="mt-0.5 break-all">{testConnection.data.error}</p>
-                          </div>
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          ) : (
+                            <p className="mt-0.5">No tools exposed by this server.</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="font-medium">Connection failed</p>
+                          <p className="mt-0.5 break-all">{testConnection.data.error}</p>
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -554,7 +532,7 @@ export function FormDialog({
   )
 }
 
-// ── Shared Server List Item ───────────────────────────────────────────────────
+// ── Server List Item ──────────────────────────────────────────────────────────
 
 interface ServerListItemProps {
   server: McpServerConfig
@@ -575,6 +553,8 @@ export function ServerListItem({
 }: ServerListItemProps) {
   const startServer = useStartMcpServer()
   const stopServer = useStopMcpServer()
+  const [showTools, setShowTools] = useState(false)
+
   const hasTools = tools && tools.length > 0
   const isEnabled = status?.enabled ?? true
   const isConnected = status?.connected ?? false
@@ -589,53 +569,78 @@ export function ServerListItem({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border", !isEnabled && "opacity-60")}>
+    <div className={cn("overflow-hidden rounded-lg border bg-card", !isEnabled && "opacity-50")}>
       {/* Main row */}
-      <div className="group flex items-start justify-between gap-3 p-3 transition-colors hover:bg-muted/30">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium">{server.name}</span>
-            
-            {/* Status badge */}
-            {!isEnabled ? (
-              <Badge variant="outline" className="h-4 text-muted-foreground">
-                Disabled
-              </Badge>
-            ) : status === undefined ? (
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/40" />
-            ) : isConnected ? (
-              <Badge
-                variant="secondary"
-                className="h-4 border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400"
-              >
-                <CheckCircle />
-                Connected
-              </Badge>
-            ) : (
-              <Badge
-                variant={status.error ? "destructive" : "outline"}
-                className="h-4"
-              >
-                {status.error ? "Error" : "Stopped"}
-              </Badge>
-            )}
-          </div>
-
-          <code className="truncate rounded bg-muted/50 px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-            {server.command} {server.args?.join(" ")}
-          </code>
-
-          {server.description && (
-            <p className="text-xs text-muted-foreground">{server.description}</p>
-          )}
-
-          {status?.error && (
-            <p className="text-xs text-destructive">{status.error}</p>
+      <div className="flex items-start gap-3 p-3">
+        {/* Animated status dot */}
+        <div className="mt-1.5 shrink-0">
+          {isConnected ? (
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-40" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+            </span>
+          ) : status?.error ? (
+            <span className="flex h-2 w-2 rounded-full bg-destructive/70" />
+          ) : (
+            <span className="flex h-2 w-2 rounded-full bg-muted-foreground/25" />
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          {/* Start/Stop button */}
+        {/* Server info */}
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="text-xs font-medium">{server.name}</span>
+            {!isEnabled ? (
+              <span className="text-[10px] text-muted-foreground">disabled</span>
+            ) : status === undefined ? (
+              <span className="animate-pulse text-[10px] text-muted-foreground">connecting…</span>
+            ) : isConnected ? (
+              <span className="text-[10px] font-medium text-green-600 dark:text-green-400">
+                connected
+                {hasTools && (
+                  <span className="font-normal text-muted-foreground">
+                    {" · "}
+                    {tools.length} tool{tools.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </span>
+            ) : status.error ? (
+              <span className="text-[10px] text-destructive">error</span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">stopped</span>
+            )}
+          </div>
+
+          <code className="block truncate font-mono text-[10px] text-muted-foreground/60">
+            {server.command}
+            {server.args?.length ? ` ${server.args.join(" ")}` : ""}
+          </code>
+
+          {server.description && (
+            <p className="text-[11px] text-muted-foreground">{server.description}</p>
+          )}
+
+          {status?.error && (
+            <p className="mt-0.5 text-[10px] text-destructive">{status.error}</p>
+          )}
+        </div>
+
+        {/* Action buttons — always visible */}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {/* Tool list toggle */}
+          {hasTools && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setShowTools(!showTools)}
+              title={showTools ? "Hide tools" : `Show ${tools.length} tools`}
+              className={cn(showTools && "bg-muted text-foreground")}
+            >
+              <Wrench />
+            </Button>
+          )}
+
+          {/* Start / Stop */}
           <Button
             variant="ghost"
             size="icon-sm"
@@ -644,69 +649,72 @@ export function ServerListItem({
             title={isConnected ? "Stop server" : "Start server"}
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="animate-spin" />
             ) : isConnected ? (
-              <Square className="h-4 w-4 text-orange-500" />
+              <Square className="text-orange-500" />
             ) : (
-              <Play className="h-4 w-4 text-green-500" />
+              <Play className="text-green-500" />
             )}
-            <span className="sr-only">{isConnected ? "Stop" : "Start"}</span>
           </Button>
 
-          {/* Edit/Delete on hover */}
-          <div className="opacity-0 transition-opacity group-hover:opacity-100">
-            <Button variant="ghost" size="icon-sm" onClick={onEdit} title="Edit server">
-              <Edit2 />
-              <span className="sr-only">Edit</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onDelete}
-              title="Remove server"
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 />
-              <span className="sr-only">Remove</span>
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onEdit}
+            title="Edit server"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Edit2 />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            title="Remove server"
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 />
+          </Button>
         </div>
       </div>
 
-      {/* Tool list — always visible when tools are available */}
-      {hasTools ? (
-        <div className="border-t">
-          <div className="flex items-center gap-1.5 border-b bg-muted/30 px-3 py-1.5">
-            <Wrench className="h-3 w-3 text-muted-foreground" />
+      {/* Collapsible tool list */}
+      {showTools && hasTools && (
+        <div className="border-t bg-muted/20">
+          <div className="flex items-center gap-1.5 border-b px-3 py-1.5">
+            <Wrench className="h-3 w-3 text-muted-foreground/60" />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {tools.length} Tool{tools.length !== 1 ? "s" : ""}
             </span>
           </div>
-          {tools.map((tool) => (
-            <div
-              key={tool.name}
-              className="flex items-start gap-3 border-b bg-muted/10 px-3 py-2 last:border-b-0"
-            >
-              <div className="mt-px flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                <Zap className="h-3 w-3 text-muted-foreground/60" />
+          <div className="divide-y">
+            {tools.map((tool) => (
+              <div key={tool.name} className="flex items-start gap-3 px-3 py-2">
+                <Zap className="mt-px h-3 w-3 shrink-0 text-muted-foreground/40" />
+                <div className="min-w-0">
+                  <code className="font-mono text-[10px] font-medium text-foreground/80">
+                    {tool.name}
+                  </code>
+                  {tool.description && (
+                    <p className="text-[10px] leading-relaxed text-muted-foreground">
+                      {tool.description}
+                    </p>
+                  )}
+                </div>
               </div>
-              <code className="shrink-0 font-mono text-xs font-medium text-foreground/80">
-                {tool.name}
-              </code>
-              {tool.description && (
-                <p className="min-w-0 text-xs leading-relaxed text-muted-foreground">
-                  {tool.description}
-                </p>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      ) : isEnabled && isConnected && status?.toolCount === 0 ? (
-        <div className="flex items-center gap-1.5 border-t bg-muted/20 px-3 py-2">
-          <Wrench className="h-3 w-3 text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">No tools exposed</p>
+      )}
+
+      {/* Connected with no tools */}
+      {isEnabled && isConnected && !hasTools && status?.toolCount === 0 && (
+        <div className="flex items-center gap-1.5 border-t bg-muted/10 px-3 py-2">
+          <Wrench className="h-3 w-3 text-muted-foreground/40" />
+          <p className="text-[10px] text-muted-foreground">No tools exposed by this server</p>
         </div>
-      ) : null}
+      )}
     </div>
   )
 }
@@ -735,11 +743,13 @@ export function DeleteConfirmDialog({
     >
       <DialogContent className="max-w-sm" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Delete Server</DialogTitle>
+          <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg border bg-destructive/10">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </div>
+          <DialogTitle>Remove server?</DialogTitle>
           <DialogDescription>
-            Remove{" "}
-            <span className="font-medium text-foreground">{serverName}</span>?
-            This disconnects the server and removes its tools from the agent.
+            <code className="font-mono font-medium text-foreground">{serverName}</code> will be
+            disconnected and its tools removed from the agent. This cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -747,7 +757,8 @@ export function DeleteConfirmDialog({
             Cancel
           </Button>
           <Button variant="destructive" onClick={onConfirm}>
-            Delete
+            <Trash2 />
+            Remove
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -862,9 +873,7 @@ export function useServerManagement({
 
 // ── Form Validation ───────────────────────────────────────────────────────────
 
-export function validateForm(
-  form: ServerFormState
-): Record<string, string> {
+export function validateForm(form: ServerFormState): Record<string, string> {
   const errors: Record<string, string> = {}
 
   if (!form.name.trim()) {
