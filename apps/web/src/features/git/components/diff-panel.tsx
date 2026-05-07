@@ -185,6 +185,7 @@ const SourceControlContent = memo(function SourceControlContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-8 min-w-0 shrink-0 items-center gap-0.5 border-b border-border/50 bg-muted/20 px-2">
+        {/* State-mutating actions */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -229,8 +230,30 @@ const SourceControlContent = memo(function SourceControlContent({
           <TooltipContent>Unstage all changes</TooltipContent>
         </Tooltip>
 
-        <div className="mx-1.5 h-4 w-px bg-border/50" />
+        <div className="mx-1 h-4 w-px bg-border/50" />
 
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setStashInputOpen(true)}
+                disabled={!hasChanges}
+                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+              >
+                <Archive />
+                <span className="sr-only">Stash changes</span>
+              </Button>
+            }
+          />
+          <TooltipContent>Stash all changes</TooltipContent>
+        </Tooltip>
+
+        {/* Spacer pushes view controls to the right */}
+        <div className="flex-1" />
+
+        {/* View controls */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -267,7 +290,7 @@ const SourceControlContent = memo(function SourceControlContent({
           <TooltipContent>Side-by-side diff</TooltipContent>
         </Tooltip>
 
-        <div className="mx-1.5 h-4 w-px bg-border/50" />
+        <div className="mx-1 h-4 w-px bg-border/50" />
 
         <DropdownMenu>
           <Tooltip>
@@ -305,26 +328,6 @@ const SourceControlContent = memo(function SourceControlContent({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <div className="mx-1.5 h-4 w-px bg-border/50" />
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setStashInputOpen(true)}
-                disabled={!hasChanges}
-                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-              >
-                <Archive />
-                <span className="sr-only">Stash changes</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Stash all changes</TooltipContent>
-        </Tooltip>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -783,10 +786,11 @@ export const DiffPanel = memo(function DiffPanel({
                   }}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "group relative flex h-full shrink-0 cursor-pointer items-center gap-1.5 rounded-none border-r pr-1 pl-3 text-xs select-none",
+                    "group relative flex h-full shrink-0 cursor-pointer items-center gap-1.5 rounded-none border-r text-xs select-none",
+                    tab.type === "source-control" ? "px-3" : "pl-3 pr-1",
                     isActive
-                      ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
-                      : "bg-muted/40 text-muted-foreground"
+                      ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-0.5 after:bg-primary"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
                   )}
                 >
                   {tab.type === "source-control" ? (

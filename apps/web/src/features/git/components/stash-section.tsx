@@ -39,7 +39,7 @@ export const StashSection = memo(function StashSection({
             !collapsed && "rotate-90"
           )}
         />
-        <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+        <span className="text-[10px] font-semibold tracking-wide text-muted-foreground/60 uppercase">
           Stashes
         </span>
         {isLoading && (
