@@ -285,18 +285,27 @@ export function TitleBar() {
               </>
             )}
             {isRenaming ? (
-              <input
-                ref={renameInputRef}
-                autoFocus
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename()
-                  if (e.key === "Escape") setIsRenaming(false)
-                }}
-                className="w-48 min-w-0 bg-transparent text-sm font-medium outline-none"
-              />
+              <span className="inline-grid max-w-xs min-w-0">
+                <span
+                  aria-hidden
+                  className="invisible col-start-1 row-start-1 whitespace-pre text-sm font-medium"
+                >
+                  {renameValue || " "}
+                </span>
+                <input
+                  ref={renameInputRef}
+                  autoFocus
+                  size={1}
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename()
+                    if (e.key === "Escape") setIsRenaming(false)
+                  }}
+                  className="col-start-1 row-start-1 w-full min-w-0 bg-transparent text-sm font-medium outline-none"
+                />
+              </span>
             ) : (
               <span className="max-w-xs min-w-0 truncate text-sm font-medium">
                 {activeThread.title}
