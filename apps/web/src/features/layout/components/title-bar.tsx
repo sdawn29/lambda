@@ -47,7 +47,7 @@ import {
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { Separator } from "@/shared/ui/separator"
-import { McpDialog } from "@/features/mcp"
+import { McpDialog, useMcpServerStatus } from "@/features/mcp"
 
 const activeTitleBarButtonClassName =
   "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
@@ -82,6 +82,8 @@ export function TitleBar() {
   const [renameValue, setRenameValue] = useState("")
   const renameInputRef = useRef<HTMLInputElement>(null)
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
+  const { data: mcpServerStatus } = useMcpServerStatus(activeWorkspace?.id ?? "")
+  const mcpConnectedCount = mcpServerStatus?.filter((s) => s.connected).length ?? 0
 
   const startRename = () => {
     setRenameValue(activeThread?.title ?? "")
@@ -368,11 +370,16 @@ export function TitleBar() {
             render={
               <Button
                 variant="outline"
-                size="icon"
+                size={mcpConnectedCount > 0 ? "sm" : "icon"}
                 onClick={() => setMcpDialogOpen(true)}
                 className={activeTitleBarButtonClassName}
               >
                 <Server />
+                {mcpConnectedCount > 0 && (
+                  <span className="text-[11px] font-semibold tabular-nums text-green-500">
+                    {mcpConnectedCount}
+                  </span>
+                )}
                 <span className="sr-only">MCP servers</span>
               </Button>
             }

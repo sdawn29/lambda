@@ -93,6 +93,10 @@ export function ChatView({
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
   const { setThreadTitle } = useWorkspace()
 
+  useEffect(() => {
+    chatTextboxRef.current?.focus()
+  }, [])
+
   // ── Queries ───────────────────────────────────────────────────────────────────
   const { data: commandsData } = useSlashCommands(sessionId)
   const { data: branchData } = useBranch(sessionId)

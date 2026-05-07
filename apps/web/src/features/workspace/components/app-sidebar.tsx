@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import {
   Archive,
   ChevronRight,
@@ -98,6 +98,13 @@ function ThreadRow({
   const status = useThreadStatus(thread.id)
   const now = useNow()
   const { archiveThread, pinThread, unpinThread } = useWorkspace()
+  const rowRef = useRef<HTMLLIElement>(null)
+
+  useEffect(() => {
+    if (isActive) {
+      rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    }
+  }, [])
 
   const handlePinToggle = useCallback(
     async (e: React.MouseEvent) => {
@@ -123,7 +130,7 @@ function ThreadRow({
 
   return (
     <>
-      <SidebarMenuSubItem className="group/thread">
+      <SidebarMenuSubItem ref={rowRef} className="group/thread">
         <SidebarMenuSubButton isActive={isActive} onClick={onClick}>
           <span className="flex h-4 w-4 shrink-0 items-center justify-center">
             <span className="flex h-4 w-4 items-center justify-center group-hover/thread:hidden">
@@ -240,6 +247,7 @@ export function AppSidebar() {
     activeWorkspace
       ? async () => {
           const thread = await createThread(activeWorkspace.id)
+          setCollapsed((prev) => ({ ...prev, [activeWorkspace.id]: false }))
           navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
@@ -366,6 +374,7 @@ export function AppSidebar() {
                             className="right-7"
                             onClick={async () => {
                               const thread = await createThread(ws.id)
+                              setCollapsed((prev) => ({ ...prev, [ws.id]: false }))
                               navigate({
                                 to: "/workspace/$threadId",
                                 params: { threadId: thread.id },
