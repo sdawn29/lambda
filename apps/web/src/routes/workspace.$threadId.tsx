@@ -104,10 +104,12 @@ function WorkspaceThreadRoute() {
         </div>
         {fileTreeOpen && (
           <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
-            <FileTree
-              workspaceId={foundWorkspace.id}
-              workspacePath={foundWorkspace.path}
-            />
+            <Suspense fallback={<div className="h-full w-full bg-background" />}>
+              <FileTree
+                workspaceId={foundWorkspace.id}
+                workspacePath={foundWorkspace.path}
+              />
+            </Suspense>
           </div>
         )}
       </div>
@@ -148,10 +150,12 @@ function WorkspaceThreadRoute() {
 
       {fileTreeOpen && (
         <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
-          <FileTree
-            workspaceId={foundWorkspace.id}
-            workspacePath={foundWorkspace.path}
-          />
+          <Suspense fallback={<div className="h-full w-full bg-background" />}>
+            <FileTree
+              workspaceId={foundWorkspace.id}
+              workspacePath={foundWorkspace.path}
+            />
+          </Suspense>
         </div>
       )}
     </div>
