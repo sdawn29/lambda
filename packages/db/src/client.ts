@@ -112,9 +112,23 @@ function createDb() {
       PRIMARY KEY (workspace_id, relative_path)
     );
 
+    CREATE TABLE IF NOT EXISTS mcp_servers (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      name         TEXT NOT NULL,
+      command      TEXT NOT NULL,
+      args         TEXT,
+      env          TEXT,
+      cwd          TEXT,
+      description  TEXT,
+      enabled      INTEGER NOT NULL DEFAULT 1,
+      created_at   INTEGER NOT NULL
+    );
+
     CREATE UNIQUE INDEX IF NOT EXISTS workspaces_path_unique ON workspaces(path);
     CREATE INDEX IF NOT EXISTS message_blocks_thread_idx ON message_blocks(thread_id, block_index);
     CREATE INDEX IF NOT EXISTS workspace_files_workspace_idx ON workspace_files(workspace_id);
+    CREATE INDEX IF NOT EXISTS mcp_servers_workspace_idx ON mcp_servers(workspace_id);
   `);
 
   // Migration: Update message_blocks CHECK constraint to include 'abort' role

@@ -2,7 +2,7 @@ import { Server, Plus, Info } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/ui/dialog"
 import { Button } from "@/shared/ui/button"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { useMcpSettings, useMcpServerStatus } from "../queries"
+import { useMcpSettings, useMcpServerStatus, useMcpTools } from "../queries"
 import { useSaveMcpSettings } from "../mutations"
 import { ServerListItem, useServerManagement } from "./server-form"
 import { FormDialog, DeleteConfirmDialog } from "./server-form"
@@ -16,6 +16,7 @@ interface McpDialogProps {
 export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDialogProps) {
   const { data: settings, isLoading } = useMcpSettings(workspaceId)
   const { data: serverStatus } = useMcpServerStatus(workspaceId)
+  const { data: allTools } = useMcpTools(workspaceId)
   const saveSettings = useSaveMcpSettings()
   const servers = settings?.servers ?? []
 
@@ -37,6 +38,10 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
 
   function getStatus(name: string) {
     return serverStatus?.find((s) => s.name === name)
+  }
+
+  function getServerTools(name: string) {
+    return allTools?.filter((t) => t.serverName === name)
   }
 
   return (
@@ -86,7 +91,9 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
                     <ServerListItem
                       key={server.name}
                       server={server}
+                      workspaceId={workspaceId}
                       status={getStatus(server.name)}
+                      tools={getServerTools(server.name)}
                       onEdit={() => openEditDialog(server)}
                       onDelete={() => handleDelete(server.name)}
                     />
@@ -97,7 +104,7 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
               <Alert>
                 <Info />
                 <AlertDescription>
-                  MCP servers are configured per-workspace. Connected tools are automatically available to the agent.
+                  MCP servers are configured per-workspace. Click the play/stop button to start or stop servers.
                 </AlertDescription>
               </Alert>
             </div>

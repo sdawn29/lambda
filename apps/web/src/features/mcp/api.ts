@@ -74,10 +74,53 @@ export async function testMcpConnection(
 export async function fetchMcpServerStatus(
   workspaceId: string,
   signal?: AbortSignal
-): Promise<Array<{ name: string; connected: boolean; toolCount: number; error?: string }>> {
-  const res = await apiFetch<{ servers: Array<{ name: string; connected: boolean; toolCount: number; error?: string }> }>(
+): Promise<Array<{ name: string; connected: boolean; toolCount: number; error?: string; enabled?: boolean }>> {
+  const res = await apiFetch<{ servers: Array<{ name: string; connected: boolean; toolCount: number; error?: string; enabled?: boolean }> }>(
     `/mcp/status/${encodeURIComponent(workspaceId)}`,
     { signal }
   )
   return res.servers
+}
+
+/**
+ * Start an MCP server
+ */
+export async function startMcpServer(
+  workspaceId: string,
+  serverName: string
+): Promise<{ success: boolean; error?: string; toolCount?: number }> {
+  const res = await apiFetch<{ success: boolean; error?: string; toolCount?: number }>(
+    `/mcp/start/${encodeURIComponent(workspaceId)}/${encodeURIComponent(serverName)}`,
+    { method: "POST" }
+  )
+  return res
+}
+
+/**
+ * Stop an MCP server
+ */
+export async function stopMcpServer(
+  workspaceId: string,
+  serverName: string
+): Promise<{ success: boolean; error?: string }> {
+  const res = await apiFetch<{ success: boolean; error?: string }>(
+    `/mcp/stop/${encodeURIComponent(workspaceId)}/${encodeURIComponent(serverName)}`,
+    { method: "POST" }
+  )
+  return res
+}
+
+/**
+ * Enable or disable an MCP server
+ */
+export async function setMcpServerEnabled(
+  workspaceId: string,
+  serverName: string,
+  enabled: boolean
+): Promise<void> {
+  await apiFetch(`/mcp/enabled/${encodeURIComponent(workspaceId)}/${encodeURIComponent(serverName)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  })
 }

@@ -22,7 +22,13 @@ export {
 export { useMcpSettings, useMcpServerStatus, useMcpTools, mcpKeys } from "./queries"
 
 // Mutations
-export { useSaveMcpSettings, useTestMcpConnection } from "./mutations"
+export {
+  useSaveMcpSettings,
+  useTestMcpConnection,
+  useStartMcpServer,
+  useStopMcpServer,
+  useSetMcpServerEnabled,
+} from "./mutations"
 
 // Context
 export { McpProvider, useMcpContext } from "./context"

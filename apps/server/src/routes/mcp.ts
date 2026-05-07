@@ -2,7 +2,7 @@
  * MCP Routes
  * 
  * API endpoints for managing MCP server configurations per workspace.
- * Settings are stored in memory and passed to the MCP client at session creation.
+ * Settings are persisted in SQLite via the db package.
  */
 
 import { Hono } from "hono"
@@ -12,6 +12,9 @@ import {
   testMcpConnection,
   getMcpServerStatus,
   getMcpTools,
+  startMcpServer,
+  stopMcpServer,
+  setServerEnabled,
 } from "../services/mcp-service.js"
 
 const mcpRouter = new Hono()
@@ -90,6 +93,46 @@ mcpRouter.post("/test-connection", async (c) => {
 
   const result = await testMcpConnection(server)
   return c.json(result)
+})
+
+/**
+ * POST /mcp/start/:workspaceId/:serverName
+ * Start an MCP server
+ */
+mcpRouter.post("/start/:workspaceId/:serverName", async (c) => {
+  const workspaceId = c.req.param("workspaceId")
+  const serverName = c.req.param("serverName")
+  
+  const result = await startMcpServer(workspaceId, serverName)
+  
+  return c.json(result)
+})
+
+/**
+ * POST /mcp/stop/:workspaceId/:serverName
+ * Stop an MCP server
+ */
+mcpRouter.post("/stop/:workspaceId/:serverName", async (c) => {
+  const workspaceId = c.req.param("workspaceId")
+  const serverName = c.req.param("serverName")
+  
+  const result = await stopMcpServer(workspaceId, serverName)
+  
+  return c.json(result)
+})
+
+/**
+ * PATCH /mcp/enabled/:workspaceId/:serverName
+ * Enable or disable an MCP server
+ */
+mcpRouter.patch("/enabled/:workspaceId/:serverName", async (c) => {
+  const workspaceId = c.req.param("workspaceId")
+  const serverName = c.req.param("serverName")
+  const { enabled } = await c.req.json<{ enabled: boolean }>()
+  
+  setServerEnabled(workspaceId, serverName, enabled)
+  
+  return c.json({ success: true })
 })
 
 export { mcpRouter }

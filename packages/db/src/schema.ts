@@ -81,3 +81,20 @@ export const messages = sqliteTable("messages", {
   content: text("content").notNull(),
   createdAt: integer("created_at").notNull(),
 })
+
+// ── MCP Servers ──────────────────────────────────────────────────────────────
+
+export const mcpServers = sqliteTable("mcp_servers", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  command: text("command").notNull(),
+  args: text("args"), // JSON array stored as string
+  env: text("env"), // JSON object stored as string
+  cwd: text("cwd"),
+  description: text("description"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at").notNull(),
+})

@@ -1,6 +1,15 @@
 import { McpClient, createMcpClient, mcpToolToPiTool } from "@lamda/mcp"
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent"
 import type { McpServerConfig } from "@lamda/mcp"
+import {
+  getMcpServers,
+  getEnabledMcpServers,
+  dbToMcpConfig,
+  saveMcpServers,
+  deleteMcpServer,
+  setMcpServerEnabled,
+  getMcpServer,
+} from "@lamda/db"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -8,72 +17,158 @@ export interface McpSettings {
   servers: McpServerConfig[]
 }
 
-// ── In-memory Storage ─────────────────────────────────────────────────────────
+// ── Client Pool (in-memory for connection state) ───────────────────────────────
 
-const settingsStore = new Map<string, McpSettings>()
-const clientPool = new Map<string, Map<string, McpClient>>()
+interface ClientEntry {
+  client: McpClient
+  config: McpServerConfig
+  enabled: boolean
+}
+
+const clientPool = new Map<string, Map<string, ClientEntry>>()
+
+function getClientEntry(workspaceId: string, config: McpServerConfig): ClientEntry {
+  let pool = clientPool.get(workspaceId) ?? new Map()
+  let entry = pool.get(config.name)
+  if (!entry) {
+    const client = createMcpClient()
+    entry = { client, config, enabled: true }
+    pool.set(config.name, entry)
+    clientPool.set(workspaceId, pool)
+  }
+  return entry
+}
+
+function removeAllClients(workspaceId: string): void {
+  clientPool.get(workspaceId)?.forEach((entry) => entry.client.disconnectAll())
+  clientPool.delete(workspaceId)
+}
+
+function removeClient(workspaceId: string, name: string): void {
+  const pool = clientPool.get(workspaceId)
+  if (pool) {
+    const entry = pool.get(name)
+    if (entry) {
+      entry.client.disconnectAll()
+      pool.delete(name)
+    }
+  }
+}
 
 // ── Settings Management ──────────────────────────────────────────────────────
 
 export function getMcpSettings(workspaceId: string): McpSettings {
-  return settingsStore.get(workspaceId) ?? { servers: [] }
+  const dbServers = getMcpServers(workspaceId)
+  return {
+    servers: dbServers.map(dbToMcpConfig),
+  }
 }
 
 export function saveMcpSettings(workspaceId: string, settings: McpSettings): void {
-  removeAllClients(workspaceId)
-  settingsStore.set(workspaceId, settings)
+  saveMcpServers(workspaceId, settings.servers)
 }
 
 export function deleteMcpSettings(workspaceId: string): void {
   removeAllClients(workspaceId)
-  settingsStore.delete(workspaceId)
-}
-
-// ── Client Pool ──────────────────────────────────────────────────────────────
-
-function getClient(workspaceId: string, config: McpServerConfig): McpClient {
-  let pool = clientPool.get(workspaceId) ?? new Map()
-  let client = pool.get(config.name)
-  if (!client) {
-    client = createMcpClient()
-    pool.set(config.name, client)
+  // Delete from DB
+  const servers = getMcpServers(workspaceId)
+  for (const s of servers) {
+    deleteMcpServer(workspaceId, s.name)
   }
-  if (!clientPool.has(workspaceId)) clientPool.set(workspaceId, pool)
-  return client
 }
 
-function removeAllClients(workspaceId: string): void {
-  clientPool.get(workspaceId)?.forEach((c) => c.disconnectAll())
-  clientPool.delete(workspaceId)
+// ── Server Control (start/stop) ───────────────────────────────────────────────
+
+export async function startMcpServer(workspaceId: string, name: string): Promise<{ success: boolean; error?: string; toolCount?: number }> {
+  const server = getMcpServer(workspaceId, name)
+  if (!server) {
+    return { success: false, error: "Server not found" }
+  }
+
+  const config = dbToMcpConfig(server)
+  const entry = getClientEntry(workspaceId, config)
+
+  if (entry.client.isConnected(name)) {
+    return { success: true, toolCount: (await entry.client.listTools()).length }
+  }
+
+  try {
+    await entry.client.connect(config)
+    entry.enabled = true
+    const tools = await entry.client.listTools()
+    return { success: true, toolCount: tools.length }
+  } catch (e) {
+    return { success: false, error: String(e) }
+  }
+}
+
+export async function stopMcpServer(workspaceId: string, name: string): Promise<{ success: boolean; error?: string }> {
+  const pool = clientPool.get(workspaceId)
+  if (!pool) {
+    return { success: true }
+  }
+
+  const entry = pool.get(name)
+  if (!entry) {
+    return { success: true }
+  }
+
+  try {
+    await entry.client.disconnect(name)
+    entry.enabled = false
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: String(e) }
+  }
+}
+
+export function setServerEnabled(workspaceId: string, name: string, enabled: boolean): void {
+  setMcpServerEnabled(workspaceId, name, enabled)
+  const pool = clientPool.get(workspaceId)
+  if (pool) {
+    const entry = pool.get(name)
+    if (entry) {
+      entry.enabled = enabled
+    }
+  }
 }
 
 // ── Server Status ────────────────────────────────────────────────────────────
 
 export async function getMcpServerStatus(workspaceId: string) {
-  const { servers } = getMcpSettings(workspaceId)
+  const servers = getMcpServers(workspaceId)
   return Promise.all(servers.map(async (s) => {
     try {
-      const client = getClient(workspaceId, s)
-      if (!client.isConnected(s.name)) await client.connect(s)
-      const tools = await client.listTools()
-      return { name: s.name, connected: true, toolCount: tools.length }
+      const config = dbToMcpConfig(s)
+      const entry = getClientEntry(workspaceId, config)
+
+      if (!s.enabled) {
+        return { name: s.name, connected: false, toolCount: 0, enabled: false }
+      }
+
+      if (!entry.client.isConnected(s.name)) {
+        await entry.client.connect(config)
+      }
+      const tools = await entry.client.listTools()
+      return { name: s.name, connected: true, toolCount: tools.length, enabled: s.enabled }
     } catch (e) {
-      return { name: s.name, connected: false, toolCount: 0, error: String(e) }
+      return { name: s.name, connected: false, toolCount: 0, error: String(e), enabled: s.enabled }
     }
   }))
 }
 
 export async function getMcpTools(workspaceId: string) {
-  const { servers } = getMcpSettings(workspaceId)
+  const dbServers = getEnabledMcpServers(workspaceId)
   const tools: Array<{ name: string; description?: string; serverName: string }> = []
 
-  for (const s of servers) {
+  for (const s of dbServers) {
     try {
-      const client = getClient(workspaceId, s)
-      if (!client.isConnected(s.name)) {
-        await client.connect(s)
+      const config = dbToMcpConfig(s)
+      const entry = getClientEntry(workspaceId, config)
+      if (!entry.client.isConnected(s.name)) {
+        await entry.client.connect(config)
       }
-      const mcpTools = await client.listTools()
+      const mcpTools = await entry.client.listTools()
       for (const tool of mcpTools) {
         tools.push({ name: tool.name, description: tool.description, serverName: s.name })
       }
@@ -101,23 +196,26 @@ export async function testMcpConnection(server: McpServerConfig) {
 // ── Tool Conversion for pi ───────────────────────────────────────────────────
 
 export async function getMcpToolsForSession(workspaceId: string): Promise<ToolDefinition[]> {
-  const { servers } = getMcpSettings(workspaceId)
+  const dbServers = getEnabledMcpServers(workspaceId)
   const tools: ToolDefinition[] = []
 
-  for (const config of servers) {
+  for (const s of dbServers) {
     try {
-      const client = getClient(workspaceId, config)
-      if (!client.isConnected(config.name)) await client.connect(config)
-      const mcpTools = await client.listTools()
+      const config = dbToMcpConfig(s)
+      const entry = getClientEntry(workspaceId, config)
+      if (!entry.client.isConnected(s.name)) {
+        await entry.client.connect(config)
+      }
+      const mcpTools = await entry.client.listTools()
 
       for (const tool of mcpTools) {
         tools.push(mcpToolToPiTool(tool, async (name, params) => {
-          const result = await client.callTool(name, params)
+          const result = await entry.client.callTool(name, params)
           return { success: result.success, content: result.content as Array<{ type: "text"; text: string }>, error: result.error }
         }))
       }
     } catch (e) {
-      console.error(`[MCP] Failed to load tools from ${config.name}:`, e)
+      console.error(`[MCP] Failed to load tools from ${s.name}:`, e)
     }
   }
 

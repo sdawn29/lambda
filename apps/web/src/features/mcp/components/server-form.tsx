@@ -12,6 +12,8 @@ import {
   Settings2,
   Wrench,
   Zap,
+  Play,
+  Square,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/shared/ui/alert"
@@ -40,7 +42,7 @@ import { Badge } from "@/shared/ui/badge"
 import { cn } from "@/shared/lib/utils"
 import type { McpServerConfig, ServerFormState } from "../types"
 import { createEmptyServerForm, formStateToConfig, configToFormState } from "../types"
-import { useSaveMcpSettings, useTestMcpConnection } from "../mutations"
+import { useSaveMcpSettings, useTestMcpConnection, useStartMcpServer, useStopMcpServer } from "../mutations"
 
 // ── Environment Variable Row ──────────────────────────────────────────────────
 
@@ -556,7 +558,8 @@ export function FormDialog({
 
 interface ServerListItemProps {
   server: McpServerConfig
-  status?: { connected: boolean; toolCount: number; error?: string }
+  workspaceId: string
+  status?: { connected: boolean; toolCount: number; error?: string; enabled?: boolean }
   tools?: Array<{ name: string; description?: string }>
   onEdit: () => void
   onDelete: () => void
@@ -564,23 +567,43 @@ interface ServerListItemProps {
 
 export function ServerListItem({
   server,
+  workspaceId,
   status,
   tools,
   onEdit,
   onDelete,
 }: ServerListItemProps) {
+  const startServer = useStartMcpServer()
+  const stopServer = useStopMcpServer()
   const hasTools = tools && tools.length > 0
+  const isEnabled = status?.enabled ?? true
+  const isConnected = status?.connected ?? false
+  const isLoading = startServer.isPending || stopServer.isPending
+
+  function handleStartStop() {
+    if (isConnected) {
+      stopServer.mutate({ workspaceId, serverName: server.name })
+    } else {
+      startServer.mutate({ workspaceId, serverName: server.name })
+    }
+  }
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className={cn("overflow-hidden rounded-lg border", !isEnabled && "opacity-60")}>
       {/* Main row */}
       <div className="group flex items-start justify-between gap-3 p-3 transition-colors hover:bg-muted/30">
         <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium">{server.name}</span>
-            {status === undefined ? (
+            
+            {/* Status badge */}
+            {!isEnabled ? (
+              <Badge variant="outline" className="h-4 text-muted-foreground">
+                Disabled
+              </Badge>
+            ) : status === undefined ? (
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/40" />
-            ) : status.connected ? (
+            ) : isConnected ? (
               <Badge
                 variant="secondary"
                 className="h-4 border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400"
@@ -593,7 +616,7 @@ export function ServerListItem({
                 variant={status.error ? "destructive" : "outline"}
                 className="h-4"
               >
-                {status.error ? "Error" : "Disconnected"}
+                {status.error ? "Error" : "Stopped"}
               </Badge>
             )}
           </div>
@@ -611,21 +634,42 @@ export function ServerListItem({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <Button variant="ghost" size="icon-sm" onClick={onEdit} title="Edit server">
-            <Edit2 />
-            <span className="sr-only">Edit</span>
-          </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Start/Stop button */}
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={onDelete}
-            title="Remove server"
-            className="text-destructive hover:text-destructive"
+            onClick={handleStartStop}
+            disabled={!isEnabled || isLoading}
+            title={isConnected ? "Stop server" : "Start server"}
           >
-            <Trash2 />
-            <span className="sr-only">Remove</span>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isConnected ? (
+              <Square className="h-4 w-4 text-orange-500" />
+            ) : (
+              <Play className="h-4 w-4 text-green-500" />
+            )}
+            <span className="sr-only">{isConnected ? "Stop" : "Start"}</span>
           </Button>
+
+          {/* Edit/Delete on hover */}
+          <div className="opacity-0 transition-opacity group-hover:opacity-100">
+            <Button variant="ghost" size="icon-sm" onClick={onEdit} title="Edit server">
+              <Edit2 />
+              <span className="sr-only">Edit</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onDelete}
+              title="Remove server"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 />
+              <span className="sr-only">Remove</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -657,7 +701,7 @@ export function ServerListItem({
             </div>
           ))}
         </div>
-      ) : status?.connected && status.toolCount === 0 ? (
+      ) : isEnabled && isConnected && status?.toolCount === 0 ? (
         <div className="flex items-center gap-1.5 border-t bg-muted/20 px-3 py-2">
           <Wrench className="h-3 w-3 text-muted-foreground/50" />
           <p className="text-xs text-muted-foreground">No tools exposed</p>
@@ -717,6 +761,7 @@ interface UseServerManagementProps {
   workspaceId: string
   servers: McpServerConfig[]
   saveSettings: ReturnType<typeof useSaveMcpSettings>
+  onToggleEnabled?: (name: string, enabled: boolean) => void
 }
 
 interface UseServerManagementReturn {

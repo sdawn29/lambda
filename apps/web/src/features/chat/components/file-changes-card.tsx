@@ -5,11 +5,10 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react"
-import { useGitStatus, useGitDiffStat, useGitFileDiff, parseDiffCounts } from "@/features/git"
+import { useGitStatus, useGitDiffStat } from "@/features/git"
 import { useDiffPanel } from "@/features/git/context"
 import { Button } from "@/shared/ui/button"
 import { type ChangedFile, parseStatusLine } from "@/features/git/components/status-badge"
-import { cn } from "@/shared/lib/utils"
 import { FileRow } from "@/features/git/components/file-list-item"
 
 interface FileChangesCardProps {

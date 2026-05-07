@@ -16,6 +16,8 @@ export interface McpServerConfig {
   env?: Record<string, string>;
   /** Working directory for the server process */
   cwd?: string;
+  /** Optional description */
+  description?: string;
 }
 
 /**

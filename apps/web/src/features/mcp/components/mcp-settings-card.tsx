@@ -77,6 +77,7 @@ export function McpSettingsCard({ workspaceId = "default" }: McpSettingsCardProp
                 <ServerListItem
                   key={server.name}
                   server={server}
+                  workspaceId={workspaceId}
                   status={getStatus(server.name)}
                   tools={getServerTools(server.name)}
                   onEdit={() => openEditDialog(server)}
@@ -89,7 +90,7 @@ export function McpSettingsCard({ workspaceId = "default" }: McpSettingsCardProp
           <Alert>
             <Info />
             <AlertDescription>
-              MCP servers are configured per-workspace. Tools from connected servers are automatically available to the agent.
+              MCP servers are configured per-workspace. Click the play/stop button to start or stop servers. Tools from connected servers are automatically available to the agent.
             </AlertDescription>
           </Alert>
         </CardContent>

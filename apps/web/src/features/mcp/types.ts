@@ -18,6 +18,8 @@ export interface McpServerConfig {
   cwd?: string
   /** Optional description */
   description?: string
+  /** Whether the server is enabled (default: true) */
+  enabled?: boolean
 }
 
 /**
@@ -53,6 +55,8 @@ export interface McpServerState {
   toolCount: number
   /** Error message if connection failed */
   error?: string
+  /** Whether the server is enabled */
+  enabled?: boolean
 }
 
 /**
@@ -90,7 +94,7 @@ export function formStateToConfig(form: ServerFormState): McpServerConfig {
     command: form.command,
     args: form.args ? form.args.split(" ").filter(Boolean) : undefined,
     env: form.envVars.length > 0
-      ? Object.fromEntries(form.envVars.filter((v) => v.key && v.value))
+      ? Object.fromEntries(form.envVars.filter((v) => v.key && v.value).map(v => [v.key, v.value]))
       : undefined,
     cwd: form.cwd || undefined,
     description: form.description || undefined,
