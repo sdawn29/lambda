@@ -90,10 +90,34 @@ export function ChatView({
   const pinnedRef = useRef(false)
   const initialScrollDoneRef = useRef(false)
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
+  // Messages present on the first non-empty render (from cache) skip entry animations.
+  // Only messages that arrive after the initial snapshot get animate-in treatment.
+  const initialKeysRef = useRef<Set<string> | null>(null)
+  const scrollSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { setThreadTitle } = useWorkspace()
 
   useEffect(() => {
     chatTextboxRef.current?.focus()
+  }, [])
+
+  // Snapshot the keys of messages present on the first non-empty render.
+  // These messages come from localStorage/cache and should not animate.
+  // Messages that arrive after this snapshot (streaming, user sends) will animate.
+  useEffect(() => {
+    if (initialKeysRef.current === null && visibleMessages.length > 0) {
+      initialKeysRef.current = new Set(
+        visibleMessages.map((m, i) => getMessageKey(m, i))
+      )
+    }
+  }, [visibleMessages])
+
+  // Flush any pending scroll-to-localStorage write on unmount.
+  useEffect(() => {
+    return () => {
+      if (scrollSaveTimeoutRef.current !== null) {
+        clearTimeout(scrollSaveTimeoutRef.current)
+      }
+    }
   }, [])
 
   // ── Queries ───────────────────────────────────────────────────────────────────
@@ -151,10 +175,20 @@ export function ChatView({
         isPinned: pinnedRef.current,
         visited: true,
       }
-      // Save to query cache
+      // Update in-memory cache immediately (cheap, O(1))
       queryClient.setQueryData(chatKeys.scroll(sessionId), meta)
-      // Also persist to localStorage for cross-session persistence
-      syncEngine.saveScrollMeta(sessionId, meta)
+      // Debounce the synchronous localStorage write (fires 150ms after last scroll)
+      if (scrollSaveTimeoutRef.current !== null) {
+        clearTimeout(scrollSaveTimeoutRef.current)
+      }
+      scrollSaveTimeoutRef.current = setTimeout(() => {
+        scrollSaveTimeoutRef.current = null
+        syncEngine.saveScrollMeta(sessionId, {
+          scrollTop,
+          isPinned: pinnedRef.current,
+          visited: true,
+        })
+      }, 150)
     },
     [queryClient, sessionId, syncEngine]
   )
@@ -431,13 +465,21 @@ export function ChatView({
                   !message.errorMessage
                 )
                   return null
+                const key = getMessageKey(message, index)
+                // Only animate messages that arrived after the initial cache snapshot.
+                // initialKeysRef is null on the very first render → isNewMessage = false,
+                // preventing an animation cascade when switching to a thread with history.
+                const isNewMessage =
+                  initialKeysRef.current !== null &&
+                  !initialKeysRef.current.has(key)
                 return (
-                  <div key={getMessageKey(message, index)} className="pb-3">
+                  <div key={key} className="pb-3">
                     <MessageRow
                       message={message}
                       commandsByName={commandsByName}
                       showThinking={showThinkingSetting}
                       onAction={handleErrorAction}
+                      isNewMessage={isNewMessage}
                     />
                   </div>
                 )

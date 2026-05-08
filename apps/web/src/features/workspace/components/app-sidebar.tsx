@@ -88,15 +88,16 @@ function ThreadRow({
   workspaceId,
   isActive,
   onClick,
+  now,
 }: {
   thread: Thread
   workspaceId: string
   isActive: boolean
   onClick: () => void
+  now: number
 }) {
   const [confirming, setConfirming] = useState(false)
   const status = useThreadStatus(thread.id)
-  const now = useNow()
   const { archiveThread, pinThread, unpinThread } = useWorkspace()
   const rowRef = useRef<HTMLLIElement>(null)
 
@@ -196,6 +197,7 @@ function ThreadRow({
 }
 
 export function AppSidebar() {
+  const now = useNow()
   const { workspaces, createThread, deleteWorkspace } = useWorkspace()
   const { handleCreateLocal, handleCreateRemote } = useCreateWorkspaceAction()
   const openPathMutation = useOpenPath()
@@ -293,6 +295,7 @@ export function AppSidebar() {
                     thread={thread}
                     workspaceId={thread.workspaceId}
                     isActive={activeThreadId === thread.id}
+                    now={now}
                     onClick={() =>
                       navigate({
                         to: "/workspace/$threadId",
@@ -445,6 +448,7 @@ export function AppSidebar() {
                                 thread={thread}
                                 workspaceId={ws.id}
                                 isActive={activeThreadId === thread.id}
+                                now={now}
                                 onClick={() =>
                                   navigate({
                                     to: "/workspace/$threadId",

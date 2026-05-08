@@ -62,12 +62,14 @@ export function TitleBar() {
   const { isOpen: diffOpen, toggle: toggleDiff } = useDiffPanel()
   const { isOpen: fileTreeOpen, toggle: toggleFileTree } = useFileTree()
   const { threadId } = useParams({ strict: false }) as { threadId?: string }
-  const activeThread = threadId
-    ? workspaces.flatMap((w) => w.threads).find((t) => t.id === threadId)
-    : undefined
-  const activeWorkspace = activeThread
-    ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id))
-    : undefined
+  const activeThread = useMemo(
+    () => (threadId ? workspaces.flatMap((w) => w.threads).find((t) => t.id === threadId) : undefined),
+    [workspaces, threadId]
+  )
+  const activeWorkspace = useMemo(
+    () => (activeThread ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id)) : undefined),
+    [workspaces, activeThread]
+  )
   const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminalForWorkspace(
     activeWorkspace?.id ?? "",
     activeWorkspace?.path ?? ""

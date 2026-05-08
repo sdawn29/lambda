@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { lazy, Suspense, useEffect, useRef } from "react"
+import { lazy, Suspense, useEffect, useMemo, useRef } from "react"
 
 import { ChatView, useSetActiveThreadId } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
@@ -55,10 +55,14 @@ function WorkspaceThreadRoute() {
   }, [threadId, setActiveThreadId])
 
   // Find current workspace
-  const foundWorkspace = workspaces.find((ws) =>
-    ws.threads.some((t) => t.id === threadId)
+  const foundWorkspace = useMemo(
+    () => workspaces.find((ws) => ws.threads.some((t) => t.id === threadId)),
+    [workspaces, threadId]
   )
-  const foundThread = foundWorkspace?.threads.find((t) => t.id === threadId)
+  const foundThread = useMemo(
+    () => foundWorkspace?.threads.find((t) => t.id === threadId),
+    [foundWorkspace, threadId]
+  )
 
   // Set workspace path in diff panel context for breadcrumb navigation
   const currentPathRef = useRef<string | null>(null)
