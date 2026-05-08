@@ -58,19 +58,9 @@ export function useMessages(sessionId: string) {
   return useQuery({
     queryKey: messagesQueryKey(sessionId),
     queryFn: async (): Promise<Message[]> => {
-      // Fetch blocks from server
       const { blocks } = await listMessages(sessionId)
-
-      // Convert blocks to UI messages
       const serverMessages = blocksToMessages(blocks as MessageBlock[])
-
-      // Save to localStorage for instant loading
       syncEngine.saveMessages(sessionId, serverMessages)
-
-      // Update query cache
-      queryClient.setQueryData(messagesQueryKey(sessionId), serverMessages)
-
-
       return serverMessages
     },
     // Load from localStorage first (instant, no network)

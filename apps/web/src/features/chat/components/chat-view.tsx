@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { ErrorAction } from "../types"
 import {
@@ -40,7 +40,6 @@ import {
 } from "@/features/workspace/mutations"
 import { useChatStream } from "../use-chat-stream"
 import { getChatSyncEngine } from "../hooks/use-chat-sync-engine"
-import { useFileChangeInvalidation } from "../hooks/use-file-change-invalidation"
 import { FileChangesCard } from "./file-changes-card"
 
 interface ChatViewProps {
@@ -130,9 +129,6 @@ export function ChatView({
   // Fetch detailed token stats from the server
   const { data: sessionStats } = useSessionStats(sessionId)
 
-  // Watch for file-modifying tool completions and refresh UI
-  useFileChangeInvalidation(sessionId)
-
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
   // During streaming, smooth scrolling is called on every delta and the browser
   // interrupts each animation before it finishes, causing the view to lag behind
@@ -140,8 +136,9 @@ export function ChatView({
   // which can flip pinnedRef to false and stop further scrolls entirely.
   // Fix: use instant scrollTop assignment while loading so every update reliably
   // lands at the bottom; only use smooth scroll once the stream is stable.
-  const commandsByName = new Map(
-    (commandsData ?? []).map((command) => [command.name, command])
+  const commandsByName = useMemo(
+    () => new Map((commandsData ?? []).map((command) => [command.name, command])),
+    [commandsData]
   )
 
   // ── Scroll position persistence via query cache & localStorage ──────────────────
