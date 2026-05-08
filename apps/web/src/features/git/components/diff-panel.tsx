@@ -419,6 +419,7 @@ const FileContent = memo(function FileContent({
   const [serverUrl, setServerUrl] = useState<string>("")
   const { addTab, open: openPanel } = useDiffPanel()
   const [markdownPreview, setMarkdownPreview] = useState(false)
+  const [htmlPreview, setHtmlPreview] = useState(true)
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
 
@@ -506,9 +507,10 @@ const FileContent = memo(function FileContent({
     [filePath, serverUrl, addTab, openPanel]
   )
 
-  // Enable rich text preview by default for markdown files
+  // Enable rich text preview by default for markdown/html files
   useEffect(() => {
     setMarkdownPreview(isMarkdown)
+    setHtmlPreview(isHtml)
   }, [filePath])
   const language = LANGUAGE_MAP[fileExtension] ?? fileExtension
 
@@ -605,6 +607,10 @@ const FileContent = memo(function FileContent({
             isMarkdown ? () => setMarkdownPreview(!markdownPreview) : undefined
           }
           isHtml={isHtml}
+          htmlPreview={htmlPreview}
+          onToggleHtmlPreview={
+            isHtml ? () => setHtmlPreview(!htmlPreview) : undefined
+          }
           isPdf={isPdf}
         />
       </div>
@@ -612,18 +618,33 @@ const FileContent = memo(function FileContent({
         className={cn(
           "min-h-0 flex-1 overflow-auto",
           isImage && "flex items-center justify-center p-4",
+          isHtml && htmlPreview && "overflow-hidden",
           !isImage &&
             markdownPreview &&
             "prose prose-sm max-w-none p-4 dark:prose-invert",
-          !isImage && !markdownPreview && "file-viewer-code pl-4"
+          !isImage &&
+            !markdownPreview &&
+            !(isHtml && htmlPreview) &&
+            "file-viewer-code pl-4"
         )}
-        style={markdownPreview ? undefined : { userSelect: "text" }}
+        style={
+          markdownPreview || (isHtml && htmlPreview)
+            ? undefined
+            : { userSelect: "text" }
+        }
       >
         {isImage ? (
           <img
             src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
             alt={fileName}
             className="max-h-full max-w-full object-contain"
+          />
+        ) : isHtml && htmlPreview ? (
+          <iframe
+            src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
+            title={fileName}
+            className="h-full w-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
         ) : markdownPreview ? (
           <ReactMarkdown

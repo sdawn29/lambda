@@ -16,6 +16,8 @@ interface FileHeaderProps {
   markdownPreview?: boolean
   onToggleMarkdownPreview?: () => void
   isHtml?: boolean
+  htmlPreview?: boolean
+  onToggleHtmlPreview?: () => void
   isPdf?: boolean
 }
 
@@ -27,6 +29,8 @@ export function FileHeader({
   markdownPreview,
   onToggleMarkdownPreview,
   isHtml,
+  htmlPreview,
+  onToggleHtmlPreview,
   isPdf,
 }: FileHeaderProps) {
   const fileName = pathParts[pathParts.length - 1] ?? ""
@@ -89,6 +93,29 @@ export function FileHeader({
             />
             <TooltipContent>
               {markdownPreview ? "Show raw source" : "Preview markdown"}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {isHtml && onToggleHtmlPreview && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant={htmlPreview ? "secondary" : "ghost"}
+                  size="icon-sm"
+                  onClick={onToggleHtmlPreview}
+                  className="text-muted-foreground/70 hover:text-foreground"
+                >
+                  {htmlPreview ? <Code2 /> : <Eye />}
+                  <span className="sr-only">
+                    {htmlPreview ? "Show raw source" : "Preview HTML"}
+                  </span>
+                </Button>
+              }
+            />
+            <TooltipContent>
+              {htmlPreview ? "Show raw source" : "Preview HTML"}
             </TooltipContent>
           </Tooltip>
         )}
