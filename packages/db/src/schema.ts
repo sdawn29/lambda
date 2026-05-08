@@ -82,7 +82,27 @@ export const messages = sqliteTable("messages", {
   createdAt: integer("created_at").notNull(),
 })
 
-// ── MCP Servers ──────────────────────────────────────────────────────────────
+// ── Agent Turns ───────────────────────────────────────────────────────────────
+
+export const agentTurns = sqliteTable("agent_turns", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: text("session_id").notNull(),
+  threadId: text("thread_id").notNull(),
+  startedAt: integer("started_at").notNull(),
+  endedAt: integer("ended_at").notNull(),
+})
+
+export const agentTurnFiles = sqliteTable("agent_turn_files", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  turnId: integer("turn_id").notNull(),
+  filePath: text("file_path").notNull(),
+  postStatusCode: text("post_status_code").notNull(),
+  preStatusCode: text("pre_status_code").notNull().default(""),
+  preContent: text("pre_content"),
+  wasCreatedByTurn: integer("was_created_by_turn", { mode: "boolean" }).notNull().default(false),
+})
+
+// ── MCP Servers ───────────────────────────────────────────────────────────────
 
 export const mcpServers = sqliteTable("mcp_servers", {
   id: text("id").primaryKey(),

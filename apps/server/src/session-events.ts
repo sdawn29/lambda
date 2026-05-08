@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, updateToolBlockPartialResult, listRunningToolBlocks } from "@lamda/db";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, updateToolBlockPartialResult, listRunningToolBlocks, insertAgentTurn } from "@lamda/db";
 import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
+import { gitStatus } from "@lamda/git";
 import { threadStatusBroadcaster, type ThreadStatus } from "./thread-status-broadcaster.js";
 
 const MAX_RECENT_EVENTS = 512;
@@ -39,6 +42,14 @@ function parseEventId(value?: string): number | null {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
+export interface TurnFileDetail {
+  filePath: string;
+  postStatusCode: string;
+  preStatusCode: string;
+  preContent: string | null;
+  wasCreatedByTurn: boolean;
+}
+
 interface TurnContext {
   assistantBlockId: string | null;
   startTime: number;
@@ -71,11 +82,18 @@ class SessionEventHub {
   private turnContext: TurnContext | null = null;
   private pendingThinkingLevel: string | null = null;
   private currentToolBlocks = new Map<string, ToolContext>();
+  private preTurnStatusMap: Map<string, string> | null = null;
+  private preTurnFileContents: Map<string, string> | null = null;
+  private preTurnCapturePromise: Promise<void> | null = null;
+  private currentTurnStartTime = 0;
+  private lastTurnChangedRaw = "";
+  private lastTurnFiles: TurnFileDetail[] = [];
 
   constructor(
     private readonly sessionId: string,
     private readonly threadId: string,
     private readonly handle: ManagedSessionHandle,
+    private readonly cwd: string | null = null,
   ) {
     // Start consuming immediately so we don't miss any events
     this.ensureStarted();
@@ -83,6 +101,138 @@ class SessionEventHub {
 
   setNextThinkingLevel(level: string) {
     this.pendingThinkingLevel = level;
+  }
+
+  getLastTurnChanges(): string {
+    return this.lastTurnChangedRaw;
+  }
+
+  getLastTurnFiles(): TurnFileDetail[] {
+    return this.lastTurnFiles;
+  }
+
+  clearLastTurnFiles(): void {
+    this.lastTurnFiles = [];
+    this.lastTurnChangedRaw = "";
+  }
+
+  private parseStatusToMap(raw: string): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trimEnd();
+      if (!trimmed) continue;
+      const rawStatus = trimmed.slice(0, 2);
+      const filePath = trimmed.slice(3);
+      if (filePath) map.set(filePath, rawStatus);
+    }
+    return map;
+  }
+
+  private async capturePreTurnStatus(): Promise<void> {
+    if (!this.cwd) return;
+    try {
+      const raw = await gitStatus(this.cwd);
+      this.preTurnStatusMap = this.parseStatusToMap(raw);
+      this.currentTurnStartTime = Date.now();
+
+      // Read current content of modified files so we can restore them on revert.
+      // Files at HEAD don't need content stored (git restore handles them).
+      const MAX_FILE_BYTES = 512 * 1024;
+      const contents = new Map<string, string>();
+      await Promise.all(
+        Array.from(this.preTurnStatusMap.entries()).map(async ([filePath, rawStatus]) => {
+          // Skip deleted files — they can't be read from disk
+          if (rawStatus.includes("D")) return;
+          const fullPath = join(this.cwd!, filePath);
+          try {
+            const buf = await readFile(fullPath);
+            if (buf.length > MAX_FILE_BYTES) return;
+            // Skip binary files (contain null bytes)
+            if (buf.includes(0)) return;
+            contents.set(filePath, buf.toString("utf8"));
+          } catch {
+            // Unreadable file — skip, will fall back to git restore
+          }
+        })
+      );
+      this.preTurnFileContents = contents;
+    } catch {
+      this.preTurnStatusMap = null;
+      this.preTurnFileContents = null;
+    }
+  }
+
+  private async capturePostTurnStatus(): Promise<void> {
+    if (!this.cwd) return;
+    const pre = this.preTurnStatusMap ?? new Map<string, string>();
+    const preContents = this.preTurnFileContents ?? new Map<string, string>();
+    const startedAt = this.currentTurnStartTime || Date.now();
+    this.preTurnStatusMap = null;
+    this.preTurnFileContents = null;
+    this.currentTurnStartTime = 0;
+
+    try {
+      const raw = await gitStatus(this.cwd);
+      const postMap = this.parseStatusToMap(raw);
+      const changedLines: string[] = [];
+      const turnFiles: TurnFileDetail[] = [];
+      const processedFiles = new Set<string>();
+
+      // Pass 1: files whose git status code changed (new files, status transitions)
+      for (const [filePath, postStatusCode] of postMap) {
+        const preStatusCode = pre.get(filePath) ?? "";
+        if (preStatusCode !== postStatusCode) {
+          changedLines.push(`${postStatusCode} ${filePath}`);
+          const wasCreatedByTurn = !pre.has(filePath);
+          const preContent = wasCreatedByTurn ? null : (preContents.get(filePath) ?? null);
+          turnFiles.push({ filePath, postStatusCode, preStatusCode, preContent, wasCreatedByTurn });
+          processedFiles.add(filePath);
+        }
+      }
+
+      // Pass 2: files already modified before the turn whose status code is
+      // unchanged but whose content was modified during the turn.
+      // Example: file was " M" before turn 2 and is still " M" after — the
+      // status code comparison above misses this; content comparison catches it.
+      await Promise.all(
+        Array.from(preContents.entries())
+          .filter(([filePath]) => !processedFiles.has(filePath) && postMap.has(filePath))
+          .map(async ([filePath, preContent]) => {
+            const postStatusCode = postMap.get(filePath)!;
+            const fullPath = join(this.cwd!, filePath);
+            try {
+              const currentContent = await readFile(fullPath, "utf8");
+              if (currentContent !== preContent) {
+                changedLines.push(`${postStatusCode} ${filePath}`);
+                turnFiles.push({
+                  filePath,
+                  postStatusCode,
+                  preStatusCode: pre.get(filePath) ?? "",
+                  preContent,
+                  wasCreatedByTurn: false,
+                });
+              }
+            } catch {
+              // unreadable — skip
+            }
+          })
+      );
+
+      this.lastTurnChangedRaw = changedLines.join("\n");
+      this.lastTurnFiles = turnFiles;
+
+      if (turnFiles.length > 0) {
+        insertAgentTurn({
+          sessionId: this.sessionId,
+          threadId: this.threadId,
+          startedAt,
+          endedAt: Date.now(),
+          files: turnFiles,
+        });
+      }
+    } catch {
+      // keep previous value
+    }
   }
 
   emitError(message: string) {
@@ -156,6 +306,9 @@ class SessionEventHub {
     this.currentToolBlocks.clear();
     this.currentRunEvents = [];
     this.runInProgress = false;
+    this.preTurnStatusMap = null;
+    this.preTurnFileContents = null;
+    this.preTurnCapturePromise = null;
 
     const subscribers = [...this.subscribers.values()];
     this.subscribers.clear();
@@ -216,6 +369,20 @@ class SessionEventHub {
 
     try {
       for await (const event of generator) {
+        if (event.type === "agent_start") {
+          // Snapshot git status before the agent does any work.
+          // Uses agent_start (fires once per user prompt) rather than turn_start
+          // (fires per LLM call) so the baseline is always taken before tool calls.
+          this.preTurnCapturePromise = this.capturePreTurnStatus();
+        } else if (event.type === "agent_end") {
+          // Wait for pre-capture to finish before computing the diff; without this
+          // a slow gitStatus call could still be running when we read preTurnStatusMap.
+          await this.preTurnCapturePromise;
+          this.preTurnCapturePromise = null;
+          // Capture post-turn status before emitting so clients see data immediately
+          // when they query after receiving agent_end.
+          await this.capturePostTurnStatus();
+        }
         this.persist(event);
         this.emit(event);
       }
@@ -415,14 +582,14 @@ class SessionEventHub {
 class SessionEventRegistry {
   private hubs = new Map<string, SessionEventHub>();
 
-  ensure(sessionId: string, threadId: string, handle: ManagedSessionHandle) {
+  ensure(sessionId: string, threadId: string, handle: ManagedSessionHandle, cwd?: string | null) {
     const existing = this.hubs.get(sessionId);
     if (existing) {
       existing.ensureStarted();
       return existing;
     }
 
-    const hub = new SessionEventHub(sessionId, threadId, handle);
+    const hub = new SessionEventHub(sessionId, threadId, handle, cwd ?? null);
     this.hubs.set(sessionId, hub);
     hub.ensureStarted();
     return hub;
@@ -438,6 +605,18 @@ class SessionEventRegistry {
 
   dismissPendingErrors(sessionId: string): void {
     this.hubs.get(sessionId)?.dismissPendingErrors();
+  }
+
+  getLastTurnChanges(sessionId: string): string {
+    return this.hubs.get(sessionId)?.getLastTurnChanges() ?? "";
+  }
+
+  getLastTurnFiles(sessionId: string): TurnFileDetail[] {
+    return this.hubs.get(sessionId)?.getLastTurnFiles() ?? [];
+  }
+
+  clearLastTurnFiles(sessionId: string): void {
+    this.hubs.get(sessionId)?.clearLastTurnFiles();
   }
 
   async dispose(sessionId: string) {

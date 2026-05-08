@@ -6,6 +6,7 @@ import { subscribeToSessionEvents, type AgentEndMessage } from "../session-event
 import { messagesQueryKey, chatKeys } from "../queries"
 import { createAssistantMessage, createErrorMessage, blockToMessage } from "../types"
 import type { AssistantMessage, Message, ToolMessage } from "../types"
+import { gitKeys } from "@/features/git/queries"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -393,6 +394,8 @@ export function useSessionStream({
             void queryClient.invalidateQueries({ queryKey: messagesQueryKey(sessionId) })
             void queryClient.invalidateQueries({ queryKey: chatKeys.contextUsage(sessionId) })
             void queryClient.invalidateQueries({ queryKey: chatKeys.sessionStats(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurnChanges(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurn(sessionId) })
           })
           break
         }

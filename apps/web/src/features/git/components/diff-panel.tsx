@@ -14,10 +14,12 @@ import {
   Columns2,
   AlignLeft,
   GitCompare,
+  History,
   Loader2,
   PackageMinus,
   PackagePlus,
   Plus,
+  Undo2,
   X,
   ArrowUpDown,
   ExternalLink,
@@ -38,7 +40,7 @@ import {
 import { FileSearchModal } from "@/features/file-tree"
 import { useDiffPanel, type DiffPanelTab } from "../context"
 import { useWorkspace } from "@/features/workspace"
-import { useGitStatus } from "../queries"
+import { useGitStatus, useLastTurn, useRevertLastTurn } from "../queries"
 import {
   useGitStage,
   useGitStageAll,
@@ -50,6 +52,7 @@ import { type DiffMode } from "./diff-view"
 import { StashInputBar } from "./stash-input-bar"
 import { StashSection } from "./stash-section"
 import { FilesSection } from "./files-section"
+import { FileListItem } from "./file-list-item"
 import { FileHeader } from "./file-header"
 import { SORT_OPTIONS, type SortMode, applySortMode } from "./sort-utils"
 import { cn } from "@/shared/lib/utils"
@@ -95,6 +98,63 @@ const LANGUAGE_MAP: Record<string, string> = {
   md: "markdown",
 }
 
+// ─── Last Turn View ───────────────────────────────────────────────────────────
+
+type ContentView = "turn" | "all"
+
+const LastTurnView = memo(function LastTurnView({
+  sessionId,
+  mode,
+  files,
+  isLoading,
+}: {
+  sessionId: string
+  mode: DiffMode
+  files: ChangedFile[]
+  isLoading: boolean
+}) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
+          <Loader2 className="size-3 animate-spin" />
+          Loading…
+        </div>
+      </div>
+    )
+  }
+
+  if (files.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+          <History className="h-5 w-5 text-muted-foreground/40" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground/60">No changes from last turn</p>
+          <p className="text-[10px] leading-relaxed text-muted-foreground/40">
+            Files modified by the agent will appear here
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      {files.map((file) => (
+        <FileListItem
+          key={file.filePath}
+          file={file}
+          sessionId={sessionId}
+          mode={mode}
+          showActions={false}
+        />
+      ))}
+    </div>
+  )
+})
+
 // ─── Source Control Content ───────────────────────────────────────────────────
 
 const SourceControlContent = memo(function SourceControlContent({
@@ -102,9 +162,18 @@ const SourceControlContent = memo(function SourceControlContent({
 }: {
   sessionId: string
 }) {
+  const [view, setView] = useState<ContentView>("turn")
   const [mode, setMode] = useState<DiffMode>("inline")
   const [sortMode, setSortMode] = useState<SortMode>("name")
   const [stashInputOpen, setStashInputOpen] = useState(false)
+
+  const { data: lastTurnData = [], isLoading: lastTurnLoading } = useLastTurn(sessionId)
+  const revertLastTurn = useRevertLastTurn(sessionId)
+  const lastTurnFiles = useMemo(
+    () => lastTurnData.map((f) => parseStatusLine(`${f.postStatusCode} ${f.filePath}`)).filter(Boolean),
+    [lastTurnData]
+  )
+  const hasLastTurnFiles = lastTurnFiles.length > 0
 
   const {
     data: statusRaw,
@@ -139,6 +208,9 @@ const SourceControlContent = memo(function SourceControlContent({
   const revertFile = useGitRevertFile(sessionId)
 
   const bulkWorking = stageAll.isPending || unstageAll.isPending
+  const hasStaged = staged.length > 0
+  const hasUnstaged = unstaged.length > 0
+  const hasChanges = files.length > 0
 
   const handleStageToggle = useCallback(
     async (file: ChangedFile) => {
@@ -178,82 +250,174 @@ const SourceControlContent = memo(function SourceControlContent({
     [stash]
   )
 
-  const hasStaged = staged.length > 0
-  const hasUnstaged = unstaged.length > 0
-  const hasChanges = files.length > 0
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-8 min-w-0 shrink-0 items-center gap-0.5 border-b border-border/50 bg-muted/20 px-2">
-        {/* State-mutating actions */}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleStageAll}
-                disabled={bulkWorking || !hasUnstaged}
-                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-              >
-                {stageAll.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <PackagePlus />
-                )}
-                <span className="sr-only">Stage all</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Stage all changes</TooltipContent>
-        </Tooltip>
+      {/* Toolbar */}
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/50 bg-muted/10 px-2">
+        {/* Segmented view control */}
+        <div className="flex items-center rounded-md border border-border/50 bg-muted/50 p-0.5">
+          <button
+            onClick={() => setView("turn")}
+            className={cn(
+              "flex items-center gap-1.5 rounded px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
+              view === "turn"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground/70"
+            )}
+          >
+            <History className="h-3 w-3" />
+            This Turn
+          </button>
+          <button
+            onClick={() => setView("all")}
+            className={cn(
+              "flex items-center gap-1.5 rounded px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
+              view === "all"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground/70"
+            )}
+          >
+            <GitCompare className="h-3 w-3" />
+            All Changes
+          </button>
+        </div>
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleUnstageAll}
-                disabled={bulkWorking || !hasStaged}
-                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-              >
-                {unstageAll.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <PackageMinus />
-                )}
-                <span className="sr-only">Unstage all</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Unstage all changes</TooltipContent>
-        </Tooltip>
-
-        <div className="mx-1 h-4 w-px bg-border/50" />
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setStashInputOpen(true)}
-                disabled={!hasChanges}
-                className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-              >
-                <Archive />
-                <span className="sr-only">Stash changes</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Stash all changes</TooltipContent>
-        </Tooltip>
-
-        {/* Spacer pushes view controls to the right */}
         <div className="flex-1" />
 
-        {/* View controls */}
+        {/* This Turn only: revert last turn */}
+        {view === "turn" && hasLastTurnFiles && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => revertLastTurn.mutate()}
+                  disabled={revertLastTurn.isPending}
+                  className="text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 disabled:opacity-35"
+                >
+                  {revertLastTurn.isPending ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Undo2 />
+                  )}
+                  <span className="sr-only">Revert last turn</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Revert last turn changes</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* All Changes only: git actions */}
+        {view === "all" && (
+          <>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={handleStageAll}
+                    disabled={bulkWorking || !hasUnstaged}
+                    className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+                  >
+                    {stageAll.isPending ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <PackagePlus />
+                    )}
+                    <span className="sr-only">Stage all</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>Stage all changes</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={handleUnstageAll}
+                    disabled={bulkWorking || !hasStaged}
+                    className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+                  >
+                    {unstageAll.isPending ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <PackageMinus />
+                    )}
+                    <span className="sr-only">Unstage all</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>Unstage all changes</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setStashInputOpen(true)}
+                    disabled={!hasChanges}
+                    className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
+                  >
+                    <Archive />
+                    <span className="sr-only">Stash changes</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>Stash all changes</TooltipContent>
+            </Tooltip>
+
+            <div className="mx-0.5 h-4 w-px bg-border/50" />
+
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          data-active={sortMode !== "name"}
+                          className="text-muted-foreground/70 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+                        />
+                      }
+                    >
+                      <ArrowUpDown />
+                      <span className="sr-only">Sort files</span>
+                    </DropdownMenuTrigger>
+                  }
+                />
+                <TooltipContent>Sort files</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-44">
+                {SORT_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onClick={() => setSortMode(opt.value)}
+                    className="flex items-center justify-between"
+                  >
+                    {opt.label}
+                    {sortMode === opt.value && (
+                      <Check className="ml-2 h-3 w-3 text-muted-foreground" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="mx-0.5 h-4 w-px bg-border/50" />
+          </>
+        )}
+
+        {/* View mode — always visible */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -289,103 +453,74 @@ const SourceControlContent = memo(function SourceControlContent({
           />
           <TooltipContent>Side-by-side diff</TooltipContent>
         </Tooltip>
-
-        <div className="mx-1 h-4 w-px bg-border/50" />
-
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      data-active={sortMode !== "name"}
-                      className="text-muted-foreground/70 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-                    />
-                  }
-                >
-                  <ArrowUpDown />
-                  <span className="sr-only">Sort files</span>
-                </DropdownMenuTrigger>
-              }
-            />
-            <TooltipContent>Sort files</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end" className="w-44">
-            {SORT_OPTIONS.map((opt) => (
-              <DropdownMenuItem
-                key={opt.value}
-                onClick={() => setSortMode(opt.value)}
-                className="flex items-center justify-between"
-              >
-                {opt.label}
-                {sortMode === opt.value && (
-                  <Check className="ml-2 h-3 w-3 text-muted-foreground" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
+      {/* Content — switches between views */}
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {stashInputOpen && (
-            <StashInputBar
-              onConfirm={handleStashConfirm}
-              onCancel={() => setStashInputOpen(false)}
-            />
-          )}
+        {view === "turn" ? (
+          <LastTurnView sessionId={sessionId} mode={mode} files={lastTurnFiles} isLoading={lastTurnLoading} />
+        ) : (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {stashInputOpen && (
+                <StashInputBar
+                  onConfirm={handleStashConfirm}
+                  onCancel={() => setStashInputOpen(false)}
+                />
+              )}
 
-          {loading && files.length === 0 && (
-            <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" />
-              Loading status…
+              {loading && files.length === 0 && (
+                <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  Loading status…
+                </div>
+              )}
+
+              {!loading && error && (
+                <Alert variant="destructive" className="mx-3 mt-3">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {!loading && !error && files.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <GitCompare className="h-5 w-5 text-muted-foreground/40" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground/60">No changes</p>
+                    <p className="text-[10px] text-muted-foreground/40">Your working tree is clean</p>
+                  </div>
+                </div>
+              )}
+
+              {!loading && !error && (staged.length > 0 || unstaged.length > 0) && (
+                <FilesSection
+                  label="Staged"
+                  files={staged}
+                  sessionId={sessionId}
+                  mode={mode}
+                  onStageToggle={handleStageToggle}
+                  onRevert={handleRevert}
+                  emptyText="No staged changes"
+                />
+              )}
+
+              {!loading && !error && unstaged.length > 0 && (
+                <FilesSection
+                  label="Changes"
+                  files={unstaged}
+                  sessionId={sessionId}
+                  mode={mode}
+                  onStageToggle={handleStageToggle}
+                  onRevert={handleRevert}
+                />
+              )}
             </div>
-          )}
 
-          {!loading && error && (
-            <Alert variant="destructive" className="mx-3 mt-3">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {!loading && !error && files.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                <GitCompare className="h-4 w-4 text-muted-foreground/50" />
-              </div>
-              <p className="text-xs text-muted-foreground/50">No changes</p>
-            </div>
-          )}
-
-          {!loading && !error && (staged.length > 0 || unstaged.length > 0) && (
-            <FilesSection
-              label="Staged"
-              files={staged}
-              sessionId={sessionId}
-              mode={mode}
-              onStageToggle={handleStageToggle}
-              onRevert={handleRevert}
-              emptyText="No staged changes"
-            />
-          )}
-
-          {!loading && !error && unstaged.length > 0 && (
-            <FilesSection
-              label="Changes"
-              files={unstaged}
-              sessionId={sessionId}
-              mode={mode}
-              onStageToggle={handleStageToggle}
-              onRevert={handleRevert}
-            />
-          )}
-        </div>
-
-        <StashSection sessionId={sessionId} />
+            <StashSection sessionId={sessionId} />
+          </>
+        )}
       </div>
     </div>
   )

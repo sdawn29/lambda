@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query"
-import { gitStatus, gitFileDiff, gitDiffStat, gitStashList } from "./api"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { gitStatus, gitFileDiff, gitDiffStat, gitStashList, getLastTurnChanges, getLastTurn, revertLastTurn } from "./api"
 import { getBranch, listBranches } from "@/features/chat/api"
 
 const gitRootKey = ["git"] as const
@@ -21,6 +21,10 @@ export const gitKeys = {
     [...gitSessionKey(sessionId), "branch"] as const,
   branches: (sessionId: string) =>
     [...gitSessionKey(sessionId), "branches"] as const,
+  lastTurnChanges: (sessionId: string) =>
+    [...gitSessionKey(sessionId), "last-turn-changes"] as const,
+  lastTurn: (sessionId: string) =>
+    [...gitSessionKey(sessionId), "last-turn"] as const,
 }
 
 // ── Git status ────────────────────────────────────────────────────────────────
@@ -108,5 +112,40 @@ export function useBranches(sessionId: string) {
     queryFn: () => listBranches(sessionId),
     enabled: !!sessionId,
     staleTime: 30_000,
+  })
+}
+
+// ── Last-turn file changes ─────────────────────────────────────────────────────
+
+export function useLastTurnChanges(sessionId: string) {
+  return useQuery({
+    queryKey: gitKeys.lastTurnChanges(sessionId),
+    queryFn: () => getLastTurnChanges(sessionId),
+    enabled: !!sessionId,
+    staleTime: Infinity,
+  })
+}
+
+// ── Last turn ─────────────────────────────────────────────────────────────────
+
+export function useLastTurn(sessionId: string) {
+  return useQuery({
+    queryKey: gitKeys.lastTurn(sessionId),
+    queryFn: () => getLastTurn(sessionId),
+    enabled: !!sessionId,
+    staleTime: Infinity,
+  })
+}
+
+export function useRevertLastTurn(sessionId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => revertLastTurn(sessionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: gitKeys.status(sessionId) })
+      void queryClient.invalidateQueries({ queryKey: gitKeys.diffStat(sessionId) })
+      void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurn(sessionId) })
+      void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurnChanges(sessionId) })
+    },
   })
 }

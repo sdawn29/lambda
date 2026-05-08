@@ -20,14 +20,14 @@ export async function createSessionForThread(
   // Start the event hub immediately so we capture tool_execution_start events
   const entry = store.get(sessionId)
   if (entry) {
-    sessionEvents.ensure(sessionId, entry.threadId, entry.handle)
+    sessionEvents.ensure(sessionId, entry.threadId, entry.handle, entry.cwd)
   }
-  
+
   return sessionId
 }
 
 export function ensureSessionEventHub(sessionId: string, entry: NonNullable<ReturnType<typeof store.get>>) {
-  return sessionEvents.ensure(sessionId, entry.threadId, entry.handle)
+  return sessionEvents.ensure(sessionId, entry.threadId, entry.handle, entry.cwd)
 }
 
 export function gitCwd(id: string): string | null {

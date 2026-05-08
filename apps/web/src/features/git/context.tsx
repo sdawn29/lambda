@@ -38,7 +38,7 @@ type DiffPanelAction =
 
 const SOURCE_CONTROL_TAB: DiffPanelTab = {
   id: "tab-source-control",
-  title: "Source Control",
+  title: "Changes",
   type: "source-control",
 }
 
