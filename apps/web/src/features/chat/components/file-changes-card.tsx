@@ -1,10 +1,5 @@
 import { memo, useState, useMemo } from "react"
-import {
-  GitCompare,
-  Loader2,
-  ChevronDown,
-  ChevronRight,
-} from "lucide-react"
+import { GitCompare, ChevronDown, ChevronRight } from "lucide-react"
 import { useLastTurnChanges } from "@/features/git"
 import { useDiffPanel } from "@/features/git/context"
 import { Button } from "@/shared/ui/button"
@@ -18,7 +13,7 @@ interface FileChangesCardProps {
 export const FileChangesCard = memo(function FileChangesCard({
   sessionId,
 }: FileChangesCardProps) {
-  const { data: rawChanges, isLoading, isFetching } = useLastTurnChanges(sessionId)
+  const { data: rawChanges } = useLastTurnChanges(sessionId)
   const { open: openDiffPanel, addTab, currentWorkspacePath } = useDiffPanel()
   const [expanded, setExpanded] = useState(true)
 
@@ -32,7 +27,6 @@ export const FileChangesCard = memo(function FileChangesCard({
   }, [rawChanges])
 
   const hasChanges = files.length > 0
-  const showLoading = isLoading || (isFetching && !hasChanges)
 
   const handleOpenDiff = () => {
     openDiffPanel()
@@ -46,19 +40,6 @@ export const FileChangesCard = memo(function FileChangesCard({
       : filePath
     const fileName = filePath.split("/").pop() || filePath
     addTab({ title: fileName, type: "file", filePath: fullPath })
-  }
-
-  if (showLoading) {
-    return (
-      <div className="mx-auto w-full max-w-3xl px-6 py-3">
-        <div className="flex items-center justify-center gap-2 rounded-lg border border-border/50 bg-muted/20 px-4 py-3">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
-          <span className="text-xs text-muted-foreground/50">
-            Checking for changes…
-          </span>
-        </div>
-      </div>
-    )
   }
 
   if (!hasChanges) {

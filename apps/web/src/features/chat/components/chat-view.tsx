@@ -92,24 +92,39 @@ export function ChatView({
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
   // Messages present on the first non-empty render (from cache) skip entry animations.
   // Only messages that arrive after the initial snapshot get animate-in treatment.
-  const initialKeysRef = useRef<Set<string> | null>(null)
+  // State (not a ref) so it can be safely read during render.
+  const [initialSnapshot, setInitialSnapshot] = useState<{ sessionId: string; keys: Set<string> } | null>(null)
+  // Tracks the last-rendered session so we can detect switches during render.
+  const [localSessionId, setLocalSessionId] = useState(sessionId)
   const scrollSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { setThreadTitle } = useWorkspace()
 
+  // React's "adjusting state while rendering" pattern — reset all session-local
+  // state in one batched pass when the active session changes, avoiding the
+  // setState-inside-effect cascade that React 19 rejects.
+  if (localSessionId !== sessionId) {
+    setLocalSessionId(sessionId)
+    setGitError(null)
+    setShowScrollButton(false)
+    setSelectedModelId(initialModelId)
+  }
+
+  // Capture initial keys for this session as soon as messages are available,
+  // also during render so isNewMessage is correct on the very same frame.
+  if (
+    visibleMessages.length > 0 &&
+    (initialSnapshot === null || initialSnapshot.sessionId !== sessionId)
+  ) {
+    setInitialSnapshot({
+      sessionId,
+      keys: new Set(visibleMessages.map((m, i) => getMessageKey(m, i))),
+    })
+  }
+
+  // Focus textbox whenever the active session changes (imperative DOM op — effect is correct here).
   useEffect(() => {
     chatTextboxRef.current?.focus()
-  }, [])
-
-  // Snapshot the keys of messages present on the first non-empty render.
-  // These messages come from localStorage/cache and should not animate.
-  // Messages that arrive after this snapshot (streaming, user sends) will animate.
-  useEffect(() => {
-    if (initialKeysRef.current === null && visibleMessages.length > 0) {
-      initialKeysRef.current = new Set(
-        visibleMessages.map((m, i) => getMessageKey(m, i))
-      )
-    }
-  }, [visibleMessages])
+  }, [sessionId])
 
   // Flush any pending scroll-to-localStorage write on unmount.
   useEffect(() => {
@@ -466,12 +481,13 @@ export function ChatView({
                 )
                   return null
                 const key = getMessageKey(message, index)
-                // Only animate messages that arrived after the initial cache snapshot.
-                // initialKeysRef is null on the very first render → isNewMessage = false,
-                // preventing an animation cascade when switching to a thread with history.
+                // Only animate messages that arrived after the initial cache snapshot
+                // for this session. A missing or stale snapshot (wrong sessionId) means
+                // we haven't captured initial keys yet → no animation for existing messages.
                 const isNewMessage =
-                  initialKeysRef.current !== null &&
-                  !initialKeysRef.current.has(key)
+                  initialSnapshot !== null &&
+                  initialSnapshot.sessionId === sessionId &&
+                  !initialSnapshot.keys.has(key)
                 return (
                   <div key={key} className="pb-3">
                     <MessageRow

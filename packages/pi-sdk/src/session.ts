@@ -51,6 +51,11 @@ function buildHandle(session: AgentSession): ManagedSessionHandle {
         contextUsage: stats.contextUsage,
       }
     },
+    setCustomTools: (tools) => {
+      const s = session as any
+      s._customTools = tools
+      s._refreshToolRegistry()
+    },
   }
 }
 

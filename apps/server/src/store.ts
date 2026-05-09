@@ -46,6 +46,16 @@ class SessionStore {
     return { sessionId, handle: entry.handle };
   }
 
+  getByWorkspaceId(workspaceId: string): Array<{ sessionId: string; handle: ManagedSessionHandle }> {
+    const result: Array<{ sessionId: string; handle: ManagedSessionHandle }> = []
+    for (const [sessionId, entry] of this.sessions) {
+      if (entry.workspaceId === workspaceId) {
+        result.push({ sessionId, handle: entry.handle })
+      }
+    }
+    return result
+  }
+
   delete(id: string): boolean {
     const entry = this.sessions.get(id);
     if (!entry) return false;

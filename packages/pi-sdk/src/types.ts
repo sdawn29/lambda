@@ -151,4 +151,10 @@ export interface ManagedSessionHandle {
   getAvailableThinkingLevels(): string[]
   /** Get detailed session statistics including token usage and cost. */
   getSessionStats(): ManagedSessionStats
+  /**
+   * Replace the custom tools registered with this session.
+   * New tools are immediately activated; removed tools are dropped.
+   * Takes effect on the next agent turn.
+   */
+  setCustomTools(tools: ToolDefinition[]): void
 }

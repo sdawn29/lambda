@@ -87,7 +87,7 @@ function AssistantMessageBlock({
   const hasMeta = !!(message.model ?? message.responseTime != null)
 
   const proseClass =
-    "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
+    "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground leading-[1.55] prose-p:mb-0 prose-p:mt-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
 
   return (
     <div

@@ -11,7 +11,7 @@
  * new session's WebSocket opening (which calls onIsLoadingChange(true) via
  * onMessageStart). No explicit session change handling is needed here.
  */
-import { useCallback, useState, useRef } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSessionStream } from "./hooks/use-session-stream"
@@ -75,6 +75,23 @@ export function useChatStream({
   // events from a previous run must not re-raise the red dot on refresh or
   // when switching back to this thread.
   const hadLiveLoadingRef = useRef(false)
+
+  // Reset state during render when the session changes ("adjusting state while
+  // rendering" — React batches these setters and does one synchronous re-render).
+  const [localSessionId, setLocalSessionId] = useState(sessionId)
+  if (localSessionId !== sessionId) {
+    setLocalSessionId(sessionId)
+    setIsLoading(false)
+    setIsStopped(initialIsStopped)
+    setIsCompacting(false)
+    setPendingError(null)
+  }
+
+  // Reset the ref flag on session change. An effect that only mutates a ref
+  // (no setState) does not cause cascading renders and is safe in React 19.
+  useEffect(() => {
+    hadLiveLoadingRef.current = false
+  }, [sessionId])
 
   const { messages } = useVisibleMessages({ sessionId, pendingError })
 

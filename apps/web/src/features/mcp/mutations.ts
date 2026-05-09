@@ -11,7 +11,7 @@ export function useSaveMcpSettings() {
       settings,
     }: {
       workspaceId: string
-      settings: Record<string, McpServerConfig[]>
+      settings: { servers: McpServerConfig[] }
     }) => saveMcpSettings(workspaceId, settings),
     onMutate: async ({ workspaceId, settings }) => {
       // Optimistically update the cache

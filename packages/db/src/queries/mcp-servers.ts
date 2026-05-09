@@ -90,12 +90,16 @@ export function upsertMcpServer(
  * Save multiple MCP servers (replaces all existing for workspace)
  */
 export function saveMcpServers(workspaceId: string, configs: McpServerConfig[]): void {
+  // Preserve existing enabled states before wiping
+  const existing = getMcpServers(workspaceId)
+  const enabledMap = new Map(existing.map((s) => [s.name, s.enabled]))
+
   // Delete existing servers
   db.delete(mcpServers)
     .where(eq(mcpServers.workspaceId, workspaceId))
     .run()
 
-  // Insert new servers
+  // Insert new servers, restoring enabled state for servers that already existed
   const now = Date.now()
   for (const config of configs) {
     db.insert(mcpServers)
@@ -108,7 +112,7 @@ export function saveMcpServers(workspaceId: string, configs: McpServerConfig[]):
         env: config.env ? JSON.stringify(config.env) : null,
         cwd: config.cwd ?? null,
         description: config.description ?? null,
-        enabled: true,
+        enabled: enabledMap.get(config.name) ?? true,
         createdAt: now,
       })
       .run()

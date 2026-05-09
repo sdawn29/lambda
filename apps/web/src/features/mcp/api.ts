@@ -5,7 +5,7 @@ import type { McpServerConfig } from "./types"
 
 export type McpToolList = Array<{ name: string; description?: string }>
 
-export type McpSettings = Record<string, McpServerConfig[]>
+export type McpSettings = { servers: McpServerConfig[] }
 
 /**
  * Fetch MCP settings for the current workspace

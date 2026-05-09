@@ -81,9 +81,11 @@ export class McpClient {
       return;
     }
 
+    // Remove before closing so isConnected() reflects the new state even if close() throws
+    this.servers.delete(serverName);
+
     try {
       await connection.client.close();
-      this.servers.delete(serverName);
 
       this.emit({
         type: "server_disconnected",
@@ -136,7 +138,9 @@ export class McpClient {
    * Call an MCP tool by name (with server prefix)
    */
   async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
-    const [serverName, toolName] = name.split("/");
+    const slashIndex = name.indexOf("/");
+    const serverName = slashIndex !== -1 ? name.slice(0, slashIndex) : "";
+    const toolName = slashIndex !== -1 ? name.slice(slashIndex + 1) : "";
 
     if (!serverName || !toolName) {
       return {
