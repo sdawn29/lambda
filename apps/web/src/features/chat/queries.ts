@@ -8,7 +8,10 @@ import {
   fetchSessionStats,
 } from "./api"
 import { blocksToMessages, type MessageBlock, type Message } from "./types"
-import { getChatSyncEngine, loadThreadFromStorage } from "./hooks/use-chat-sync-engine"
+import {
+  getChatSyncEngine,
+  loadThreadFromStorage,
+} from "./hooks/use-chat-sync-engine"
 
 export type { WorkspaceEntry } from "./api"
 
@@ -52,7 +55,7 @@ export const messagesQueryKey = (sessionId: string) =>
  * data even when the WebSocket is adding messages.
  */
 export function useMessages(sessionId: string) {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const syncEngine = getChatSyncEngine()
 
   return useQuery({
@@ -69,9 +72,9 @@ export function useMessages(sessionId: string) {
       return stored?.messages ?? undefined
     },
     gcTime: 30 * 60 * 1000,
-    staleTime: 0,  // Always stale so we refetch on mount
-    refetchOnMount: true,  // Refetch when coming back to thread
-    refetchOnWindowFocus: true,  // Also refetch when window regains focus,
+    staleTime: 0, // Always stale so we refetch on mount
+    refetchOnMount: true, // Refetch when coming back to thread
+    refetchOnWindowFocus: true, // Also refetch when window regains focus,
     enabled: !!sessionId,
   })
 }
