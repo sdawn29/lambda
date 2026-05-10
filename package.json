@@ -8,7 +8,8 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "release:sync-version": "node scripts/sync-release-version.mjs"
+    "release": "node scripts/release.mjs",
+    "release:dry-run": "node scripts/release.mjs --dry-run"
   },
   "devDependencies": {
     "prettier": "^3.7.4",
