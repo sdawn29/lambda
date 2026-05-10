@@ -248,7 +248,7 @@ export function FormDialog({
         className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
       >
         {/* Header */}
-        <DialogHeader className="shrink-0 border-b px-5 pt-5 pb-4">
+        <DialogHeader className="shrink-0 border-b bg-muted/20 px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-primary/5">
               <Terminal className="h-4 w-4 text-primary" />
@@ -439,7 +439,7 @@ export function FormDialog({
 
             {/* Test Connection */}
             <div className="rounded-lg border">
-              <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="flex items-center justify-between gap-4 bg-muted/20 px-4 py-3">
                 <div>
                   <p className="text-xs font-medium">Test Connection</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -512,7 +512,7 @@ export function FormDialog({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="shrink-0 border-t px-5 py-4">
+        <DialogFooter className="shrink-0 border-t bg-muted/20 px-5 py-4">
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button onClick={onSave} disabled={!canSave || isSaving}>
             {isSaving ? (
@@ -569,84 +569,93 @@ export function ServerListItem({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border bg-card", !isEnabled && "opacity-50")}>
-      {/* Main row */}
-      <div className="flex items-start gap-3 p-3">
-        {/* Animated status dot */}
-        <div className="mt-1.5 shrink-0">
-          {isConnected ? (
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-40" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-            </span>
-          ) : status?.error ? (
-            <span className="flex h-2 w-2 rounded-full bg-destructive/70" />
-          ) : (
-            <span className="flex h-2 w-2 rounded-full bg-muted-foreground/25" />
-          )}
+    <div className={cn("overflow-hidden rounded-lg border bg-card transition-opacity", !isEnabled && "opacity-60")}>
+      {/* Content */}
+      <div className="flex items-start gap-3 px-3 pt-3 pb-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-muted/50">
+          <Terminal className="h-3.5 w-3.5 text-muted-foreground/70" />
         </div>
-
-        {/* Server info */}
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="text-xs font-medium">{server.name}</span>
-            {!isEnabled ? (
-              <span className="text-[10px] text-muted-foreground">disabled</span>
-            ) : status === undefined ? (
-              <span className="animate-pulse text-[10px] text-muted-foreground">connecting…</span>
-            ) : isConnected ? (
-              <span className="text-[10px] font-medium text-green-600 dark:text-green-400">
-                connected
-                {hasTools && (
-                  <span className="font-normal text-muted-foreground">
-                    {" · "}
-                    {tools.length} tool{tools.length !== 1 ? "s" : ""}
-                  </span>
-                )}
-              </span>
-            ) : status.error ? (
-              <span className="text-[10px] text-destructive">error</span>
-            ) : (
-              <span className="text-[10px] text-muted-foreground">stopped</span>
-            )}
-          </div>
-
-          <code className="block truncate font-mono text-[10px] text-muted-foreground/60">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold leading-tight">{server.name}</p>
+          <code className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground/55">
             {server.command}
             {server.args?.length ? ` ${server.args.join(" ")}` : ""}
           </code>
-
           {server.description && (
-            <p className="text-[11px] text-muted-foreground">{server.description}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              {server.description}
+            </p>
           )}
-
           {status?.error && (
-            <p className="mt-0.5 text-[10px] text-destructive">{status.error}</p>
+            <p className="mt-1 text-[10px] text-destructive">{status.error}</p>
           )}
         </div>
+      </div>
 
-        {/* Action buttons — always visible */}
+      {/* Status + Actions bar */}
+      <div className="flex h-9 items-center gap-1 border-t bg-muted/20 px-2">
+        {/* Status indicator */}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 pl-0.5">
+          {isConnected ? (
+            <span className="relative flex h-1.5 w-1.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-40" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+            </span>
+          ) : status?.error ? (
+            <span className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-destructive/70" />
+          ) : (
+            <span className="flex h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/25" />
+          )}
+          <span
+            className={cn(
+              "text-[10px]",
+              !isEnabled
+                ? "text-muted-foreground"
+                : status === undefined
+                  ? "animate-pulse text-muted-foreground"
+                  : isConnected
+                    ? "font-medium text-green-600 dark:text-green-400"
+                    : status.error
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+            )}
+          >
+            {!isEnabled
+              ? "disabled"
+              : status === undefined
+                ? "connecting…"
+                : isConnected
+                  ? "connected"
+                  : status.error
+                    ? "error"
+                    : "stopped"}
+          </span>
+        </div>
+
+        {/* Actions */}
         <div className="flex shrink-0 items-center gap-0.5">
-          {/* Tool list toggle */}
           {hasTools && (
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="sm"
               onClick={() => setShowTools(!showTools)}
-              title={showTools ? "Hide tools" : `Show ${tools.length} tools`}
-              className={cn(showTools && "bg-muted text-foreground")}
+              className={cn(
+                "h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground",
+                showTools && "bg-background text-foreground shadow-sm ring-1 ring-border/60 hover:bg-background"
+              )}
             >
-              <Wrench />
+              <Wrench className="h-3 w-3" />
+              {tools.length} tool{tools.length !== 1 ? "s" : ""}
             </Button>
           )}
 
-          {/* Start / Stop */}
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={handleStartStop}
             disabled={!isEnabled || isLoading}
             title={isConnected ? "Stop server" : "Start server"}
+            className="text-muted-foreground"
           >
             {isLoading ? (
               <Loader2 className="animate-spin" />
@@ -681,23 +690,26 @@ export function ServerListItem({
 
       {/* Collapsible tool list */}
       {showTools && hasTools && (
-        <div className="border-t bg-muted/20">
-          <div className="flex items-center gap-1.5 border-b px-3 py-1.5">
-            <Wrench className="h-3 w-3 text-muted-foreground/60" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="border-t">
+          <div className="flex h-8 items-center gap-2 bg-muted/30 px-3">
+            <Wrench className="h-3 w-3 text-muted-foreground/50" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/50">
               {tools.length} Tool{tools.length !== 1 ? "s" : ""}
             </span>
           </div>
-          <div className="divide-y">
+          <div className="p-1.5">
             {tools.map((tool) => (
-              <div key={tool.name} className="flex items-start gap-3 px-3 py-2">
-                <Zap className="mt-px h-3 w-3 shrink-0 text-muted-foreground/40" />
+              <div
+                key={tool.name}
+                className="my-1 flex items-start gap-2.5 rounded-md border border-border/40 bg-muted/10 px-2.5 py-2 first:mt-0 last:mb-0"
+              >
+                <Zap className="mt-0.5 h-3 w-3 shrink-0 text-primary/50" />
                 <div className="min-w-0">
-                  <code className="font-mono text-[10px] font-medium text-foreground/80">
+                  <code className="font-mono text-[10px] font-semibold text-foreground/80">
                     {tool.name}
                   </code>
                   {tool.description && (
-                    <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                       {tool.description}
                     </p>
                   )}

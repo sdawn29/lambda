@@ -44,20 +44,20 @@ export function FileHeader({
   }, [filePath])
 
   return (
-    <div className="flex h-8 min-w-0 items-center gap-1 px-2">
+    <div className="flex h-10 min-w-0 items-center gap-1 px-3">
       {/* File icon + breadcrumb */}
       <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-        <Icon
-          icon={`catppuccin:${getIconName(fileName)}`}
-          className="size-3.5 shrink-0 opacity-80"
-          aria-hidden
-        />
         {pathParts.map((part, i) => (
-          <span key={i} className="flex shrink-0 items-center">
+          <span key={i} className="flex shrink-0 items-center gap-1">
             {i > 0 && (
-              <span className="mx-0.5 select-none text-muted-foreground/40">
-                ›
-              </span>
+              <span className="select-none text-muted-foreground/40">›</span>
+            )}
+            {i === pathParts.length - 1 && (
+              <Icon
+                icon={`catppuccin:${getIconName(fileName)}`}
+                className="size-3.5 shrink-0 opacity-80"
+                aria-hidden
+              />
             )}
             <span
               className={

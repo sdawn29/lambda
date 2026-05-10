@@ -111,8 +111,8 @@ export const FileListItem = memo(function FileListItem({
     pathParts.length > 1 ? pathParts.slice(0, -1).join("/") + "/" : null
 
   return (
-    <div className={cn("group/file border-b border-border/30 last:border-0", className)}>
-      <div className="flex w-full items-center transition-colors hover:bg-muted/40">
+    <div className={cn("group/file mx-1.5 my-1 overflow-hidden rounded-md border border-border/40", className)}>
+      <div className="flex w-full items-center transition-colors hover:bg-muted/30">
         <button
           onClick={handleMainClick}
           disabled={disabled}
@@ -175,7 +175,7 @@ export const FileListItem = memo(function FileListItem({
       </div>
 
       {isExpanded && mode && (
-        <div className="animate-in border-t border-border/30 bg-muted/10 px-3 pb-3 duration-150 fade-in-0 slide-in-from-top-1">
+        <div className="animate-in border-t border-border/20 bg-muted/10 px-3 pb-3 duration-150 fade-in-0 slide-in-from-top-1">
           {diffLoading ? (
             <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
               <LoadingSpinner size="sm" />

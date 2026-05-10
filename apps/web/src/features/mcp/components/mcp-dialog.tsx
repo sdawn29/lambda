@@ -52,7 +52,7 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
           showCloseButton
           className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         >
-          <DialogHeader className="shrink-0 border-b px-5 pt-5 pb-4">
+          <DialogHeader className="shrink-0 border-b bg-muted/20 px-5 pt-5 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-primary/5">
                 <Plug className="h-4 w-4 text-primary" />
@@ -95,7 +95,7 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col gap-2 p-4">
+              <div className="flex flex-col gap-1.5 p-1.5">
                 {servers.map((server) => (
                   <ServerListItem
                     key={server.name}
@@ -112,7 +112,7 @@ export function McpDialog({ open, onOpenChange, workspaceId = "default" }: McpDi
           </div>
 
           {servers.length > 0 && (
-            <div className="shrink-0 border-t px-5 py-3">
+            <div className="shrink-0 border-t bg-muted/20 px-5 py-3">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-[11px] text-muted-foreground">
                   Servers are scoped to this workspace

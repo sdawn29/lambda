@@ -141,7 +141,7 @@ const LastTurnView = memo(function LastTurnView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-0.5">
       {files.map((file) => (
         <FileListItem
           key={file.filePath}
@@ -253,15 +253,15 @@ const SourceControlContent = memo(function SourceControlContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Toolbar */}
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/50 bg-muted/10 px-2">
+      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border/50 bg-muted/20 px-2">
         {/* Segmented view control */}
         <div className="flex items-center rounded-md border border-border/50 bg-muted/50 p-0.5">
           <button
             onClick={() => setView("turn")}
             className={cn(
-              "flex items-center gap-1.5 rounded px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
+              "flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
               view === "turn"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
                 : "text-muted-foreground hover:text-foreground/70"
             )}
           >
@@ -271,9 +271,9 @@ const SourceControlContent = memo(function SourceControlContent({
           <button
             onClick={() => setView("all")}
             className={cn(
-              "flex items-center gap-1.5 rounded px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
+              "flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
               view === "all"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
                 : "text-muted-foreground hover:text-foreground/70"
             )}
           >
@@ -693,7 +693,7 @@ const FileContent = memo(function FileContent({
   if (loading) {
     return (
       <div className="flex h-full flex-col">
-        <div className="border-b border-border/50">
+        <div className="border-b border-border/50 bg-muted/20">
           <FileHeader
             pathParts={pathParts}
             filePath={filePath}
@@ -713,7 +713,7 @@ const FileContent = memo(function FileContent({
   if (error) {
     return (
       <div className="flex h-full flex-col">
-        <div className="border-b border-border/50">
+        <div className="border-b border-border/50 bg-muted/20">
           <FileHeader
             pathParts={pathParts}
             filePath={filePath}
@@ -731,7 +731,7 @@ const FileContent = memo(function FileContent({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/50">
+      <div className="border-b border-border/50 bg-muted/20">
         <FileHeader
           pathParts={pathParts}
           filePath={filePath}
@@ -749,63 +749,65 @@ const FileContent = memo(function FileContent({
           isPdf={isPdf}
         />
       </div>
-      <div
-        className={cn(
-          "min-h-0 flex-1 overflow-auto",
-          isImage && "flex items-center justify-center p-4",
-          isHtml && htmlPreview && "overflow-hidden",
-          !isImage &&
-            markdownPreview &&
-            "prose prose-sm max-w-none p-4 dark:prose-invert",
-          !isImage &&
-            !markdownPreview &&
-            !(isHtml && htmlPreview) &&
-            "file-viewer-code pl-4"
-        )}
-        style={
-          markdownPreview || (isHtml && htmlPreview)
-            ? undefined
-            : { userSelect: "text" }
-        }
-      >
-        {isImage ? (
-          <img
-            src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
-            alt={fileName}
-            className="max-h-full max-w-full object-contain"
-          />
-        ) : isHtml && htmlPreview ? (
-          <iframe
-            src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
-            title={fileName}
-            className="h-full w-full border-0"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          />
-        ) : markdownPreview ? (
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={markdownLinkComponents}
-          >
-            {content ?? ""}
-          </ReactMarkdown>
-        ) : (
-          <Suspense
-            fallback={
-              <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" />
-                Loading…
-              </div>
-            }
-          >
-            <PrismCode
-              code={content ?? ""}
-              language={language}
-              style={isDark ? jellybeansdark : jellybeanslight}
-              showLineNumbers
-              fontSize="0.75rem"
+      <div className="flex min-h-0 flex-1 flex-col p-2">
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-auto rounded-lg border border-border/50",
+            isImage && "flex items-center justify-center p-4",
+            isHtml && htmlPreview && "overflow-hidden",
+            !isImage &&
+              markdownPreview &&
+              "prose prose-sm max-w-none p-4 dark:prose-invert",
+            !isImage &&
+              !markdownPreview &&
+              !(isHtml && htmlPreview) &&
+              "file-viewer-code pl-4"
+          )}
+          style={
+            markdownPreview || (isHtml && htmlPreview)
+              ? undefined
+              : { userSelect: "text" }
+          }
+        >
+          {isImage ? (
+            <img
+              src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
+              alt={fileName}
+              className="max-h-full max-w-full object-contain"
             />
-          </Suspense>
-        )}
+          ) : isHtml && htmlPreview ? (
+            <iframe
+              src={`${serverUrl}/file?path=${encodeURIComponent(filePath)}`}
+              title={fileName}
+              className="h-full w-full border-0"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
+          ) : markdownPreview ? (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={markdownLinkComponents}
+            >
+              {content ?? ""}
+            </ReactMarkdown>
+          ) : (
+            <Suspense
+              fallback={
+                <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  Loading…
+                </div>
+              }
+            >
+              <PrismCode
+                code={content ?? ""}
+                language={language}
+                style={isDark ? jellybeansdark : jellybeanslight}
+                showLineNumbers
+                fontSize="0.75rem"
+              />
+            </Suspense>
+          )}
+        </div>
       </div>
     </div>
   )

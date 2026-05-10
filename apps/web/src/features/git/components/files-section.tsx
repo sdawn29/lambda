@@ -1,10 +1,8 @@
-import { memo, useState } from "react"
-import { ChevronRight } from "lucide-react"
-import { Badge } from "@/shared/ui/badge"
+import { memo } from "react"
 import { FileAccordionItem } from "./file-accordion-item"
 import { type ChangedFile } from "./status-badge"
 import { type DiffMode } from "./diff-view"
-import { cn } from "@/shared/lib/utils"
+import { SectionCard } from "./section-card"
 
 export const FilesSection = memo(function FilesSection({
   label,
@@ -23,49 +21,21 @@ export const FilesSection = memo(function FilesSection({
   onRevert: (file: ChangedFile) => Promise<void>
   emptyText?: string
 }) {
-  const [collapsed, setCollapsed] = useState(false)
-
   return (
-    <div className="border-b border-border/40 last:border-0">
-      <button
-        onClick={() => setCollapsed((v) => !v)}
-        className="flex h-auto w-full items-center justify-start gap-2 rounded-none px-3 py-1.5"
-      >
-        <ChevronRight
-          className={cn(
-            "h-3 w-3 shrink-0 text-muted-foreground/40 transition-transform duration-150",
-            !collapsed && "rotate-90"
-          )}
-        />
-        <span className="text-[10px] font-semibold tracking-wide text-muted-foreground/60 uppercase">
-          {label}
-        </span>
-        {files.length > 0 && (
-          <Badge variant="secondary" className="h-4 min-w-4 rounded-full px-1 text-[10px]">
-            {files.length}
-          </Badge>
-        )}
-      </button>
-
-      {!collapsed && (
-        <div className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
-          {files.length === 0 && emptyText && (
-            <p className="px-4 py-2.5 text-xs text-muted-foreground/40">
-              {emptyText}
-            </p>
-          )}
-          {files.map((file, i) => (
-            <FileAccordionItem
-              key={i}
-              file={file}
-              sessionId={sessionId}
-              mode={mode}
-              onStageToggle={onStageToggle}
-              onRevert={onRevert}
-            />
-          ))}
-        </div>
+    <SectionCard label={label} count={files.length} className="last:mb-1.5">
+      {files.length === 0 && emptyText && (
+        <p className="px-4 py-2.5 text-xs text-muted-foreground/40">{emptyText}</p>
       )}
-    </div>
+      {files.map((file, i) => (
+        <FileAccordionItem
+          key={i}
+          file={file}
+          sessionId={sessionId}
+          mode={mode}
+          onStageToggle={onStageToggle}
+          onRevert={onRevert}
+        />
+      ))}
+    </SectionCard>
   )
 })

@@ -258,10 +258,15 @@ function SidebarNavButton({
   const Icon = section.icon
   return (
     <Button
-      variant={isActive ? "secondary" : "ghost"}
+      variant="ghost"
       size="sm"
       onClick={() => onClick(section.id)}
-      className={cn("w-full justify-start gap-2", isActive && "font-medium")}
+      className={cn(
+        "w-full justify-start gap-2 transition-all duration-150",
+        isActive
+          ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-border/60 hover:bg-background"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
       <span>{section.label}</span>
@@ -371,7 +376,7 @@ export function SettingsPage() {
       {/* ── Left sidebar nav ── */}
       <aside className="flex w-56 shrink-0 flex-col border-r">
         {/* Header */}
-        <div className="flex h-12 shrink-0 items-center border-b px-4">
+        <div className="flex h-12 shrink-0 items-center border-b bg-muted/20 px-4">
           <h1 className="text-sm font-semibold">Settings</h1>
         </div>
 
@@ -1038,28 +1043,22 @@ function KeyboardShortcutsCard() {
 
   return (
     <Card>
-      <CardContent className="px-4 py-0">
-        <div className="flex flex-col gap-0">
-          {SHORTCUT_ACTION_ORDER.map((action, i) => (
-            <div
-              key={action}
-              className={cn(
-                "flex items-center justify-between py-2",
-                i < SHORTCUT_ACTION_ORDER.length - 1 &&
-                  "border-b border-border/50"
-              )}
-            >
-              <span className="text-sm">{SHORTCUT_LABELS[action]}</span>
-              <ShortcutRecorder
-                action={action}
-                binding={shortcuts[action] ?? DEFAULT_SHORTCUTS[action]}
-                onSave={updateShortcut}
-              />
-            </div>
-          ))}
-        </div>
+      <CardContent className="flex flex-col gap-1 p-1.5">
+        {SHORTCUT_ACTION_ORDER.map((action) => (
+          <div
+            key={action}
+            className="flex items-center justify-between rounded-md border border-border/40 px-3 py-2"
+          >
+            <span className="text-sm">{SHORTCUT_LABELS[action]}</span>
+            <ShortcutRecorder
+              action={action}
+              binding={shortcuts[action] ?? DEFAULT_SHORTCUTS[action]}
+              onSave={updateShortcut}
+            />
+          </div>
+        ))}
         {!isAllDefault && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-0.5 flex justify-end px-1 pb-0.5">
             <Button variant="ghost" size="sm" onClick={resetShortcuts}>
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
               Reset all to defaults
