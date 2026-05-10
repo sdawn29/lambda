@@ -924,8 +924,8 @@ export const DiffPanel = memo(function DiffPanel({
       )}
       <div className="flex h-full w-full flex-col bg-background">
         {/* Tab bar */}
-        <div className="flex h-8 shrink-0 items-stretch border-b">
-          <div className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+        <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
+          <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1">
             {tabs.map((tab) => {
               const isActive = tab.id === activeTabId
               return (
@@ -942,11 +942,11 @@ export const DiffPanel = memo(function DiffPanel({
                   }}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "group relative flex h-full shrink-0 cursor-pointer items-center gap-1.5 rounded-none border-r text-xs select-none",
-                    tab.type === "source-control" ? "px-3" : "pl-3 pr-1",
+                    "group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md text-xs select-none transition-all duration-150",
+                    tab.type === "source-control" ? "px-3" : "pl-3 pr-1.5",
                     isActive
-                      ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-0.5 after:bg-primary"
-                      : "bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
                   )}
                 >
                   {tab.type === "source-control" ? (
@@ -984,7 +984,7 @@ export const DiffPanel = memo(function DiffPanel({
 
             {/* Add tab dropdown */}
             <DropdownMenu open={showAddMenu} onOpenChange={setShowAddMenu}>
-              <DropdownMenuTrigger className="flex items-center px-2 text-muted-foreground hover:text-foreground">
+              <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
                 <Plus className="h-3.5 w-3.5" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44">
@@ -997,7 +997,7 @@ export const DiffPanel = memo(function DiffPanel({
           </div>
 
           {/* Right side buttons */}
-          <div className="flex shrink-0 items-center gap-0.5 border-l px-1">
+          <div className="flex shrink-0 items-center gap-0.5 px-1">
             <Tooltip>
               <TooltipTrigger
                 render={

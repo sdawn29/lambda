@@ -255,9 +255,9 @@ export const TerminalPanel = memo(function TerminalPanel({
   return (
     <div className="flex h-full shrink-0 flex-col border-t bg-background">
       {/* Tab bar — shows only the active workspace's tabs */}
-      <div className="flex h-8 shrink-0 items-stretch border-b">
+      <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
         {/* Scrollable tab list */}
-        <div className="scrollbar-none flex min-w-0 flex-1 items-stretch overflow-x-auto">
+        <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1">
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
             return (
@@ -266,10 +266,10 @@ export const TerminalPanel = memo(function TerminalPanel({
                 type="button"
                 onClick={() => ctx.setActiveTab(activeWorkspaceId, tab.id)}
                 className={cn(
-                  "group relative flex shrink-0 items-center gap-1.5 border-r px-3 font-mono text-xs transition-colors",
+                  "group relative flex h-7 shrink-0 items-center gap-1.5 rounded-md pl-3 pr-1.5 font-mono text-xs select-none transition-all duration-150",
                   isActive
-                    ? "bg-background text-foreground after:absolute after:right-0 after:bottom-0 after:left-0 after:h-px after:bg-primary"
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
                 )}
               >
                 <TerminalSquare className="h-3 w-3 shrink-0" />
@@ -306,18 +306,18 @@ export const TerminalPanel = memo(function TerminalPanel({
             type="button"
             onClick={() => ctx.addTab(activeWorkspaceId, cwd)}
             aria-label="New terminal tab"
-            className="flex items-center px-2 text-muted-foreground hover:text-foreground"
+            className="flex h-7 items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        {/* Close panel */}
-        <div className="flex items-center border-l px-1.5">
+        {/* Kill all */}
+        <div className="flex items-center px-1">
           <Button
             variant="ghost"
             size="icon-sm"
-            className="h-5 w-5 text-muted-foreground hover:text-destructive"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
             onClick={() => ctx.killAll(activeWorkspaceId)}
             title="Kill all terminals"
           >
