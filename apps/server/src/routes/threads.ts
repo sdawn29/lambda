@@ -30,7 +30,7 @@ threads.post("/workspace/:workspaceId/thread", async (c) => {
   if (!ws) return c.json({ error: "Workspace not found" }, 404);
 
   const threadId = insertThread(workspaceId);
-  const sessionId = await createSessionForThread(threadId, ws.path, {
+  const sessionId = await createSessionForThread(threadId, ws.path, workspaceId, {
     provider: body.provider,
     model: body.model,
   });

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useCallback } from "react"
+import { flushSync } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { openSessionWebSocket, listRunningTools } from "../api"
 import { subscribeToSessionEvents, type AgentEndMessage } from "../session-events"
 import { messagesQueryKey, chatKeys } from "../queries"
-import { createAssistantMessage, createErrorMessage, blockToMessage } from "../types"
+import { createAssistantMessage, createErrorMessage, blockToMessage, parseErrorMessage } from "../types"
 import type { AssistantMessage, Message, ToolMessage } from "../types"
+import { gitKeys } from "@/features/git/queries"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -124,25 +126,6 @@ function findLastAssistantIndex(messages: Message[]): number {
     if (messages[i].role === "assistant") return i
   }
   return -1
-}
-
-function parseErrorMessage(raw: string): string {
-  try {
-    const parsed = JSON.parse(raw)
-    if (parsed?.error?.message) return parsed.error.message
-    if (parsed?.error) return typeof parsed.error === "string" ? parsed.error : JSON.stringify(parsed.error)
-  } catch {
-    const jsonStart = raw.indexOf("{")
-    if (jsonStart > 0) {
-      try {
-        const inner = (JSON.parse(raw.slice(jsonStart)) as Record<string, unknown>)?.error as Record<string, unknown> | undefined
-        if (typeof inner?.message === "string") return inner.message
-      } catch {
-        // fall through to raw string
-      }
-    }
-  }
-  return raw
 }
 
 // ── Queue event types ─────────────────────────────────────────────────────────
@@ -307,6 +290,7 @@ export interface UseSessionStreamOptions {
   onIsCompactingChange?: (compacting: boolean) => void
   onPendingErrorChange?: (error: ReturnType<typeof createErrorMessage> | null) => void
   onError?: () => void
+  onToolExecutionEnd?: (toolName: string) => void
 }
 
 export function useSessionStream({
@@ -317,6 +301,7 @@ export function useSessionStream({
   onIsCompactingChange,
   onPendingErrorChange,
   onError,
+  onToolExecutionEnd,
 }: UseSessionStreamOptions) {
   const queryClient = useQueryClient()
 
@@ -336,10 +321,10 @@ export function useSessionStream({
 
   // Always-current callbacks — stored in a ref so the queue processor (which
   // is stable across renders) always calls the latest versions.
-  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError })
+  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd })
   useEffect(() => {
-    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError }
-  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError])
+    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd }
+  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd])
 
   // ── Queue processor ───────────────────────────────────────────────────────
   //
@@ -379,6 +364,14 @@ export function useSessionStream({
           })
           break
 
+        case "tool_end": {
+          const { toolName } = event
+          if (toolName) {
+            sideEffects.push(() => cb.onToolExecutionEnd?.(toolName))
+          }
+          break
+        }
+
         case "agent_end": {
           const hasError = event.agentMessages.some(
             (msg): boolean =>
@@ -393,6 +386,10 @@ export function useSessionStream({
             void queryClient.invalidateQueries({ queryKey: messagesQueryKey(sessionId) })
             void queryClient.invalidateQueries({ queryKey: chatKeys.contextUsage(sessionId) })
             void queryClient.invalidateQueries({ queryKey: chatKeys.sessionStats(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurnChanges(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurn(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: gitKeys.session(sessionId) })
+            void queryClient.invalidateQueries({ queryKey: ["file-tree"] })
           })
           break
         }
@@ -501,13 +498,17 @@ export function useSessionStream({
     }
   }, [processQueue])
 
-  // Flush immediately — used for terminal events so they don't race with
-  // the next user action (e.g. sending a follow-up message).
+  // Flush immediately and force a synchronous React render so that
+  // tool_start/agent_end state is committed to the DOM before the next
+  // WebSocket message (e.g. tool_end) is processed.  Without flushSync,
+  // React 19's automatic batching can merge the running→done transition
+  // into a single render, making fast tool blocks (like Write) appear to
+  // skip the running state entirely.
   const flushNow = useCallback(() => {
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current)
     }
-    processQueue()
+    flushSync(processQueue)
   }, [processQueue])
 
   // Enqueue an event and schedule a batched flush.

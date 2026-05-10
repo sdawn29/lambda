@@ -11,7 +11,7 @@
  * new session's WebSocket opening (which calls onIsLoadingChange(true) via
  * onMessageStart). No explicit session change handling is needed here.
  */
-import { useCallback, useState, useMemo, useRef } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSessionStream } from "./hooks/use-session-stream"
@@ -21,6 +21,23 @@ import { dismissSessionError } from "./api"
 import { createErrorMessage } from "./types"
 import type { ErrorMessage, Message } from "./types"
 import { useSetThreadStatus } from "./thread-status-context"
+import { gitStatusKey, gitKeys } from "@/features/git/queries"
+
+const FILE_MODIFYING_TOOLS = new Set([
+  "write", "edit", "create", "delete", "replace", "move", "copy",
+  "writefile", "write_file", "editfile", "edit_file", "createfile", "create_file",
+  "bash", "shell",
+])
+
+function isFileModifyingTool(toolName: string): boolean {
+  if (FILE_MODIFYING_TOOLS.has(toolName.toLowerCase())) return true
+  const lower = toolName.toLowerCase()
+  return lower.includes("write") || lower.includes("edit") ||
+    lower.includes("create") || lower.includes("delete") ||
+    lower.includes("mkdir") || lower.includes("move") ||
+    lower.includes("copy") || lower.includes("bash") ||
+    lower.includes("shell")
+}
 
 interface UseChatStreamOptions {
   sessionId: string
@@ -59,6 +76,23 @@ export function useChatStream({
   // when switching back to this thread.
   const hadLiveLoadingRef = useRef(false)
 
+  // Reset state during render when the session changes ("adjusting state while
+  // rendering" — React batches these setters and does one synchronous re-render).
+  const [localSessionId, setLocalSessionId] = useState(sessionId)
+  if (localSessionId !== sessionId) {
+    setLocalSessionId(sessionId)
+    setIsLoading(false)
+    setIsStopped(initialIsStopped)
+    setIsCompacting(false)
+    setPendingError(null)
+  }
+
+  // Reset the ref flag on session change. An effect that only mutates a ref
+  // (no setState) does not cause cascading renders and is safe in React 19.
+  useEffect(() => {
+    hadLiveLoadingRef.current = false
+  }, [sessionId])
+
   const { messages } = useVisibleMessages({ sessionId, pendingError })
 
   const handleIsLoadingChange = useCallback((loading: boolean) => {
@@ -72,6 +106,15 @@ export function useChatStream({
     }
   }, [setThreadStatus, threadId])
 
+  const handleToolExecutionEnd = useCallback((toolName: string) => {
+    void queryClient.invalidateQueries({ queryKey: gitKeys.session(sessionId) })
+    void queryClient.invalidateQueries({ queryKey: ["file-tree"] })
+    if (isFileModifyingTool(toolName)) {
+      void queryClient.refetchQueries({ queryKey: gitStatusKey(sessionId) })
+      void queryClient.refetchQueries({ queryKey: ["file-tree"] })
+    }
+  }, [queryClient, sessionId])
+
   // Connect to WebSocket stream
   const { lastPromptRef, pendingThinkingLevelRef } = useSessionStream({
     sessionId,
@@ -79,11 +122,10 @@ export function useChatStream({
     onIsCompactingChange: setIsCompacting,
     onPendingErrorChange: setPendingError,
     onError: handleError,
+    onToolExecutionEnd: handleToolExecutionEnd,
   })
 
   const hasLoadedMessages = messages.length > 0 || isLoading
-
-  const visibleMessages = useMemo(() => messages, [messages])
 
   const startUserPrompt = useCallback(
     (text: string, thinkingLevel?: string) => {
@@ -113,8 +155,16 @@ export function useChatStream({
   const markStopped = useCallback(() => setIsStopped(true), [])
 
   const markSendFailed = useCallback(() => {
-    // Error handling is managed by the stream hook
-  }, [])
+    setIsLoading(false)
+    setPendingError(
+      createErrorMessage("Send failed", "Failed to send message. Please try again.", {
+        retryable: true,
+        action: lastPromptRef.current
+          ? { type: "retry", prompt: lastPromptRef.current.text }
+          : { type: "dismiss" },
+      })
+    )
+  }, [lastPromptRef])
 
   const dismissError = useCallback(
     (id: string) => {
@@ -132,8 +182,8 @@ export function useChatStream({
   )
 
   return {
-    visibleMessages,
-    hasConversationHistory: visibleMessages.length > 0,
+    visibleMessages: messages,
+    hasConversationHistory: messages.length > 0,
     hasLoadedMessages,
     isLoading,
     isStopped,

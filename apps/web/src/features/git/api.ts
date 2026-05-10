@@ -143,3 +143,29 @@ export async function gitGenerateCommitMessage(
   )
   return message
 }
+
+export async function getLastTurnChanges(sessionId: string): Promise<string> {
+  const { raw } = await apiFetch<{ raw: string }>(
+    `${base(sessionId)}/last-turn-changes`
+  )
+  return raw
+}
+
+// ── Last turn ─────────────────────────────────────────────────────────────────
+
+export interface LastTurnFile {
+  filePath: string
+  postStatusCode: string
+  wasCreatedByTurn: boolean
+}
+
+export async function getLastTurn(sessionId: string): Promise<LastTurnFile[]> {
+  const { files } = await apiFetch<{ files: LastTurnFile[] }>(
+    `${base(sessionId)}/last-turn`
+  )
+  return files
+}
+
+export function revertLastTurn(sessionId: string): Promise<void> {
+  return apiFetch<void>(`${base(sessionId)}/last-turn/revert`, { method: "POST" })
+}

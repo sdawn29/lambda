@@ -14,6 +14,7 @@ import {
   Trash2,
   FileDiff,
   FolderTree,
+  Server,
 } from "lucide-react"
 import {
   useRouter,
@@ -46,6 +47,7 @@ import {
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { Separator } from "@/shared/ui/separator"
+import { McpDialog, useMcpServerStatus } from "@/features/mcp"
 
 const activeTitleBarButtonClassName =
   "transition-[background-color,border-color,color,box-shadow] duration-150 aria-pressed:border-primary/35 aria-pressed:bg-primary/10 aria-pressed:text-primary aria-pressed:shadow-sm dark:aria-pressed:border-primary/45 dark:aria-pressed:bg-primary/20 dark:aria-pressed:text-primary-foreground"
@@ -60,12 +62,14 @@ export function TitleBar() {
   const { isOpen: diffOpen, toggle: toggleDiff } = useDiffPanel()
   const { isOpen: fileTreeOpen, toggle: toggleFileTree } = useFileTree()
   const { threadId } = useParams({ strict: false }) as { threadId?: string }
-  const activeThread = threadId
-    ? workspaces.flatMap((w) => w.threads).find((t) => t.id === threadId)
-    : undefined
-  const activeWorkspace = activeThread
-    ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id))
-    : undefined
+  const activeThread = useMemo(
+    () => (threadId ? workspaces.flatMap((w) => w.threads).find((t) => t.id === threadId) : undefined),
+    [workspaces, threadId]
+  )
+  const activeWorkspace = useMemo(
+    () => (activeThread ? workspaces.find((w) => w.threads.some((t) => t.id === activeThread.id)) : undefined),
+    [workspaces, activeThread]
+  )
   const { isOpen: terminalOpen, toggle: toggleTerminal } = useTerminalForWorkspace(
     activeWorkspace?.id ?? "",
     activeWorkspace?.path ?? ""
@@ -79,6 +83,9 @@ export function TitleBar() {
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
+  const { data: mcpServerStatus } = useMcpServerStatus(activeWorkspace?.id ?? "")
+  const mcpConnectedCount = mcpServerStatus?.filter((s) => s.connected).length ?? 0
 
   const startRename = () => {
     setRenameValue(activeThread?.title ?? "")
@@ -282,18 +289,27 @@ export function TitleBar() {
               </>
             )}
             {isRenaming ? (
-              <input
-                ref={renameInputRef}
-                autoFocus
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename()
-                  if (e.key === "Escape") setIsRenaming(false)
-                }}
-                className="w-48 min-w-0 bg-transparent text-sm font-medium outline-none"
-              />
+              <span className="inline-grid max-w-xs min-w-0">
+                <span
+                  aria-hidden
+                  className="invisible col-start-1 row-start-1 whitespace-pre text-sm font-medium"
+                >
+                  {renameValue || " "}
+                </span>
+                <input
+                  ref={renameInputRef}
+                  autoFocus
+                  size={1}
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename()
+                    if (e.key === "Escape") setIsRenaming(false)
+                  }}
+                  className="col-start-1 row-start-1 w-full min-w-0 bg-transparent text-sm font-medium outline-none"
+                />
+              </span>
             ) : (
               <span className="max-w-xs min-w-0 truncate text-sm font-medium">
                 {activeThread.title}
@@ -351,6 +367,28 @@ export function TitleBar() {
           openWithAppId={activeWorkspace?.openWithAppId}
         />
         <CommitDialog sessionId={activeThread?.sessionId ?? undefined} />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setMcpDialogOpen(true)}
+                className={`w-auto gap-1 px-2 ${activeTitleBarButtonClassName}`}
+              >
+                <Server className="shrink-0" />
+                {mcpConnectedCount > 0 ? (
+                  <span className="flex items-center gap-1 text-[11px] font-medium tabular-nums">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                    {mcpConnectedCount}
+                  </span>
+                ) : null}
+                <span className="sr-only">MCP servers</span>
+              </Button>
+            }
+          />
+          <TooltipContent>MCP servers</TooltipContent>
+        </Tooltip>
 
         <Separator orientation="vertical" className="mx-1" />
 
@@ -433,6 +471,12 @@ export function TitleBar() {
           </TooltipContent>
         </Tooltip>
       </div>
+
+      <McpDialog
+        open={mcpDialogOpen}
+        onOpenChange={setMcpDialogOpen}
+        workspaceId={activeWorkspace?.id}
+      />
     </div>
   )
 }

@@ -29,11 +29,7 @@ import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Input } from "@/shared/ui/input"
 import { Card, CardContent } from "@/shared/ui/card"
-import {
-  Progress,
-  ProgressLabel,
-  ProgressValue,
-} from "@/shared/ui/progress"
+import { Progress, ProgressLabel, ProgressValue } from "@/shared/ui/progress"
 import { Switch } from "@/shared/ui/switch"
 import {
   Dialog,
@@ -208,7 +204,14 @@ const SECTIONS: SettingsSection[] = [
     label: "Updates",
     icon: RefreshCw,
     description: "App version and automatic update controls",
-    keywords: ["update", "version", "install", "download", "upgrade", "release"],
+    keywords: [
+      "update",
+      "version",
+      "install",
+      "download",
+      "upgrade",
+      "release",
+    ],
   },
   {
     id: "data",
@@ -227,12 +230,47 @@ const SECTIONS: SettingsSection[] = [
   },
 ]
 
+const SECTION_GROUPS: { label: string; ids: string[] }[] = [
+  { label: "Interface", ids: ["appearance", "chat"] },
+  { label: "AI Providers", ids: ["subscriptions", "api-keys"] },
+  { label: "Customization", ids: ["git", "shortcuts"] },
+  { label: "System", ids: ["retry", "updates", "data"] },
+]
+
 function sectionMatches(section: SettingsSection, query: string): boolean {
   const q = query.toLowerCase()
   return (
     section.label.toLowerCase().includes(q) ||
     section.description.toLowerCase().includes(q) ||
     section.keywords.some((k) => k.includes(q))
+  )
+}
+
+function SidebarNavButton({
+  section,
+  isActive,
+  onClick,
+}: {
+  section: SettingsSection
+  isActive: boolean
+  onClick: (id: string) => void
+}) {
+  const Icon = section.icon
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => onClick(section.id)}
+      className={cn(
+        "w-full justify-start gap-2 transition-all duration-150",
+        isActive
+          ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-border/60 hover:bg-background"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span>{section.label}</span>
+    </Button>
   )
 }
 
@@ -273,14 +311,6 @@ export function SettingsPage() {
         return
       }
 
-      // If we're in the bottom 30%, select the last visible section
-      const scrollProgress = c.scrollTop / (c.scrollHeight - c.clientHeight)
-      if (scrollProgress > 0.7) {
-        const last = visibleSections[visibleSections.length - 1]
-        if (last) setActiveSection(last.id)
-        return
-      }
-
       const containerRect = c.getBoundingClientRect()
       const threshold = containerRect.top + containerRect.height * 0.4
 
@@ -301,13 +331,30 @@ export function SettingsPage() {
 
   const scrollToSection = useCallback((id: string) => {
     const el = sectionRefs.current[id]
-    if (!el) return
+    const container = contentRef.current
+    if (!el || !container) return
+
     isScrollingTo.current = true
     setActiveSection(id)
     el.scrollIntoView({ behavior: "smooth", block: "start" })
-    setTimeout(() => {
+
+    const release = () => {
       isScrollingTo.current = false
-    }, 700)
+    }
+
+    // scrollend fires when smooth scroll finishes; fall back to a timeout
+    // for browsers that don't support it yet.
+    container.addEventListener("scrollend", release, { once: true })
+    const fallback = setTimeout(() => {
+      container.removeEventListener("scrollend", release)
+      release()
+    }, 1000)
+
+    container.addEventListener(
+      "scrollend",
+      () => clearTimeout(fallback),
+      { once: true }
+    )
   }, [])
 
   async function handleReset() {
@@ -327,13 +374,18 @@ export function SettingsPage() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* ── Left sidebar nav ── */}
-      <aside className="flex w-52 shrink-0 flex-col border-r">
+      <aside className="flex w-56 shrink-0 flex-col border-r">
+        {/* Header */}
+        <div className="flex h-12 shrink-0 items-center border-b bg-muted/20 px-4">
+          <h1 className="text-sm font-semibold">Settings</h1>
+        </div>
+
         {/* Search */}
-        <div className="p-3 pb-2">
+        <div className="p-2.5">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search settings…"
+              placeholder="Search…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-7 pl-7 text-xs"
@@ -353,35 +405,61 @@ export function SettingsPage() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col gap-0.5 overflow-y-auto px-2 pb-4">
-          {visibleSections.length === 0 ? (
-            <p className="px-2 py-3 text-xs text-muted-foreground">
-              No results
-            </p>
-          ) : (
-            visibleSections.map((section) => {
-              const Icon = section.icon
-              const isActive = activeSection === section.id
-              return (
-                <Button
-                  key={section.id}
-                  variant={isActive ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => scrollToSection(section.id)}
-                  className="w-full justify-start gap-2"
-                >
-                  <Icon className="h-3.5 w-3.5 shrink-0" />
-                  <span>{section.label}</span>
-                </Button>
-              )
-            })
-          )}
-        </nav>
+        {search.trim() ? (
+          <nav className="flex flex-col overflow-y-auto px-2 pb-4">
+            {visibleSections.length === 0 ? (
+              <p className="px-2 py-3 text-xs text-muted-foreground">
+                No results
+              </p>
+            ) : (
+              <>
+                <p className="px-2 pb-1 text-[10px] text-muted-foreground/70">
+                  {visibleSections.length} result
+                  {visibleSections.length !== 1 ? "s" : ""}
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  {visibleSections.map((section) => (
+                    <SidebarNavButton
+                      key={section.id}
+                      section={section}
+                      isActive={activeSection === section.id}
+                      onClick={scrollToSection}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </nav>
+        ) : (
+          <nav className="flex flex-col overflow-y-auto px-2 pb-4">
+            {SECTION_GROUPS.map((group) => (
+              <div key={group.label} className="mt-3">
+                <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+                  {group.label}
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  {group.ids.map((id) => {
+                    const section = SECTIONS.find((s) => s.id === id)
+                    if (!section) return null
+                    return (
+                      <SidebarNavButton
+                        key={id}
+                        section={section}
+                        isActive={activeSection === section.id}
+                        onClick={scrollToSection}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+        )}
 
         {/* Footer */}
         <div className="mt-auto border-t px-3 py-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            λ<span className="font-mono">Code</span>
+            <span className="font-mono font-medium">λ Code</span>
             {import.meta.env.DEV ? (
               <Badge variant="outline" className="ml-auto">
                 dev
@@ -408,7 +486,7 @@ export function SettingsPage() {
             </Button>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-2xl space-y-10 px-8 py-8">
+          <div className="mx-auto w-full max-w-2xl space-y-8 px-8 pt-8 pb-[60vh]">
             {/* ── Appearance ── */}
             {visibleSections.some((s) => s.id === "appearance") && (
               <section
@@ -449,7 +527,9 @@ export function SettingsPage() {
             {visibleSections.some((s) => s.id === "subscriptions") && (
               <section
                 id="subscriptions"
-                ref={(el) => { sectionRefs.current["subscriptions"] = el }}
+                ref={(el) => {
+                  sectionRefs.current["subscriptions"] = el
+                }}
                 className="scroll-mt-8"
               >
                 <SectionHeader
@@ -469,7 +549,9 @@ export function SettingsPage() {
             {visibleSections.some((s) => s.id === "api-keys") && (
               <section
                 id="api-keys"
-                ref={(el) => { sectionRefs.current["api-keys"] = el }}
+                ref={(el) => {
+                  sectionRefs.current["api-keys"] = el
+                }}
                 className="scroll-mt-8"
               >
                 <SectionHeader
@@ -479,7 +561,7 @@ export function SettingsPage() {
                 />
                 <ProviderEntryCard
                   title="API keys"
-                  description="Anthropic, OpenAI, Google, and more. Stored in ~/.pi/agent/auth.json."
+                  description="Anthropic, OpenAI, Google, and more. Keys are stored in auth.json in your config directory."
                   onClick={() => openConfigure("api-keys")}
                 />
               </section>
@@ -572,12 +654,12 @@ export function SettingsPage() {
                   description="Manage your locally stored application data."
                 />
                 <Card>
-                  <CardContent className="flex flex-col gap-3 p-4">
+                  <CardContent className="flex flex-col gap-3 px-4 py-0">
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
                         <p className="text-sm font-medium">Data folder</p>
                         <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                          ~/.lamda-code
+                          ~/.lambda-code
                         </p>
                       </div>
                       <Button
@@ -666,12 +748,12 @@ function SectionHeader({
   description: string
 }) {
   return (
-    <div className="mb-3 flex items-start gap-3">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-muted/50">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+    <div className="mb-4 flex items-center gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
+        <Icon className="h-4 w-4 text-primary/70" />
       </div>
-      <div>
-        <h2 className="text-sm font-semibold">{title}</h2>
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold leading-tight">{title}</h2>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
     </div>
@@ -688,7 +770,7 @@ function AppearanceCard() {
 
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="px-4 py-0">
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>Theme</FieldTitle>
@@ -742,11 +824,14 @@ function ChatPreferencesCard() {
     DEFAULT_THINKING_PHRASES.join("\n")
   const [phrasesValue, setPhrasesValue] = useState(persistedPhrasesRaw)
   const [phrasesSaved, setPhrasesSaved] = useState(false)
-  const phrasesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const phrasesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
   useEffect(() => {
     return () => {
-      if (phrasesSavedTimerRef.current) clearTimeout(phrasesSavedTimerRef.current)
+      if (phrasesSavedTimerRef.current)
+        clearTimeout(phrasesSavedTimerRef.current)
     }
   }, [])
 
@@ -776,7 +861,10 @@ function ChatPreferencesCard() {
     })
     setPhrasesSaved(true)
     if (phrasesSavedTimerRef.current) clearTimeout(phrasesSavedTimerRef.current)
-    phrasesSavedTimerRef.current = setTimeout(() => setPhrasesSaved(false), 1500)
+    phrasesSavedTimerRef.current = setTimeout(
+      () => setPhrasesSaved(false),
+      1500
+    )
   }
 
   function handleResetPhrases() {
@@ -793,7 +881,7 @@ function ChatPreferencesCard() {
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 p-4">
+      <CardContent className="flex flex-col gap-3 px-4 py-0">
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>Show model thinking</FieldTitle>
@@ -955,28 +1043,22 @@ function KeyboardShortcutsCard() {
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-0">
-          {SHORTCUT_ACTION_ORDER.map((action, i) => (
-            <div
-              key={action}
-              className={cn(
-                "flex items-center justify-between py-2",
-                i < SHORTCUT_ACTION_ORDER.length - 1 &&
-                  "border-b border-border/50"
-              )}
-            >
-              <span className="text-sm">{SHORTCUT_LABELS[action]}</span>
-              <ShortcutRecorder
-                action={action}
-                binding={shortcuts[action] ?? DEFAULT_SHORTCUTS[action]}
-                onSave={updateShortcut}
-              />
-            </div>
-          ))}
-        </div>
+      <CardContent className="flex flex-col gap-1 p-1.5">
+        {SHORTCUT_ACTION_ORDER.map((action) => (
+          <div
+            key={action}
+            className="flex items-center justify-between rounded-md border border-border/40 px-3 py-2"
+          >
+            <span className="text-sm">{SHORTCUT_LABELS[action]}</span>
+            <ShortcutRecorder
+              action={action}
+              binding={shortcuts[action] ?? DEFAULT_SHORTCUTS[action]}
+              onSave={updateShortcut}
+            />
+          </div>
+        ))}
         {!isAllDefault && (
-          <div className="mt-3 flex justify-end">
+          <div className="mt-0.5 flex justify-end px-1 pb-0.5">
             <Button variant="ghost" size="sm" onClick={resetShortcuts}>
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
               Reset all to defaults
@@ -990,16 +1072,31 @@ function KeyboardShortcutsCard() {
 
 // ── Provider entry card ────────────────────────────────────────────────────────
 
-function ProviderEntryCard({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
+function ProviderEntryCard({
+  title,
+  description,
+  onClick,
+}: {
+  title: string
+  description: string
+  onClick: () => void
+}) {
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="px-4 py-0">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium">{title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {description}
+            </p>
           </div>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={onClick}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={onClick}
+          >
             Configure
             <ChevronRight className="ml-1 h-3.5 w-3.5" />
           </Button>
@@ -1020,7 +1117,7 @@ function UpdateCard() {
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 p-4">
+      <CardContent className="flex flex-col gap-3 px-4 py-0">
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>Current version</FieldTitle>
@@ -1107,7 +1204,9 @@ function UpdateStatusRow({
       return (
         <Progress value={status.percent} className="flex-col gap-1.5">
           <ProgressLabel>Downloading update…</ProgressLabel>
-          <ProgressValue>{() => `${Math.round(status.percent)}%`}</ProgressValue>
+          <ProgressValue>
+            {() => `${Math.round(status.percent)}%`}
+          </ProgressValue>
         </Progress>
       )
     case "ready":
@@ -1128,7 +1227,9 @@ function UpdateStatusRow({
       return (
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertDescription className="truncate">{status.message}</AlertDescription>
+          <AlertDescription className="truncate">
+            {status.message}
+          </AlertDescription>
         </Alert>
       )
   }
@@ -1187,7 +1288,7 @@ function CommitPromptCard() {
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-3 p-4">
+      <CardContent className="flex flex-col gap-3 px-4 py-0">
         <FieldGroup>
           <Field data-invalid={!hasDiffPlaceholder || undefined}>
             <FieldLabel htmlFor="commit-message-prompt">
@@ -1296,7 +1397,9 @@ function RetrySettingsCard() {
 
   // Use persistedValue directly as the source of truth, but allow local edits.
   // Initialize local state from persistedValue to avoid hydration mismatch.
-  const [localSettings, setLocalSettings] = useState<RetrySettings>(() => persistedValue)
+  const [localSettings, setLocalSettings] = useState<RetrySettings>(
+    () => persistedValue
+  )
   const [saved, setSaved] = useState(false)
   const retrySavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1306,10 +1409,18 @@ function RetrySettingsCard() {
     }
   }, [])
 
-  // Sync local state when persisted value changes (e.g., user resets from another tab)
+  // Sync local state when server data changes, but only if there are no unsaved local edits.
+  const prevPersistedRef = React.useRef<RetrySettings>(persistedValue)
   React.useEffect(() => {
-    setLocalSettings(persistedValue)
-  }, [persistedValue])
+    if (prevPersistedRef.current === persistedValue) return
+    if (
+      JSON.stringify(localSettings) ===
+      JSON.stringify(prevPersistedRef.current)
+    ) {
+      setLocalSettings(persistedValue)
+    }
+    prevPersistedRef.current = persistedValue
+  }, [persistedValue, localSettings])
 
   function handleSave() {
     updateSetting.mutate({
@@ -1339,11 +1450,12 @@ function RetrySettingsCard() {
     }))
   }
 
-  const isDefault = JSON.stringify(localSettings) === JSON.stringify(DEFAULT_RETRY_SETTINGS)
+  const isDefault =
+    JSON.stringify(localSettings) === JSON.stringify(DEFAULT_RETRY_SETTINGS)
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 p-4">
+      <CardContent className="flex flex-col gap-3 px-4 py-0">
         {/* Agent-level retry */}
         <Field orientation="horizontal">
           <FieldContent>
@@ -1382,7 +1494,10 @@ function RetrySettingsCard() {
                   onChange={(e) =>
                     setLocalSettings((prev) => ({
                       ...prev,
-                      maxRetries: Math.max(0, parseInt(e.target.value, 10) || 0),
+                      maxRetries: Math.max(
+                        0,
+                        parseInt(e.target.value, 10) || 0
+                      ),
                     }))
                   }
                   className="mt-1.5 w-28"
@@ -1420,7 +1535,10 @@ function RetrySettingsCard() {
                 step={1000}
                 value={localSettings.provider.timeoutMs}
                 onChange={(e) =>
-                  updateProvider("timeoutMs", Math.max(0, parseInt(e.target.value, 10) || 0))
+                  updateProvider(
+                    "timeoutMs",
+                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                  )
                 }
                 className="mt-1.5 w-36"
               />
@@ -1440,7 +1558,10 @@ function RetrySettingsCard() {
                 max={20}
                 value={localSettings.provider.maxRetries}
                 onChange={(e) =>
-                  updateProvider("maxRetries", Math.max(0, parseInt(e.target.value, 10) || 0))
+                  updateProvider(
+                    "maxRetries",
+                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                  )
                 }
                 className="mt-1.5 w-28"
               />
@@ -1461,7 +1582,10 @@ function RetrySettingsCard() {
                 step={1000}
                 value={localSettings.provider.maxRetryDelayMs}
                 onChange={(e) =>
-                  updateProvider("maxRetryDelayMs", Math.max(0, parseInt(e.target.value, 10) || 0))
+                  updateProvider(
+                    "maxRetryDelayMs",
+                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                  )
                 }
                 className="mt-1.5 w-36"
               />

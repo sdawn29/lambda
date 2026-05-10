@@ -112,9 +112,43 @@ function createDb() {
       PRIMARY KEY (workspace_id, relative_path)
     );
 
+    CREATE TABLE IF NOT EXISTS mcp_servers (
+      id           TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      name         TEXT NOT NULL,
+      command      TEXT NOT NULL,
+      args         TEXT,
+      env          TEXT,
+      cwd          TEXT,
+      description  TEXT,
+      enabled      INTEGER NOT NULL DEFAULT 1,
+      created_at   INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_turns (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      thread_id  TEXT NOT NULL,
+      started_at INTEGER NOT NULL,
+      ended_at   INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_turn_files (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      turn_id             INTEGER NOT NULL REFERENCES agent_turns(id) ON DELETE CASCADE,
+      file_path           TEXT NOT NULL,
+      post_status_code    TEXT NOT NULL,
+      pre_status_code     TEXT NOT NULL DEFAULT '',
+      pre_content         TEXT,
+      was_created_by_turn INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE UNIQUE INDEX IF NOT EXISTS workspaces_path_unique ON workspaces(path);
     CREATE INDEX IF NOT EXISTS message_blocks_thread_idx ON message_blocks(thread_id, block_index);
     CREATE INDEX IF NOT EXISTS workspace_files_workspace_idx ON workspace_files(workspace_id);
+    CREATE INDEX IF NOT EXISTS mcp_servers_workspace_idx ON mcp_servers(workspace_id);
+    CREATE INDEX IF NOT EXISTS agent_turns_thread_idx ON agent_turns(thread_id);
+    CREATE INDEX IF NOT EXISTS agent_turn_files_turn_idx ON agent_turn_files(turn_id);
   `);
 
   // Migration: Update message_blocks CHECK constraint to include 'abort' role

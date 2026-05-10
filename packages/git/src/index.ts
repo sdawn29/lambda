@@ -211,7 +211,7 @@ export async function gitFileDiff(
     ) {
       return (err as { stdout: string }).stdout;
     }
-    throw err;
+    return "";
   }
 }
 

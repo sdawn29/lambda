@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { lazy, Suspense, useEffect, useRef } from "react"
+import { lazy, Suspense, useEffect, useMemo, useRef } from "react"
 
 import { ChatView, useSetActiveThreadId } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
@@ -55,10 +55,14 @@ function WorkspaceThreadRoute() {
   }, [threadId, setActiveThreadId])
 
   // Find current workspace
-  const foundWorkspace = workspaces.find((ws) =>
-    ws.threads.some((t) => t.id === threadId)
+  const foundWorkspace = useMemo(
+    () => workspaces.find((ws) => ws.threads.some((t) => t.id === threadId)),
+    [workspaces, threadId]
   )
-  const foundThread = foundWorkspace?.threads.find((t) => t.id === threadId)
+  const foundThread = useMemo(
+    () => foundWorkspace?.threads.find((t) => t.id === threadId),
+    [foundWorkspace, threadId]
+  )
 
   // Set workspace path in diff panel context for breadcrumb navigation
   const currentPathRef = useRef<string | null>(null)
@@ -104,10 +108,12 @@ function WorkspaceThreadRoute() {
         </div>
         {fileTreeOpen && (
           <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
-            <FileTree
-              workspaceId={foundWorkspace.id}
-              workspacePath={foundWorkspace.path}
-            />
+            <Suspense fallback={<div className="h-full w-full bg-background" />}>
+              <FileTree
+                workspaceId={foundWorkspace.id}
+                workspacePath={foundWorkspace.path}
+              />
+            </Suspense>
           </div>
         )}
       </div>
@@ -119,7 +125,6 @@ function WorkspaceThreadRoute() {
       <ResizablePanelGroup orientation="horizontal" className="flex-1">
         <ResizablePanel defaultSize={diffOpen ? "50" : "100"} minSize="50">
           <ChatView
-            key={foundThread.sessionId}
             sessionId={foundThread.sessionId}
             workspaceId={foundWorkspace.id}
             threadId={foundThread.id}
@@ -148,10 +153,12 @@ function WorkspaceThreadRoute() {
 
       {fileTreeOpen && (
         <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
-          <FileTree
-            workspaceId={foundWorkspace.id}
-            workspacePath={foundWorkspace.path}
-          />
+          <Suspense fallback={<div className="h-full w-full bg-background" />}>
+            <FileTree
+              workspaceId={foundWorkspace.id}
+              workspacePath={foundWorkspace.path}
+            />
+          </Suspense>
         </div>
       )}
     </div>

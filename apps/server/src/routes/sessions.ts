@@ -29,7 +29,7 @@ sessions.post("/session", async (c) => {
   const resolvedCwd = body.cwd ?? process.cwd();
   const workspaceId = insertWorkspace("Untitled", resolvedCwd);
   const threadId = insertThread(workspaceId);
-  const sessionId = await createSessionForThread(threadId, resolvedCwd, {
+  const sessionId = await createSessionForThread(threadId, resolvedCwd, workspaceId, {
     anthropicApiKey: body.anthropicApiKey,
     provider: body.provider,
     model: body.model,
@@ -49,11 +49,13 @@ sessions.post("/session/:id/abort", async (c) => {
   const entry = store.get(id);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
-  // Insert abort block before calling abort
-  insertAbortBlock(entry.threadId);
-
-  await entry.handle.abort();
-  return c.json({ aborted: true });
+  try {
+    await entry.handle.abort();
+    insertAbortBlock(entry.threadId);
+    return c.json({ aborted: true });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+  }
 });
 
 sessions.post("/session/:id/dismiss-error", (c) => {

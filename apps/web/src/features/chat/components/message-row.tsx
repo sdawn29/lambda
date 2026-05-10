@@ -1,11 +1,7 @@
 import { memo } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import {
-  AlertCircleIcon,
-  RotateCwIcon,
-  XIcon,
-} from "lucide-react"
+import { AlertCircleIcon, RotateCwIcon, XIcon } from "lucide-react"
 
 import { ToolCallBlock } from "./tool-call-block"
 import { markdownComponents } from "./markdown-components"
@@ -24,6 +20,7 @@ import {
   type UserMessage,
   type AbortMessage,
 } from "../types"
+import { cn } from "@/shared/lib/utils"
 
 function assistantCopyText(
   message: AssistantMessage,
@@ -61,11 +58,13 @@ function TimeStamp({ timestamp }: TimeStampProps) {
 interface AssistantMessageBlockProps {
   message: AssistantMessage
   showThinking: boolean
+  isNew?: boolean
 }
 
 function AssistantMessageBlock({
   message,
   showThinking,
+  isNew = true,
 }: AssistantMessageBlockProps) {
   const hasThinking = showThinking && message.thinking.trim().length > 0
   const hasContent = message.content.length > 0
@@ -87,10 +86,16 @@ function AssistantMessageBlock({
     : null
   const hasMeta = !!(message.model ?? message.responseTime != null)
 
-  const proseClass = "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
+  const proseClass =
+    "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground leading-[1.55] prose-p:mb-0 prose-p:mt-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
 
   return (
-    <div className="group flex animate-in flex-col gap-2 duration-300 fade-in-0 slide-in-from-bottom-1">
+    <div
+      className={cn(
+        "group flex flex-col gap-2",
+        isNew && "animate-in duration-300 fade-in-0 slide-in-from-bottom-1"
+      )}
+    >
       {hasThinking && <ThinkingBlock thinking={message.thinking} />}
 
       {hasContent && (
@@ -179,16 +184,23 @@ export function estimateMessageSize(message: Message): number {
 function ErrorBlock({
   message,
   onAction,
+  isNew = true,
 }: {
   message: ErrorMessage
   onAction?: (action: ErrorAction, id: string) => void
+  isNew?: boolean
 }) {
   const { action } = message
   const canRetry = action?.type === "retry" && !!action.prompt
   const canDismiss = !!onAction && !!action && action.type !== "continue"
 
   return (
-    <div className="group flex animate-in flex-col duration-300 fade-in-0 slide-in-from-bottom-1">
+    <div
+      className={cn(
+        "group flex flex-col",
+        isNew && "animate-in duration-300 fade-in-0 slide-in-from-bottom-1"
+      )}
+    >
       <div className="rounded-lg border border-border/50 px-3 py-2.5">
         <div className="flex items-start gap-2">
           <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/70" />
@@ -231,7 +243,7 @@ function ErrorBlock({
             <Button
               size="icon-xs"
               variant="ghost"
-              className="shrink-0 -mt-0.5 text-muted-foreground/40 hover:text-muted-foreground"
+              className="-mt-0.5 shrink-0 text-muted-foreground/40 hover:text-muted-foreground"
               onClick={() => onAction({ type: "dismiss" }, message.id)}
             >
               <XIcon />
@@ -249,17 +261,18 @@ export interface MessageRowProps {
   commandsByName: ReadonlyMap<string, SlashCommand>
   showThinking: boolean
   onAction?: (action: ErrorAction, id: string) => void
+  isNewMessage?: boolean
 }
 
 function AbortBlock({ message: _ }: { message: AbortMessage }) {
   void _
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="flex-1 h-px bg-border" />
+      <div className="h-px flex-1 bg-border" />
       <div className="shrink-0 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive/80">
         Operation Aborted
       </div>
-      <div className="flex-1 h-px bg-border" />
+      <div className="h-px flex-1 bg-border" />
     </div>
   )
 }
@@ -269,9 +282,10 @@ export const MessageRow = memo(function MessageRow({
   commandsByName,
   showThinking,
   onAction,
+  isNewMessage = true,
 }: MessageRowProps) {
   if (message.role === "tool") {
-    return <ToolCallBlock msg={message} />
+    return <ToolCallBlock msg={message} isNew={isNewMessage} />
   }
 
   if (message.role === "abort") {
@@ -280,7 +294,13 @@ export const MessageRow = memo(function MessageRow({
 
   if (message.role === "user") {
     return (
-      <div className="group flex animate-in flex-col items-end gap-1.5 self-end duration-200 fade-in-0 slide-in-from-bottom-2">
+      <div
+        className={cn(
+          "group flex flex-col items-end gap-1.5 self-end",
+          isNewMessage &&
+            "animate-in duration-200 fade-in-0 slide-in-from-bottom-2"
+        )}
+      >
         <div
           className="rounded-xl bg-muted px-4 py-2.5 text-sm"
           data-selectable
@@ -301,8 +321,20 @@ export const MessageRow = memo(function MessageRow({
   }
 
   if (message.role === "error") {
-    return <ErrorBlock message={message as ErrorMessage} onAction={onAction} />
+    return (
+      <ErrorBlock
+        message={message as ErrorMessage}
+        onAction={onAction}
+        isNew={isNewMessage}
+      />
+    )
   }
 
-  return <AssistantMessageBlock message={message} showThinking={showThinking} />
+  return (
+    <AssistantMessageBlock
+      message={message}
+      showThinking={showThinking}
+      isNew={isNewMessage}
+    />
+  )
 })

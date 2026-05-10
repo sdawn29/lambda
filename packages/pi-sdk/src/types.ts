@@ -2,6 +2,7 @@ import type {
   AgentSessionEvent,
   AuthStorage,
   ModelRegistry,
+  ToolDefinition,
 } from "@mariozechner/pi-coding-agent";
 
 /** A slash command available in the current session. */
@@ -62,6 +63,8 @@ export interface SdkConfig {
   authStorage?: AuthStorage;
   /** Pre-configured model registry (creates one if not provided). */
   modelRegistry?: ModelRegistry;
+  /** Additional custom tools to register with the agent (e.g., MCP tools). */
+  customTools?: ToolDefinition[];
 }
 
 /**
@@ -148,4 +151,10 @@ export interface ManagedSessionHandle {
   getAvailableThinkingLevels(): string[]
   /** Get detailed session statistics including token usage and cost. */
   getSessionStats(): ManagedSessionStats
+  /**
+   * Replace the custom tools registered with this session.
+   * New tools are immediately activated; removed tools are dropped.
+   * Takes effect on the next agent turn.
+   */
+  setCustomTools(tools: ToolDefinition[]): void
 }

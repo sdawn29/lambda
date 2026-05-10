@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { ErrorAction } from "../types"
 import {
@@ -40,7 +40,6 @@ import {
 } from "@/features/workspace/mutations"
 import { useChatStream } from "../use-chat-stream"
 import { getChatSyncEngine } from "../hooks/use-chat-sync-engine"
-import { useFileChangeInvalidation } from "../hooks/use-file-change-invalidation"
 import { FileChangesCard } from "./file-changes-card"
 
 interface ChatViewProps {
@@ -91,7 +90,50 @@ export function ChatView({
   const pinnedRef = useRef(false)
   const initialScrollDoneRef = useRef(false)
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
+  // Messages present on the first non-empty render (from cache) skip entry animations.
+  // Only messages that arrive after the initial snapshot get animate-in treatment.
+  // State (not a ref) so it can be safely read during render.
+  const [initialSnapshot, setInitialSnapshot] = useState<{ sessionId: string; keys: Set<string> } | null>(null)
+  // Tracks the last-rendered session so we can detect switches during render.
+  const [localSessionId, setLocalSessionId] = useState(sessionId)
+  const scrollSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { setThreadTitle } = useWorkspace()
+
+  // React's "adjusting state while rendering" pattern — reset all session-local
+  // state in one batched pass when the active session changes, avoiding the
+  // setState-inside-effect cascade that React 19 rejects.
+  if (localSessionId !== sessionId) {
+    setLocalSessionId(sessionId)
+    setGitError(null)
+    setShowScrollButton(false)
+    setSelectedModelId(initialModelId)
+  }
+
+  // Capture initial keys for this session as soon as messages are available,
+  // also during render so isNewMessage is correct on the very same frame.
+  if (
+    visibleMessages.length > 0 &&
+    (initialSnapshot === null || initialSnapshot.sessionId !== sessionId)
+  ) {
+    setInitialSnapshot({
+      sessionId,
+      keys: new Set(visibleMessages.map((m, i) => getMessageKey(m, i))),
+    })
+  }
+
+  // Focus textbox whenever the active session changes (imperative DOM op — effect is correct here).
+  useEffect(() => {
+    chatTextboxRef.current?.focus()
+  }, [sessionId])
+
+  // Flush any pending scroll-to-localStorage write on unmount.
+  useEffect(() => {
+    return () => {
+      if (scrollSaveTimeoutRef.current !== null) {
+        clearTimeout(scrollSaveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // ── Queries ───────────────────────────────────────────────────────────────────
   const { data: commandsData } = useSlashCommands(sessionId)
@@ -126,9 +168,6 @@ export function ChatView({
   // Fetch detailed token stats from the server
   const { data: sessionStats } = useSessionStats(sessionId)
 
-  // Watch for file-modifying tool completions and refresh UI
-  useFileChangeInvalidation(sessionId)
-
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
   // During streaming, smooth scrolling is called on every delta and the browser
   // interrupts each animation before it finishes, causing the view to lag behind
@@ -136,8 +175,9 @@ export function ChatView({
   // which can flip pinnedRef to false and stop further scrolls entirely.
   // Fix: use instant scrollTop assignment while loading so every update reliably
   // lands at the bottom; only use smooth scroll once the stream is stable.
-  const commandsByName = new Map(
-    (commandsData ?? []).map((command) => [command.name, command])
+  const commandsByName = useMemo(
+    () => new Map((commandsData ?? []).map((command) => [command.name, command])),
+    [commandsData]
   )
 
   // ── Scroll position persistence via query cache & localStorage ──────────────────
@@ -150,10 +190,20 @@ export function ChatView({
         isPinned: pinnedRef.current,
         visited: true,
       }
-      // Save to query cache
+      // Update in-memory cache immediately (cheap, O(1))
       queryClient.setQueryData(chatKeys.scroll(sessionId), meta)
-      // Also persist to localStorage for cross-session persistence
-      syncEngine.saveScrollMeta(sessionId, meta)
+      // Debounce the synchronous localStorage write (fires 150ms after last scroll)
+      if (scrollSaveTimeoutRef.current !== null) {
+        clearTimeout(scrollSaveTimeoutRef.current)
+      }
+      scrollSaveTimeoutRef.current = setTimeout(() => {
+        scrollSaveTimeoutRef.current = null
+        syncEngine.saveScrollMeta(sessionId, {
+          scrollTop,
+          isPinned: pinnedRef.current,
+          visited: true,
+        })
+      }, 150)
     },
     [queryClient, sessionId, syncEngine]
   )
@@ -271,12 +321,14 @@ export function ChatView({
 
   const handleStop = useCallback(() => {
     abortSessionMutation.mutate(undefined, {
+      onSuccess: () => {
+        markStopped()
+        updateThreadStopped.mutate({ threadId, stopped: true })
+      },
       onError: (err: unknown) => {
         console.error("[abort]", err)
       },
     })
-    markStopped()
-    updateThreadStopped.mutate({ threadId, stopped: true })
   }, [abortSessionMutation, markStopped, threadId, updateThreadStopped])
 
   useShortcutHandler(SHORTCUT_ACTIONS.FOCUS_CHAT, () => {
@@ -430,13 +482,22 @@ export function ChatView({
                   !message.errorMessage
                 )
                   return null
+                const key = getMessageKey(message, index)
+                // Only animate messages that arrived after the initial cache snapshot
+                // for this session. A missing or stale snapshot (wrong sessionId) means
+                // we haven't captured initial keys yet → no animation for existing messages.
+                const isNewMessage =
+                  initialSnapshot !== null &&
+                  initialSnapshot.sessionId === sessionId &&
+                  !initialSnapshot.keys.has(key)
                 return (
-                  <div key={getMessageKey(message, index)} className="pb-3">
+                  <div key={key} className="pb-3">
                     <MessageRow
                       message={message}
                       commandsByName={commandsByName}
                       showThinking={showThinkingSetting}
                       onAction={handleErrorAction}
+                      isNewMessage={isNewMessage}
                     />
                   </div>
                 )

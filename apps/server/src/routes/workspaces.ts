@@ -67,7 +67,7 @@ workspaces.post("/workspace", async (c) => {
 
   const workspaceId = insertWorkspace(body.name, body.path);
   const threadId = insertThread(workspaceId);
-  const sessionId = await createSessionForThread(threadId, body.path, {
+  const sessionId = await createSessionForThread(threadId, body.path, workspaceId, {
     provider: body.provider,
     model: body.model,
   });

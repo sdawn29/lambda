@@ -237,8 +237,10 @@ function WriteView({
 
 export const ToolCallBlock = memo(function ToolCallBlock({
   msg,
+  isNew = true,
 }: {
   msg: ToolMessage
+  isNew?: boolean
 }) {
   const normalizedToolName = msg.toolName.toLowerCase()
   const isEdit = normalizedToolName === "edit" && isEditArgs(msg.args)
@@ -248,10 +250,21 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   const isWrite = normalizedToolName === "write" && isWriteArgs(msg.args)
   const writeArgs = isWrite ? (msg.args as WriteArgs) : null
 
-  // Edit and write tools auto-expand; everything else starts collapsed
+  // Edit and write tools auto-expand; everything else starts collapsed.
+  // The useEffect below keeps expanded in sync if isWrite/isEdit first
+  // resolves to true on a re-render rather than at mount (e.g. when args
+  // stream in after the component already mounted).
   const [expanded, setExpanded] = useState(isEdit || isWrite)
   const [copied, setCopied] = useState(false)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if ((isEdit || isWrite) && !expanded) {
+      setExpanded(true)
+    }
+    // Only auto-expand, never auto-collapse via this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, isWrite])
 
   useEffect(() => {
     return () => {
@@ -291,8 +304,9 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   return (
     <div
       className={cn(
-        "group w-full animate-in cursor-pointer rounded-lg border border-border/50 text-xs duration-150 fade-in-0 slide-in-from-bottom-1",
+        "group w-full cursor-pointer rounded-lg border border-border/50 text-xs",
         "transition-all duration-150 hover:border-border/80 hover:bg-muted/20",
+        isNew && "animate-in duration-150 fade-in-0 slide-in-from-bottom-1",
         expanded && "bg-muted/15"
       )}
       onClick={toggle}

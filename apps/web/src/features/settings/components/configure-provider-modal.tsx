@@ -1,6 +1,7 @@
 import { Key } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/ui/dialog"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs"
+import { Tabs, TabsContent } from "@/shared/ui/tabs"
+import { cn } from "@/shared/lib/utils"
 import { useConfigureProvider, type ConfigureProviderTab } from "../configure-provider-context"
 import { SubscriptionsCard, ApiKeysCard } from "./provider-cards"
 
@@ -36,13 +37,23 @@ export function ConfigureProviderModal() {
               </div>
             </div>
 
-            <TabsList variant="line" className="mt-3">
+            <div className="mt-3 flex items-center gap-1 rounded-lg bg-muted/40 p-1">
               {TABS.map((t) => (
-                <TabsTrigger key={t.id} value={t.id}>
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "flex h-7 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-all duration-150 select-none",
+                    tab === t.id
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
+                  )}
+                >
                   {t.label}
-                </TabsTrigger>
+                </button>
               ))}
-            </TabsList>
+            </div>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5">

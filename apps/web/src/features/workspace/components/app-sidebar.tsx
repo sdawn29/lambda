@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import {
   Archive,
   ChevronRight,
@@ -88,16 +88,24 @@ function ThreadRow({
   workspaceId,
   isActive,
   onClick,
+  now,
 }: {
   thread: Thread
   workspaceId: string
   isActive: boolean
   onClick: () => void
+  now: number
 }) {
   const [confirming, setConfirming] = useState(false)
   const status = useThreadStatus(thread.id)
-  const now = useNow()
   const { archiveThread, pinThread, unpinThread } = useWorkspace()
+  const rowRef = useRef<HTMLLIElement>(null)
+
+  useEffect(() => {
+    if (isActive) {
+      rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    }
+  }, [])
 
   const handlePinToggle = useCallback(
     async (e: React.MouseEvent) => {
@@ -123,7 +131,7 @@ function ThreadRow({
 
   return (
     <>
-      <SidebarMenuSubItem className="group/thread">
+      <SidebarMenuSubItem ref={rowRef} className="group/thread">
         <SidebarMenuSubButton isActive={isActive} onClick={onClick}>
           <span className="flex h-4 w-4 shrink-0 items-center justify-center">
             <span className="flex h-4 w-4 items-center justify-center group-hover/thread:hidden">
@@ -189,6 +197,7 @@ function ThreadRow({
 }
 
 export function AppSidebar() {
+  const now = useNow()
   const { workspaces, createThread, deleteWorkspace } = useWorkspace()
   const { handleCreateLocal, handleCreateRemote } = useCreateWorkspaceAction()
   const openPathMutation = useOpenPath()
@@ -240,6 +249,7 @@ export function AppSidebar() {
     activeWorkspace
       ? async () => {
           const thread = await createThread(activeWorkspace.id)
+          setCollapsed((prev) => ({ ...prev, [activeWorkspace.id]: false }))
           navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
@@ -285,6 +295,7 @@ export function AppSidebar() {
                     thread={thread}
                     workspaceId={thread.workspaceId}
                     isActive={activeThreadId === thread.id}
+                    now={now}
                     onClick={() =>
                       navigate({
                         to: "/workspace/$threadId",
@@ -366,6 +377,7 @@ export function AppSidebar() {
                             className="right-7"
                             onClick={async () => {
                               const thread = await createThread(ws.id)
+                              setCollapsed((prev) => ({ ...prev, [ws.id]: false }))
                               navigate({
                                 to: "/workspace/$threadId",
                                 params: { threadId: thread.id },
@@ -436,6 +448,7 @@ export function AppSidebar() {
                                 thread={thread}
                                 workspaceId={ws.id}
                                 isActive={activeThreadId === thread.id}
+                                now={now}
                                 onClick={() =>
                                   navigate({
                                     to: "/workspace/$threadId",

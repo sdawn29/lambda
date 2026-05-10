@@ -247,14 +247,13 @@ async function handleAbort(
   entry: NonNullable<ReturnType<typeof store.get>>,
   _msg: AbortMessage,
 ) {
-  insertAbortBlock(entry.threadId);
-
   try {
     await entry.handle.abort();
+    insertAbortBlock(entry.threadId);
     send(ws, { type: "ack", operation: "abort", accepted: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    send(ws, { type: "git:result", sessionId, operation: "abort", success: false, error: message });
+    send(ws, { type: "ack", operation: "abort", accepted: false, error: message });
   }
 }
 
@@ -269,7 +268,7 @@ async function handleCompact(
     send(ws, { type: "ack", operation: "compact", accepted: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    send(ws, { type: "git:result", sessionId, operation: "compact", success: false, error: message });
+    send(ws, { type: "ack", operation: "compact", accepted: false, error: message });
   }
 }
 

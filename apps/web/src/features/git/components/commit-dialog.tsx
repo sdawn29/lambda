@@ -109,10 +109,10 @@ function FileAccordionItem({
   const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") + "/" : null
 
   return (
-    <div className={cn("group border-b border-border/30 last:border-0", dim && "opacity-40")}>
+    <div className={cn("mx-1.5 my-1 overflow-hidden rounded-md border border-border/40", dim && "opacity-40")}>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <ChevronRight
           className={cn(
@@ -133,9 +133,9 @@ function FileAccordionItem({
       </button>
 
       {expanded && (
-        <div className="border-t border-border/30 bg-muted/10">
+        <div className="border-t border-border/20 bg-muted/10 px-2 pb-2">
           {diffLoading ? (
-            <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
               <Loader2 className="size-3 animate-spin" />
               Loading diff…
             </div>
@@ -143,10 +143,10 @@ function FileAccordionItem({
             <DiffView
               diff={diff}
               filePath={file.filePath}
-              className="rounded-none border-x-0 border-b-0"
+              className="mt-2 rounded-md"
             />
           ) : (
-            <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
               <FileText className="size-3" />
               No diff available
             </div>
@@ -202,13 +202,15 @@ function SectionHeader({
   count: number
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="flex items-center gap-2 bg-muted/30 px-3 py-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
         {label}
       </span>
-      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium text-muted-foreground">
-        {count}
-      </span>
+      {count > 0 && (
+        <Badge variant="secondary" className="h-4 min-w-4 rounded-full px-1 text-[10px]">
+          {count}
+        </Badge>
+      )}
     </div>
   )
 }
@@ -361,7 +363,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
         className="flex flex-col gap-0 overflow-hidden bg-background p-0 sm:max-w-lg"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3 pr-10">
+        <div className="flex items-center justify-between border-b border-border/50 bg-muted/20 px-4 py-3 pr-10">
           <div className="flex items-center gap-2.5">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-muted">
               <GitCommit className="h-3.5 w-3.5 text-muted-foreground" />
@@ -377,9 +379,9 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
         </div>
 
         {/* Files */}
-        <div className="flex min-h-0 flex-1 flex-col divide-y divide-border/30">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-1">
           {/* Staged section */}
-          <div className="flex flex-col">
+          <div className="mx-2 mt-1.5 overflow-hidden rounded-lg border border-border/50 last:mb-1.5">
             <SectionHeader label="Staged" count={staged.length} />
 
             <div className="max-h-48 overflow-y-auto">
@@ -413,7 +415,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
 
           {/* Unstaged section */}
           {unstaged.length > 0 && (
-            <div className="flex flex-col">
+            <div className="mx-2 mt-1.5 overflow-hidden rounded-lg border border-border/50 last:mb-1.5">
               <SectionHeader label="Not staged" count={unstaged.length} />
               <div className="max-h-32 overflow-y-auto">
                 {sessionId &&

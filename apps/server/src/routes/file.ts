@@ -16,6 +16,11 @@ const BINARY_MIME_TYPES: Record<string, string> = {
   ".avif": "image/avif",
 }
 
+const TEXT_MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".htm": "text/html; charset=utf-8",
+}
+
 const file = new Hono();
 
 file.get("/file", async (c) => {
@@ -25,12 +30,17 @@ file.get("/file", async (c) => {
   }
 
   try {
-    const mimeType = BINARY_MIME_TYPES[extname(path).toLowerCase()];
-    if (mimeType) {
+    const ext = extname(path).toLowerCase();
+    const binaryMime = BINARY_MIME_TYPES[ext];
+    if (binaryMime) {
       const buffer = await readFile(path);
-      return c.body(buffer, 200, { "Content-Type": mimeType });
+      return c.body(buffer, 200, { "Content-Type": binaryMime });
     }
     const content = await readFile(path, "utf-8");
+    const textMime = TEXT_MIME_TYPES[ext];
+    if (textMime) {
+      return c.body(content, 200, { "Content-Type": textMime });
+    }
     return c.text(content);
   } catch (err: any) {
     if (err.code === "EISDIR") {

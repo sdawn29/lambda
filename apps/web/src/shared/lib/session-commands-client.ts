@@ -282,6 +282,10 @@ export class SessionCommandsClient {
       }
 
       this.ws.send(JSON.stringify(msg))
+
+      if (msg.type !== "prompt") {
+        resolve(undefined)
+      }
     })
   }
 

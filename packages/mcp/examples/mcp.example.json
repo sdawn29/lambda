@@ -1,0 +1,51 @@
+/**
+ * Example MCP Configuration
+ * 
+ * Copy this file to .pi/mcp.json in your project directory
+ * or to ~/.pi/mcp.json for global MCP server configuration.
+ * 
+ * Each server entry specifies:
+ * - name: Unique identifier for the server
+ * - command: The command to run (npx, node, python, etc.)
+ * - args: Arguments passed to the command (typically includes the MCP server package)
+ * - env: Optional environment variables (e.g., API tokens)
+ * - cwd: Optional working directory for the server process
+ */
+
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
+      "description": "Access local filesystem with read/write capabilities"
+    },
+    {
+      "name": "github",
+      "command": "npx", 
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "your-github-token-here"
+      },
+      "description": "GitHub API integration for repository operations"
+    },
+    {
+      "name": "sqlite",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite"],
+      "env": {
+        "DATABASE_PATH": "./data.db"
+      },
+      "description": "SQLite database operations"
+    },
+    {
+      "name": "brave-search",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "your-brave-search-api-key"
+      },
+      "description": "Web search capabilities"
+    }
+  ]
+}

@@ -30,7 +30,7 @@ export function StashInputBar({
   }
 
   return (
-    <div className="flex items-center gap-2 border-b border-border/50 bg-muted/20 px-3 py-2">
+    <div className="mx-2 mt-1.5 flex items-center gap-2 rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
       <Archive className="h-3 w-3 shrink-0 text-muted-foreground/50" />
       <Input
         ref={inputRef}

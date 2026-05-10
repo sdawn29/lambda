@@ -190,6 +190,7 @@ export interface CommandAckMessage {
   clientId?: string;
   operation: string;
   accepted: boolean;
+  error?: string;
 }
 
 // ── Shared Types ─────────────────────────────────────────────────────────────

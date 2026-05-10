@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { promises as fs } from "node:fs";
+import { join } from "node:path";
 import {
   getCurrentBranch,
   initGitRepo,
@@ -26,6 +28,7 @@ import {
 import { generateCommitMessage } from "@lamda/pi-sdk";
 import { store } from "../store.js";
 import { gitCwd } from "../services/session-service.js";
+import { sessionEvents } from "../session-events.js";
 
 const git = new Hono();
 
@@ -263,6 +266,63 @@ git.post("/session/:id/git/stash-drop", async (c) => {
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
+});
+
+// ── Last-turn file changes (in-memory, current session only) ──────────────────
+
+git.get("/session/:id/git/last-turn-changes", (c) => {
+  const id = c.req.param("id");
+  const raw = sessionEvents.getLastTurnChanges(id);
+  return c.json({ raw });
+});
+
+// ── Last turn ─────────────────────────────────────────────────────────────────
+
+git.get("/session/:id/git/last-turn", (c) => {
+  const id = c.req.param("id");
+  const files = sessionEvents.getLastTurnFiles(id).map((f) => ({
+    filePath: f.filePath,
+    postStatusCode: f.postStatusCode,
+    wasCreatedByTurn: f.wasCreatedByTurn,
+  }));
+  return c.json({ files });
+});
+
+git.post("/session/:id/git/last-turn/revert", async (c) => {
+  const id = c.req.param("id");
+  const cwd = gitCwd(id);
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+
+  const files = sessionEvents.getLastTurnFiles(id);
+  if (!files.length) return c.json({ error: "No last turn to revert" }, 404);
+
+  const errors: string[] = [];
+
+  for (const file of files) {
+    const fullPath = join(cwd, file.filePath);
+    try {
+      if (file.wasCreatedByTurn) {
+        await fs.unlink(fullPath).catch(() => {});
+        await gitUnstage(cwd, file.filePath).catch(() => {});
+      } else if (file.preContent !== null) {
+        await fs.writeFile(fullPath, file.preContent, "utf8");
+        await gitUnstage(cwd, file.filePath).catch(() => {});
+      } else {
+        await gitRevertFile(cwd, file.filePath, file.postStatusCode).catch((err) => {
+          errors.push(`${file.filePath}: ${err instanceof Error ? err.message : String(err)}`);
+        });
+      }
+    } catch (err) {
+      errors.push(`${file.filePath}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return c.json({ error: `Some files could not be reverted: ${errors.join("; ")}` }, 500);
+  }
+
+  sessionEvents.clearLastTurnFiles(id);
+  return new Response(null, { status: 204 });
 });
 
 export default git;

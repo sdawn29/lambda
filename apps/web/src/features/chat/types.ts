@@ -160,7 +160,7 @@ export interface StoredMessageDto {
 
 // ── Conversion Functions ──────────────────────────────────────────────────────
 
-function parseErrorMessage(raw: string): string {
+export function parseErrorMessage(raw: string): string {
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     if (parsed?.error && typeof (parsed.error as Record<string, unknown>)?.message === "string")

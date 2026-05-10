@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
+    "@fontsource-variable/google-sans-flex": "^5.2.3",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/merriweather-sans": "^5.2.7",
     "@fontsource-variable/outfit": "^5.2.8",
