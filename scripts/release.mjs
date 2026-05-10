@@ -32,7 +32,7 @@ const forceBump = args.includes("--major")
       : null;
 
 function run(cmd, opts = {}) {
-  return execSync(cmd, { cwd: repoRoot, encoding: "utf8", ...opts }).trim();
+  return (execSync(cmd, { cwd: repoRoot, encoding: "utf8", ...opts }) ?? "").trim();
 }
 
 function getLastTag() {
