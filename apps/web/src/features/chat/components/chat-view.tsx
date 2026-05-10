@@ -321,12 +321,14 @@ export function ChatView({
 
   const handleStop = useCallback(() => {
     abortSessionMutation.mutate(undefined, {
+      onSuccess: () => {
+        markStopped()
+        updateThreadStopped.mutate({ threadId, stopped: true })
+      },
       onError: (err: unknown) => {
         console.error("[abort]", err)
       },
     })
-    markStopped()
-    updateThreadStopped.mutate({ threadId, stopped: true })
   }, [abortSessionMutation, markStopped, threadId, updateThreadStopped])
 
   useShortcutHandler(SHORTCUT_ACTIONS.FOCUS_CHAT, () => {
