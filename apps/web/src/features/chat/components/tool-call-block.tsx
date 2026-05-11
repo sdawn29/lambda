@@ -118,8 +118,9 @@ function getResultText(msg: ToolMessage): string | null {
     resultSource !== null &&
     Array.isArray((resultSource as Record<string, unknown>).content)
   ) {
-    const parts = (resultSource as { content: { type: string; text?: string }[] })
-      .content
+    const parts = (
+      resultSource as { content: { type: string; text?: string }[] }
+    ).content
     const text = parts
       .filter((p) => p.type === "text" && typeof p.text === "string")
       .map((p) => p.text)
@@ -173,7 +174,7 @@ function ReadView({
   const language = detectLanguage(filePath) ?? "text"
 
   return (
-    <div className="overflow-auto rounded border border-border/30 text-xs text-muted-foreground/60 max-h-64">
+    <div className="max-h-64 overflow-auto rounded border border-border/30 text-xs text-muted-foreground/60">
       <Suspense
         fallback={
           <pre className="overflow-auto px-3 py-2 text-xs text-muted-foreground/60">
@@ -212,7 +213,7 @@ function WriteView({
   const language = detectLanguage(filePath) ?? "text"
 
   return (
-    <div className="overflow-auto rounded border border-border/30 text-xs max-h-72">
+    <div className="max-h-72 overflow-auto rounded border border-border/30 text-xs">
       <Suspense
         fallback={
           <pre className="overflow-auto px-3 py-2 text-xs text-muted-foreground/60">
@@ -293,13 +294,22 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   // Body is shown when there is something to render at any status.
   // "running" and "error" must always open the body so their respective
   // placeholder / error block is reachable inside the collapsed grid.
-  const showEditContent = isEdit && (msg.status === "running" || diff !== null || msg.status === "error")
-  const showReadContent = isRead && (resultText !== null || msg.status === "running" || msg.status === "error")
+  const showEditContent =
+    isEdit &&
+    (msg.status === "running" || diff !== null || msg.status === "error")
+  const showReadContent =
+    isRead &&
+    (resultText !== null || msg.status === "running" || msg.status === "error")
   // Write: content is in args from tool_start, always available
   const showWriteContent = isWrite && writeArgs !== null
-  const showOtherContent = !isEdit && !isRead && !isWrite && (resultText !== null || msg.status === "running" || msg.status === "error")
+  const showOtherContent =
+    !isEdit &&
+    !isRead &&
+    !isWrite &&
+    (resultText !== null || msg.status === "running" || msg.status === "error")
 
-  const hasBody = showEditContent || showReadContent || showWriteContent || showOtherContent
+  const hasBody =
+    showEditContent || showReadContent || showWriteContent || showOtherContent
 
   return (
     <div
@@ -361,7 +371,6 @@ export const ToolCallBlock = memo(function ToolCallBlock({
       >
         <div className="overflow-hidden">
           <div className="border-t border-border/30 px-3 py-2">
-
             {/* Write tool: show content from args immediately — available at tool_start */}
             {isWrite && writeArgs && msg.status !== "error" && (
               <WriteView
@@ -373,21 +382,25 @@ export const ToolCallBlock = memo(function ToolCallBlock({
 
             {/* Running placeholder — always for edit (no partial results), only
                 when there is no content yet for read/other tools */}
-            {msg.status === "running" && !isWrite && (isEdit || !resultText) && (
-              <span className="text-muted-foreground/40">
-                {isEdit ? "Editing…" : isRead ? "Reading…" : "Running…"}
-              </span>
-            )}
+            {msg.status === "running" &&
+              !isWrite &&
+              (isEdit || !resultText) && (
+                <span className="text-muted-foreground/40">
+                  {isEdit ? "Editing…" : isRead ? "Reading…" : "Running…"}
+                </span>
+              )}
 
             {/* Running: partial result for read / other tools */}
             {msg.status === "running" && !isWrite && resultText && (
               <>
                 {isRead && readFilePath && (
-                  <ReadView text={resultText} filePath={readFilePath} live={true} />
+                  <ReadView
+                    text={resultText}
+                    filePath={readFilePath}
+                    live={true}
+                  />
                 )}
-                {!isRead && (
-                  <LivePre text={resultText} live={true} />
-                )}
+                {!isRead && <LivePre text={resultText} live={true} />}
               </>
             )}
 
@@ -402,17 +415,31 @@ export const ToolCallBlock = memo(function ToolCallBlock({
                 )}
 
                 {isRead && readFilePath && resultText && (
-                  <ReadView text={resultText} filePath={readFilePath} live={false} />
+                  <ReadView
+                    text={resultText}
+                    filePath={readFilePath}
+                    live={false}
+                  />
                 )}
 
                 {!isEdit && !isRead && !isWrite && resultText && (
                   <div className="group/copy relative">
+                    {normalizedToolName === "bash" && (
+                      <div className="mb-2 flex items-start gap-2 text-muted-foreground/50">
+                        <span className="font-mono text-[11px] font-semibold">
+                          $
+                        </span>
+                        <span className="font-mono text-[11px] text-foreground/70">
+                          {summary}
+                        </span>
+                      </div>
+                    )}
                     <LivePre text={resultText} live={false} />
                     <button
                       type="button"
                       onClick={handleCopy}
                       className={cn(
-                        "absolute right-1.5 top-1.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-colors hover:bg-muted hover:text-muted-foreground group-hover/copy:opacity-100",
+                        "absolute top-1.5 right-1.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-colors group-hover/copy:opacity-100 hover:bg-muted hover:text-muted-foreground",
                         copied && "text-emerald-500"
                       )}
                       aria-label="Copy result"
@@ -432,7 +459,7 @@ export const ToolCallBlock = memo(function ToolCallBlock({
             {msg.status === "error" && (
               <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
                 <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
-                <pre className="flex-1 overflow-auto break-all whitespace-pre-wrap text-xs text-destructive/80">
+                <pre className="flex-1 overflow-auto text-xs break-all whitespace-pre-wrap text-destructive/80">
                   {resultText ?? "Tool execution failed"}
                 </pre>
               </div>

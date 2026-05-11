@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import {
   Archive,
-  ChevronRight,
   ExternalLink,
   Folder,
   FolderOpen,
@@ -360,12 +359,14 @@ export function AppSidebar() {
                       tooltip={ws.name}
                     >
                       <span className="relative h-4 w-4 shrink-0">
-                        <Folder className="absolute inset-0 h-4 w-4 transition-[opacity,transform] duration-150 group-hover/ws:scale-75 group-hover/ws:opacity-0" />
-                        <ChevronRight
-                          className={`absolute inset-0 h-4 w-4 opacity-0 transition-[opacity,transform] duration-150 group-hover/ws:opacity-100 ${collapsed[ws.id] ? "" : "rotate-90"}`}
+                        <Folder
+                          className={`absolute inset-0 h-4 w-4 transition-[opacity,transform] duration-150 group-hover/ws:scale-75 ${collapsed[ws.id] ? "opacity-100" : "opacity-0"}`}
+                        />
+                        <FolderOpen
+                          className={`absolute inset-0 h-4 w-4 transition-[opacity,transform] duration-150 ${collapsed[ws.id] ? "opacity-0" : "opacity-100"}`}
                         />
                       </span>
-                      <span>{ws.name}</span>
+                      <span className="text-foreground/80">{ws.name}</span>
                     </SidebarMenuButton>
 
                     {/* New thread action */}
@@ -377,7 +378,10 @@ export function AppSidebar() {
                             className="right-7"
                             onClick={async () => {
                               const thread = await createThread(ws.id)
-                              setCollapsed((prev) => ({ ...prev, [ws.id]: false }))
+                              setCollapsed((prev) => ({
+                                ...prev,
+                                [ws.id]: false,
+                              }))
                               navigate({
                                 to: "/workspace/$threadId",
                                 params: { threadId: thread.id },

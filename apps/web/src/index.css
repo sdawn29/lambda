@@ -123,6 +123,29 @@
   --sidebar-ring: #1a4080;
 }
 
+/* ── Dark mode prose override ─────────────────────────────────────────────
+   The prose plugin sets colors via CSS custom properties on each element.
+   Override them with !important so they always win over plugin defaults. ── */
+.dark .prose-invert,
+.dark .prose-invert :is(*:not([class~="prose"] *)) {
+  --tw-prose-body: var(--foreground) !important;
+  --tw-prose-headings: var(--foreground) !important;
+  --tw-prose-lead: var(--foreground) !important;
+  --tw-prose-links: var(--foreground) !important;
+  --tw-prose-bold: var(--foreground) !important;
+  --tw-prose-counters: var(--foreground) !important;
+  --tw-prose-bullets: var(--foreground) !important;
+  --tw-prose-hr: var(--foreground) !important;
+  --tw-prose-quotes: var(--foreground) !important;
+  --tw-prose-quote-borders: var(--foreground) !important;
+  --tw-prose-captions: var(--foreground) !important;
+  --tw-prose-code: var(--foreground) !important;
+  --tw-prose-pre-code: var(--foreground) !important;
+  --tw-prose-pre-bg: var(--foreground) !important;
+  --tw-prose-th-borders: var(--foreground) !important;
+  --tw-prose-td-borders: var(--foreground) !important;
+}
+
 /* ── Jellybeans Dark ──────────────────────────────────────────────── */
 .dark {
   /* ── Base ── */
