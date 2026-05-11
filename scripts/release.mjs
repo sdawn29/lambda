@@ -193,8 +193,16 @@ run(`git commit -m "release: ${tag}"`);
 console.log(`Committed release ${tag}`);
 
 // 4. Tag
-run(`git tag -a "${tag}" -m "Release ${tag}"`);
-console.log(`Created tag ${tag}`);
+const tagExists = run("git tag -l\ ")
+  .split("\n")
+  .map((t) => t.trim())
+  .includes(tag);
+if (!tagExists) {
+  run(`git tag -a "${tag}" -m "Release ${tag}"`);
+  console.log(`Created tag ${tag}`);
+} else {
+  console.log(`Tag ${tag} already exists, skipping tag creation`);
+}
 
 // 5. Push
 run("git push origin main", { stdio: "inherit" });
