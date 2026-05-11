@@ -1,0 +1,29 @@
+{
+  "name": "explore-skills",
+  "version": "1.0.0",
+  "description": "Agent skills for exploring codebase structure, finding files, tracing code paths, and mapping architecture relationships",
+  "author": {
+    "name": "lamda team"
+  },
+  "homepage": "https://github.com/snehasishdawn/lamda",
+  "repository": "https://github.com/snehasishdawn/lamda",
+  "license": "MIT",
+  "keywords": [
+    "explore",
+    "codebase",
+    "navigation",
+    "architecture",
+    "structure",
+    "find-files",
+    "trace",
+    "mapping",
+    "javascript",
+    "typescript"
+  ],
+  "plugins": [
+    {
+      "name": "explore",
+      "path": "."
+    }
+  ]
+}
