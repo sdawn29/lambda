@@ -376,6 +376,11 @@ export function getFileIcon(filename: string): (props: IconProps) => React.JSX.E
   )
 }
 
+export function FileIcon({ filename, className }: { filename: string; className?: string }) {
+  const iconName = getIconName(filename.split(/[/\\]/).pop() ?? filename)
+  return <Icon icon={`catppuccin:${iconName}`} className={className} />
+}
+
 const icons = (catppuccinData as { icons: Record<string, { body: string }> }).icons
 
 /** Build an SVG DOM element for a catppuccin icon, safe to use outside React. */

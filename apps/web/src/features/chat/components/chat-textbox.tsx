@@ -110,7 +110,10 @@ export const ChatTextbox = memo(
       models[0] ??
       null
 
-    const availableLevels = selectedModel?.thinkingLevels ?? []
+    const availableLevels = React.useMemo(
+      () => selectedModel?.thinkingLevels ?? [],
+      [selectedModel]
+    )
 
     React.useEffect(() => {
       if (!availableLevels.length) return
@@ -124,7 +127,7 @@ export const ChatTextbox = memo(
           setThinkingLevel(availableLevels[0] as ThinkingLevel)
         }
       }
-    }, [availableLevels])
+    }, [availableLevels, thinkingLevel])
 
     const grouped = React.useMemo(
       () =>

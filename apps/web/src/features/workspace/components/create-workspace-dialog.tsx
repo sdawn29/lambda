@@ -37,6 +37,14 @@ export function CreateWorkspaceDialog({
 
   const selectFolderMutation = useSelectFolder()
 
+  const handleClose = useCallback(() => {
+    setStep("options")
+    setRepoUrl("")
+    setCloneFolder("")
+    setError(null)
+    onOpenChange(false)
+  }, [onOpenChange])
+
   const handleLocalClick = useCallback(async () => {
     setError(null)
     setIsLoading(true)
@@ -53,7 +61,7 @@ export function CreateWorkspaceDialog({
     } finally {
       setIsLoading(false)
     }
-  }, [selectFolderMutation, onCreateLocal])
+  }, [selectFolderMutation, onCreateLocal, handleClose])
 
   const handleRemoteOptionClick = useCallback(() => {
     setError(null)
@@ -74,15 +82,7 @@ export function CreateWorkspaceDialog({
     } finally {
       setIsLoading(false)
     }
-  }, [repoUrl, cloneFolder, onCreateRemote])
-
-  const handleClose = () => {
-    setStep("options")
-    setRepoUrl("")
-    setCloneFolder("")
-    setError(null)
-    onOpenChange(false)
-  }
+  }, [repoUrl, cloneFolder, onCreateRemote, handleClose])
 
   const handleBrowseFolder = useCallback(async () => {
     const folderPath = await selectFolderMutation.mutateAsync({

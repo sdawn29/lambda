@@ -19,7 +19,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { useShortcutHandler, useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
-import { getFileIcon } from "@/shared/ui/file-icon"
+import { FileIcon } from "@/shared/ui/file-icon"
 import { DiffView } from "./diff-view"
 import { cn } from "@/shared/lib/utils"
 import { useAppSettings } from "@/features/settings/queries"
@@ -121,7 +121,7 @@ function FileAccordionItem({
           )}
         />
         <StatusBadge code={file.statusCode} />
-        {(() => { const FileIcon = getFileIcon(fileName); return <FileIcon className="size-3 shrink-0" /> })()}
+        <FileIcon filename={fileName} className="size-3 shrink-0" />
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
           <span className="shrink-0 font-mono text-xs font-medium text-foreground">{fileName}</span>
           {dirPath && (

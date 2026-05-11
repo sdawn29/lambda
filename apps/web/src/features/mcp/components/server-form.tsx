@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import {
   Plus,
   Trash2,
@@ -201,13 +201,7 @@ export function FormDialog({
   isSaving,
 }: ServerFormDialogProps) {
   const testConnection = useTestMcpConnection()
-  const [showAdvanced, setShowAdvanced] = useState(false)
-
-  useEffect(() => {
-    if (formState.envVars.length > 0) {
-      setShowAdvanced(true)
-    }
-  }, [formState.envVars.length])
+  const [showAdvanced, setShowAdvanced] = useState(() => formState.envVars.length > 0)
 
   function updateField<K extends keyof ServerFormState>(key: K, value: ServerFormState[K]) {
     setFormState({ ...formState, [key]: value })

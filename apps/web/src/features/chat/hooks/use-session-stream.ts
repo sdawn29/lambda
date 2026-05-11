@@ -712,12 +712,13 @@ export function useSessionStream({
         console.debug("[session-stream] WebSocket unavailable:", err)
       })
 
+    const pendingToolStart = pendingToolStartRef.current
     return () => {
       doneFlag.current = true
       sessionDoneFlags.delete(sessionId)
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       eventQueueRef.current = []
-      pendingToolStartRef.current.clear()
+      pendingToolStart.clear()
       unsubscribe?.()
       ws?.close()
     }

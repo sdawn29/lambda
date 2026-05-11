@@ -9,6 +9,7 @@ import {
   type OAuthSseEvent,
   type ActiveLogin,
 } from "../services/auth-service.js";
+import { invalidateModelCache } from "@lamda/pi-sdk";
 
 const auth = new Hono();
 
@@ -63,6 +64,7 @@ auth.post("/auth/oauth/:providerId/login", async (c) => {
       onManualCodeInput: () => manualInputPromise,
     })
     .then(() => {
+      invalidateModelCache();
       emit({ type: "done" });
       activeLogins.delete(loginId);
     })
@@ -108,6 +110,7 @@ auth.delete("/auth/oauth/:providerId", (c) => {
   const providerId = c.req.param("providerId");
   sharedAuthStorage.reload();
   sharedAuthStorage.logout(providerId);
+  invalidateModelCache();
   return c.json({ ok: true });
 });
 
@@ -141,6 +144,7 @@ auth.put("/providers", async (c) => {
   }
 
   await writeAuthJson(authData);
+  invalidateModelCache();
   return c.json({ ok: true });
 });
 

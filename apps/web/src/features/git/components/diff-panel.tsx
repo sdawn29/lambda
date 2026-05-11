@@ -646,7 +646,7 @@ const FileContent = memo(function FileContent({
   useEffect(() => {
     setMarkdownPreview(isMarkdown)
     setHtmlPreview(isHtml)
-  }, [filePath])
+  }, [filePath, isMarkdown, isHtml])
   const language = LANGUAGE_MAP[fileExtension] ?? fileExtension
 
   useEffect(() => {

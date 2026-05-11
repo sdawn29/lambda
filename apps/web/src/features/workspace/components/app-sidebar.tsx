@@ -105,7 +105,7 @@ function ThreadRow({
     if (isActive) {
       rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
     }
-  }, [])
+  }, [isActive])
 
   const handlePinToggle = useCallback(
     async (e: React.MouseEvent) => {

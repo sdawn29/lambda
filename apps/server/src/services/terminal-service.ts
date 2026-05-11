@@ -33,12 +33,13 @@ export function handleTerminalConnection(
 
   let ptyProcess: ReturnType<typeof pty.spawn> | null = null;
   try {
+    const { PORT: _port, ...ptyEnv } = process.env;
     ptyProcess = pty.spawn(shell, ["-l"], {
       name: "xterm-256color",
       cols: 80,
       rows: 24,
       cwd,
-      env: process.env as Record<string, string>,
+      env: ptyEnv as Record<string, string>,
     });
   } catch (err) {
     console.error("[terminal] pty.spawn failed:", err);

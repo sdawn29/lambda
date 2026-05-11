@@ -8,6 +8,11 @@ import type { ModelInfo } from "./types.js";
 let cachedAuthStorage: AuthStorage | undefined;
 let cachedModelRegistry: ModelRegistry | undefined;
 
+export function invalidateModelCache(): void {
+  cachedAuthStorage = undefined;
+  cachedModelRegistry = undefined;
+}
+
 /**
  * All possible thinking levels supported by pi
  */

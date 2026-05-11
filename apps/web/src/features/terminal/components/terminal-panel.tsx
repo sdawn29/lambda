@@ -97,6 +97,11 @@ const TerminalInstance = memo(function TerminalInstance({
       theme: document.documentElement.classList.contains("dark")
         ? DARK_TERMINAL_THEME
         : LIGHT_TERMINAL_THEME,
+      linkHandler: {
+        activate: (_event, uri) => {
+          window.open(uri, "_blank", "noopener,noreferrer")
+        },
+      },
     })
 
     const fitAddon = new FitAddon()
