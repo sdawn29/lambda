@@ -1,5 +1,5 @@
 import { memo } from "react"
-import ReactMarkdown, { Components } from "react-markdown"
+import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 export const ThinkingBlock = memo(function ThinkingBlock({
@@ -28,7 +28,7 @@ export const ThinkingBlock = memo(function ThinkingBlock({
   }
 
   return (
-    <div className="text-xs italic leading-relaxed text-muted-foreground/55 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5">
+    <div className="text-xs leading-relaxed text-muted-foreground/55 italic [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {thinking}
       </ReactMarkdown>
