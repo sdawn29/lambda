@@ -13,7 +13,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -167,9 +167,27 @@ console.log("Updated CHANGELOG.md");
 // 2. Sync all package.json versions
 run(`node scripts/sync-release-version.mjs --version ${newVersion}`, { stdio: "inherit" });
 
+// Expand workspace glob patterns to actual file paths for git add
+function expandWorkspacePackageGlobs() {
+  const rootPackage = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+  const paths = [];
+  for (const pattern of rootPackage.workspaces ?? []) {
+    if (!pattern.endsWith("/*")) continue;
+    const parentDir = path.join(repoRoot, pattern.slice(0, -2));
+    if (!existsSync(parentDir)) continue;
+    const entries = readdirSync(parentDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+      .map((e) => path.join(parentDir, e.name, "package.json"))
+      .filter((f) => existsSync(f));
+    paths.push(...entries);
+  }
+  return paths;
+}
+
 // 3. Commit
+const workspacePackagePaths = expandWorkspacePackageGlobs();
 run(
-  `git add CHANGELOG.md package.json package-lock.json "apps/*/package.json" "packages/*/package.json"`,
+  `git add CHANGELOG.md package.json package-lock.json ${workspacePackagePaths.join(" ")}`,
 );
 run(`git commit -m "release: ${tag}"`);
 console.log(`Committed release ${tag}`);
