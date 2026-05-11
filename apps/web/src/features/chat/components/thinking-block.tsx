@@ -1,5 +1,5 @@
 import { memo } from "react"
-import ReactMarkdown from "react-markdown"
+import ReactMarkdown, { Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 export const ThinkingBlock = memo(function ThinkingBlock({
@@ -7,17 +7,20 @@ export const ThinkingBlock = memo(function ThinkingBlock({
 }: {
   thinking: string
 }) {
-  const components = {
+  const components: Components = {
     pre: ({ children }) => <>{children}</>,
-    code: ({ className, children }) => {
+    code: ({ className, children, ...props }) => {
       const isBlock =
         String(children).endsWith("\n") || className?.startsWith("language-")
       if (isBlock) {
         // Render fenced code blocks as plain text without styling
-        return <code>{children}</code>
+        return <code {...props}>{children}</code>
       }
       return (
-        <code className="rounded bg-muted/50 px-1 py-0.5 font-mono text-xs">
+        <code
+          className="rounded bg-muted/50 px-1 py-0.5 font-mono text-xs"
+          {...props}
+        >
           {children}
         </code>
       )
