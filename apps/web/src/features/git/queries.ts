@@ -128,6 +128,13 @@ export function useLastTurnChanges(sessionId: string) {
 
 // ── Last turn ─────────────────────────────────────────────────────────────────
 
+export interface LastTurnFile {
+  filePath: string
+  postStatusCode: string
+  wasCreatedByTurn: boolean
+  preContent: string | null
+}
+
 export function useLastTurn(sessionId: string) {
   return useQuery({
     queryKey: gitKeys.lastTurn(sessionId),
@@ -146,6 +153,9 @@ export function useRevertLastTurn(sessionId: string) {
       void queryClient.invalidateQueries({ queryKey: gitKeys.diffStat(sessionId) })
       void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurn(sessionId) })
       void queryClient.invalidateQueries({ queryKey: gitKeys.lastTurnChanges(sessionId) })
+    },
+    onError: (error: Error) => {
+      console.error("[RevertLastTurn] Error:", error.message)
     },
   })
 }

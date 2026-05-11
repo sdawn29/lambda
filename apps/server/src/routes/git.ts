@@ -284,6 +284,7 @@ git.get("/session/:id/git/last-turn", (c) => {
     filePath: f.filePath,
     postStatusCode: f.postStatusCode,
     wasCreatedByTurn: f.wasCreatedByTurn,
+    preContent: f.preContent ?? null,
   }));
   return c.json({ files });
 });

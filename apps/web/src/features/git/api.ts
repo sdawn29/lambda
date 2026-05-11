@@ -157,6 +157,7 @@ export interface LastTurnFile {
   filePath: string
   postStatusCode: string
   wasCreatedByTurn: boolean
+  preContent: string | null
 }
 
 export async function getLastTurn(sessionId: string): Promise<LastTurnFile[]> {
