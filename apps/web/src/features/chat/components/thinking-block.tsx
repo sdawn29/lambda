@@ -1,38 +1,34 @@
 import { memo } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 export const ThinkingBlock = memo(function ThinkingBlock({
   thinking,
 }: {
   thinking: string
 }) {
-  const paragraphs = thinking
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) =>
-      line
-        .replace(/^#+\s*/, "")
-        .replace(/\*\*(.+?)\*\*/g, "$1")
-        .replace(/\*(.+?)\*/g, "$1")
-        .replace(/__(.+?)__/g, "$1")
-        .replace(/_(.+?)_/g, "$1")
-        .replace(/~~(.+?)~~/g, "$1")
-        .replace(/`(.+?)`/g, "$1")
-        .replace(/```[\s\S]*?```/g, "")
-        .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    )
+  const components = {
+    pre: ({ children }) => <>{children}</>,
+    code: ({ className, children }) => {
+      const isBlock =
+        String(children).endsWith("\n") || className?.startsWith("language-")
+      if (isBlock) {
+        // Render fenced code blocks as plain text without styling
+        return <code>{children}</code>
+      }
+      return (
+        <code className="rounded bg-muted/50 px-1 py-0.5 font-mono text-xs">
+          {children}
+        </code>
+      )
+    },
+  }
 
   return (
-    <>
-      {paragraphs.map((text, i) => (
-        <p
-          key={i}
-          className="text-xs leading-relaxed text-muted-foreground/55 italic"
-        >
-          {text}
-        </p>
-      ))}
-    </>
+    <div className="text-xs italic leading-relaxed text-muted-foreground/55 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {thinking}
+      </ReactMarkdown>
+    </div>
   )
 })
