@@ -1,6 +1,6 @@
 # AGENTS.md — lamda (root)
 
-> Auto-generated context for coding agents. Last updated: 2026-05-04
+> Auto-generated context for coding agents. Last updated: 2026-05-11
 
 ## Purpose
 
@@ -41,7 +41,8 @@ lamda/
 │   └── server/       — Hono API server for Pi agent sessions (port 3001)
 └── packages/
     ├── db/           — Drizzle ORM + SQLite database layer
-    ├── git/          — Git operations utility
+    ├── git/          — Git CLI wrappers
+    ├── mcp/          — MCP (Model Context Protocol) client integration
     └── pi-sdk/       — Wrapper around @mariozechner/pi-coding-agent
 ```
 
@@ -68,6 +69,7 @@ lamda/
 - [apps/server/src/routes](apps/server/src/routes/AGENTS.md) — REST endpoints for sessions, threads, git, settings
 - [packages/db](packages/db/AGENTS.md) — Drizzle ORM + SQLite persistence
 - [packages/git](packages/git/AGENTS.md) — Git CLI wrappers
+- [packages/mcp](packages/mcp/AGENTS.md) — MCP client integration for pi-coding-agent
 - [packages/pi-sdk](packages/pi-sdk/AGENTS.md) — Wrapper around @mariozechner/pi-coding-agent
 
 ## Feature Module AGENTS.md
@@ -78,6 +80,7 @@ Detailed AGENTS.md files for complex web feature modules:
 |---------|------|-------------|
 | [Chat](apps/web/src/features/chat/AGENTS.md) | `web/src/features/chat/` | 34 files, streaming architecture |
 | [Git](apps/web/src/features/git/AGENTS.md) | `web/src/features/git/` | 26 files, diff + staging workflow |
+| [MCP](apps/web/src/features/mcp/AGENTS.md) | `web/src/features/mcp/` | MCP server integration |
 | [Routes (server)](apps/server/src/routes/AGENTS.md) | `server/src/routes/` | REST endpoints: sessions, threads, git, files |
 | [Layout](apps/web/src/features/layout/AGENTS.md) | `web/src/features/layout/` | Title bar, navigation, panel toggles, editor integration |
 | [Terminal](apps/web/src/features/terminal/AGENTS.md) | `web/src/features/terminal/` | xterm.js + WebSocket PTY |

@@ -169,8 +169,7 @@ export function useUpdateThreadTitle() {
       title: string
     }) => apiUpdateThreadTitle(threadId, title),
     onMutate: ({ workspaceId, threadId, title }) => {
-      const previous =
-        queryClient.getQueryData<WorkspaceDto[]>(workspacesQueryKey)
+      // Optimistically update the cache so sidebar title updates immediately
       setWorkspacesData(queryClient, (workspaces) =>
         workspaces.map((workspace) =>
           workspace.id !== workspaceId
@@ -183,16 +182,16 @@ export function useUpdateThreadTitle() {
               }
         )
       )
-
-      return { previous }
+      // No invalidation needed — optimistic update keeps cache consistent.
+      // Invalidation would re-fetch all workspaces and trigger unnecessary re-renders.
     },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(workspacesQueryKey, context.previous)
-      }
+    onError: (_error, _variables) => {
+      // On error, invalidate to restore server state (title may not have been saved)
+      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
+      // No settlement invalidation — title is already in cache via onMutate.
+      // Only invalidate on error to recover server state.
     },
   })
 }
