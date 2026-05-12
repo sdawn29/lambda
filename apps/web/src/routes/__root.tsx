@@ -19,6 +19,7 @@ import {
   MainTabsProvider,
   MainTabBar,
   FileContentView,
+  TabsEmptyState,
   useMainTabs,
 } from "@/features/main-tabs"
 import { usePrefetchThreadsMessages } from "@/features/chat/hooks"
@@ -41,8 +42,9 @@ const TerminalPanel = lazy(() =>
 )
 
 function MainContentArea() {
-  const { activeTab, addFileTab } = useMainTabs()
+  const { activeTab, tabs, addFileTab } = useMainTabs()
   const { workspaces } = useWorkspace()
+  const { threadId } = useParams({ strict: false }) as { threadId?: string }
 
   const workspacePath = activeTab?.type === "file" ? activeTab.workspacePath : undefined
   const onOpenFile = useCallback(
@@ -50,6 +52,18 @@ function MainContentArea() {
       addFileTab({ filePath, title, workspacePath }),
     [addFileTab, workspacePath]
   )
+
+  // Show empty state only when no tabs AND no thread in the URL.
+  // When navigating to a thread route, threadId will be set so the outlet
+  // renders normally, allowing the thread route to mount and register its tab.
+  if (tabs.length === 0 && !threadId) {
+    return (
+      <div className="flex h-full flex-col">
+        <MainTabBar />
+        <TabsEmptyState />
+      </div>
+    )
+  }
 
   if (activeTab?.type === "file") {
     const workspace = workspaces.find((ws) => ws.path === activeTab.workspacePath)

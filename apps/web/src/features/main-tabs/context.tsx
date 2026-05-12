@@ -36,6 +36,7 @@ type MainTabsAction =
   | { type: "CLOSE_TAB"; payload: string }
   | { type: "SET_ACTIVE_TAB"; payload: string }
   | { type: "UPDATE_THREAD_TITLE"; payload: { threadId: string; title: string } }
+  | { type: "REORDER_TABS"; payload: { draggedId: string; targetId: string; before: boolean } }
 
 const initialState: MainTabsState = {
   tabs: [],

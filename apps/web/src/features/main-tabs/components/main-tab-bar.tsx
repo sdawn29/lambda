@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { MessageSquare, Plus, X } from "lucide-react"
+import { Loader2, MessageSquare, Plus, X } from "lucide-react"
 import { Icon } from "@iconify/react"
 import { getIconName } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
@@ -8,6 +8,15 @@ import { cn } from "@/shared/lib/utils"
 import { useMainTabs, type MainTab } from "../context"
 import { FileSearchModal } from "@/features/file-tree"
 import { useWorkspace } from "@/features/workspace"
+import { useThreadStatus } from "@/features/chat"
+
+function ThreadTabIcon({ threadId }: { threadId: string }) {
+  const status = useThreadStatus(threadId)
+  if (status === "streaming") return <Loader2 className="size-3.5 shrink-0 animate-spin opacity-60" />
+  if (status === "completed") return <span className="size-1.5 shrink-0 rounded-full bg-green-500" />
+  if (status === "error") return <span className="size-1.5 shrink-0 rounded-full bg-red-500" />
+  return <MessageSquare className="size-3.5 shrink-0 opacity-60" />
+}
 
 export function MainTabBar() {
   const { tabs, activeTabId, activeTab, closeTab, setActiveTab, addFileTab } = useMainTabs()
@@ -92,7 +101,7 @@ export function MainTabBar() {
             )}
           >
             {tab.type === "thread" ? (
-              <MessageSquare className="size-3.5 shrink-0 opacity-60" />
+              <ThreadTabIcon threadId={tab.threadId} />
             ) : (
               <Icon
                 icon={`catppuccin:${getIconName(tab.title)}`}

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect, useMemo, useRef } from "react"
 
 import { ChatView, useSetActiveThreadId } from "@/features/chat"
-import { useWorkspace } from "@/features/workspace"
+import { useWorkspace, useWorkspaces } from "@/features/workspace"
 import { useDiffPanel } from "@/features/git"
 import { useFileTree } from "@/features/file-tree"
 import { useMainTabs, MainTabBar } from "@/features/main-tabs"
@@ -35,6 +35,7 @@ export const Route = createFileRoute("/workspace/$threadId")({
 function WorkspaceThreadRoute() {
   const { threadId } = Route.useParams()
   const { workspaces, isLoading } = useWorkspace()
+  const { isFetching } = useWorkspaces()
   const navigate = useNavigate()
   const {
     isOpen: diffOpen,
@@ -102,10 +103,10 @@ function WorkspaceThreadRoute() {
   }, [foundThread?.id, foundThread?.title, updateThreadTitle])
 
   useEffect(() => {
-    if (!isLoading && !foundThread) {
+    if (!isLoading && !isFetching && !foundThread) {
       navigate({ to: "/" })
     }
-  }, [isLoading, foundThread, navigate])
+  }, [isLoading, isFetching, foundThread, navigate])
 
   if (!foundWorkspace || !foundThread || !foundThread.sessionId) {
     return null
