@@ -881,7 +881,7 @@ export const DiffPanel = memo(function DiffPanel({
     <>
       <div className="flex h-full w-full flex-col bg-background">
         {/* Tab bar */}
-        <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
+        <div className="flex h-9 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
           {/* View selector — always on the left; clicking also activates SC content */}
           <DropdownMenu>
             <DropdownMenuTrigger

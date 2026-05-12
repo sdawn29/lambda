@@ -1,249 +1,78 @@
-# Performance Plan: Native-Like Responsiveness
+# Plan: Enhance Color Scheme Visibility, Hierarchy & Readability
 
 ## Context
 
-This Electron + React 19 + Hono app has several layered performance issues that prevent truly native-like feel. The most impactful ones are: a critical DB bug that silently corrupts block ordering on long threads, unbatched DB writes during streaming causing unnecessary I/O, sidebar-wide re-renders every 60 seconds, and inefficient SQL patterns that load entire datasets to filter one or two rows. Secondary wins come from memoizing recursive UI components and tightening query staleness settings.
+The app uses the Jellybeans palette (warm earthy light / neutral dark). Both modes have visibility issues stemming from compressed surface levels and low-contrast secondary text. The goal is to improve hierarchy, contrast, and readability by adjusting CSS custom property values only — no color scheme change, no new borders added to components.
+
+**Problems identified:**
+
+- **Dark mode surfaces are too compressed** — `--background: #121212` to `--card: #181818` is only +6 hex steps; cards barely float above the page. `--secondary: #1d1d1d` and `--muted: #242424` are similarly squeezed.
+- **Dark mode borders invisible** — `--border: #212121` is only 9 steps above background; separators don't read without squinting.
+- **Dark mode hover states invisible** — `--sidebar-accent: #181818` is the same as `--card`; hovering a sidebar thread row has no visible feedback.
+- **Dark mode popovers don't float** — `--popover: #121212` is identical to background; dropdowns blend into the page.
+- **Muted text contrast too low at opacity** — `--muted-foreground: #888888` used with `/70` or `/60` opacity modifiers (common in TitleBar, ThreadRow, timestamps) drops below 3:1 — unreadable.
+- **Light mode muted text below AA** — `--muted-foreground: #6a6560` on `--background: #f3efe8` is ~4.2:1, just under the 4.5:1 WCAG AA threshold.
+- **Light mode sidebar barely separates** — `--sidebar: #e8e4dd` vs `--background: #f3efe8` difference is very subtle.
 
 ---
 
-## Issues by Priority
+## File to change
 
-### 1. CRITICAL BUG — `getNextBlockIndex` returns wrong index
-**File:** `packages/db/src/queries/message-blocks.ts:59`
-
-```ts
-// BUG: asc returns the MINIMUM block_index, not maximum
-.orderBy(asc(messageBlocks.blockIndex))
-```
-
-After the 2nd block is inserted every subsequent block gets `blockIndex = 1` because the query always finds the smallest index (0) and adds 1. SQLite's rowid preserves insertion order so the data appears ordered, but the `blockIndex` values are wrong and will break any future sorting, pagination, or replay logic.
-
-**Fix:** Replace with a MAX aggregate:
-```ts
-import { max, eq } from "drizzle-orm"
-
-function getNextBlockIndex(threadId: string): number {
-  const result = db
-    .select({ maxIndex: max(messageBlocks.blockIndex) })
-    .from(messageBlocks)
-    .where(eq(messageBlocks.threadId, threadId))
-    .get()
-  return (result?.maxIndex ?? -1) + 1
-}
-```
-
-Also remove the unused `asc` import from the file's import line.
+**`apps/web/src/index.css`** — only the CSS custom property values in `:root` and `.dark`.  
+No component `.tsx` files modified. No new border classes added.
 
 ---
 
-### 2. HIGH — `listRunningToolBlocks` loads all blocks into memory
-**File:** `packages/db/src/queries/message-blocks.ts:295–304`
+## Proposed Changes
 
-The function fetches every block for a thread, converts them all, then filters in JS. On a long thread (500+ blocks) this reads megabytes of data to find 0–2 running tool blocks.
+### Light Mode (`:root`)
 
-**Fix:** Push the filter into SQL:
-```ts
-import { and, eq, asc } from "drizzle-orm"
+| Variable | Current | Proposed | Why |
+|---|---|---|---|
+| `--muted-foreground` | `#6a6560` | `#5c5854` | Raises contrast to ~5.1:1 on background; at 70% opacity still ~3.6:1 |
+| `--border` | `#e6e1d9` | `#d8d2c9` | Separators become subtly visible without adding weight |
+| `--sidebar` | `#e8e4dd` | `#e0dad1` | Clearer tonal separation from `--background` |
+| `--sidebar-border` | `#e0dbd4` | `#d5cfc6` | Keeps sidebar border proportional to new sidebar tone |
 
-export function listRunningToolBlocks(threadId: string): MessageBlock[] {
-  return db
-    .select()
-    .from(messageBlocks)
-    .where(
-      and(
-        eq(messageBlocks.threadId, threadId),
-        eq(messageBlocks.role, "tool"),
-        eq(messageBlocks.toolStatus, "running")
-      )
-    )
-    .orderBy(asc(messageBlocks.blockIndex))
-    .all()
-    .map(toMessageBlock)
-}
-```
-
-The existing composite index `(thread_id, block_index)` covers the thread filter; the additional `role` / `tool_status` predicates are low-selectivity but still avoid the full table scan in JS.
+Leave unchanged: `--background`, `--foreground`, `--card`, `--secondary`, `--muted`, `--accent`, `--input`, `--primary`, `--destructive`, chart/ring values, sidebar-accent/primary.
 
 ---
 
-### 3. HIGH — `ThreadRow` not memoized; `useNow()` re-renders all rows every 60s
-**File:** `apps/web/src/features/workspace/components/app-sidebar.tsx:77–197`
+### Dark Mode (`.dark`)
 
-`useNow()` lives in `AppSidebar` and passes `now` as a prop to every `ThreadRow`. Every 60-second tick re-renders ALL rows in every workspace, even when nothing visual changed for them.
+| Variable | Current | Proposed | Why |
+|---|---|---|---|
+| `--card` | `#181818` | `#1c1c1c` | +10 steps above bg (was +6); chat input box, cards clearly float |
+| `--popover` | `#121212` | `#1c1c1c` | Popovers/dropdowns now visually elevate above background |
+| `--secondary` | `#1d1d1d` | `#222222` | Recessed panels still below card, more distinct from background |
+| `--muted` | `#242424` | `#2b2b2b` | Muted background areas clearly separate from secondary |
+| `--accent` | `#303030` | `#393939` | Hover/selection highlight is now visible (+25% step increase) |
+| `--border` | `#212121` | `#2c2c2c` | Separators perceptible; layout seams readable without being heavy |
+| `--input` | `#1f1f1f` | `#252525` | Input fields more distinct from card background |
+| `--muted-foreground` | `#888888` | `#9e9e9e` | Base contrast ~6.2:1; at 70% opacity ~4.4:1 (meets AA) |
+| `--sidebar-accent` | `#181818` | `#242424` | Hover state in sidebar thread rows is now visible |
+| `--sidebar-border` | `#161616` | `#1e1e1e` | Sidebar section separators slightly perceptible |
 
-**Fix — two-part:**
-
-**Part A:** Move `useNow()` into `ThreadRow` itself so each row controls its own timestamp:
-```ts
-// Remove `now` prop from ThreadRow signature and call site
-function ThreadRow({ thread, workspaceId, isActive, onClick }) {
-  const now = useNow()          // <-- moved here
-  ...
-}
-```
-
-**Part B:** Wrap `ThreadRow` with `React.memo` so Workspace-level state changes don't re-render stable rows:
-```ts
-const ThreadRow = memo(function ThreadRow({ thread, workspaceId, isActive, onClick }) {
-  ...
-})
-```
-
-Add `memo` to the import from React at the top of the file.
+Leave unchanged: `--background`, `--foreground`, `--card-foreground`, `--sidebar`, `--sidebar-foreground`, `--primary`, `--primary-foreground`, `--destructive`, chart/ring values, sidebar-primary.
 
 ---
 
-### 4. HIGH — Git status capture has no timeout
-**File:** `apps/server/src/session-events.ts:131–163`
+## What does NOT change
 
-`capturePreTurnStatus()` calls `gitStatus(this.cwd)` with no timeout. On a large monorepo, network-mounted drive, or heavily modified working tree, this blocks the agent_start broadcast indefinitely. The event is persisted and emitted *after* this promise resolves, so the entire streaming session stalls.
-
-**Fix:** Add a 5-second race timeout; silently swallow on timeout:
-```ts
-private async capturePreTurnStatus(): Promise<void> {
-  if (!this.cwd) return
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("git-status timeout")), 5_000)
-  )
-  try {
-    const raw = await Promise.race([gitStatus(this.cwd), timeout])
-    ...
-  } catch {
-    this.preTurnStatusMap = null
-    this.preTurnFileContents = null
-  }
-}
-```
-
----
-
-### 5. MEDIUM — Text delta persistence is unbatched (50 DB writes/sec during streaming)
-**File:** `apps/server/src/session-events.ts:440–443`
-
-Every `text_delta` event immediately issues an SQL UPDATE. At typical LLM speeds (20–50 tokens/sec) this is 20–50 synchronous DB writes per second per streaming session. While SQLite handles this, it is unnecessary I/O that competes with reads and causes latency spikes on slower disks.
-
-**Fix:** Buffer deltas in a class-level accumulator and flush on a 100ms timer (or on `agent_end`):
-```ts
-// Add to class:
-private textDeltaBuffer: string = ""
-private thinkingDeltaBuffer: string = ""
-private deltaFlushTimer: ReturnType<typeof setTimeout> | null = null
-
-private scheduleDeltaFlush(blockId: string) {
-  if (this.deltaFlushTimer) return
-  this.deltaFlushTimer = setTimeout(() => {
-    this.deltaFlushTimer = null
-    if (this.textDeltaBuffer) {
-      appendAssistantTextDelta(blockId, this.textDeltaBuffer)
-      this.textDeltaBuffer = ""
-    }
-    if (this.thinkingDeltaBuffer) {
-      appendAssistantThinkingDelta(blockId, this.thinkingDeltaBuffer)
-      this.thinkingDeltaBuffer = ""
-    }
-  }, 100)
-}
-
-// On message_update text_delta:
-this.textDeltaBuffer += assistantEvent.delta
-this.scheduleDeltaFlush(blockId)
-
-// On agent_end: clearTimeout + flush immediately before persist
-```
-
----
-
-### 6. MEDIUM — `useMessages` always refetches on mount and window focus
-**File:** `apps/web/src/features/chat/queries.ts:75–77`
-
-```ts
-staleTime: 0,             // always stale
-refetchOnMount: true,
-refetchOnWindowFocus: true,
-```
-
-With `initialData` from localStorage and the WebSocket stream keeping the query cache current via `setQueryData`, a server round-trip on every thread switch and every window focus is unnecessary overhead (adds ~50–200ms RTT per switch).
-
-**Fix:** Raise `staleTime` and disable focus refetch since the WebSocket invalidates the cache whenever messages arrive:
-```ts
-staleTime: 5 * 60 * 1000,   // 5 minutes; WS stream keeps data live
-refetchOnMount: "always",    // keep for initial load when no WS yet
-refetchOnWindowFocus: false, // WS handles freshness
-```
-
-Also apply the same pattern to `useContextUsage` and `useSessionStats` (`staleTime: 0` → `staleTime: 30_000`).
-
----
-
-### 7. MEDIUM — `TreeItem` not memoized; entire tree re-renders on expand
-**File:** `apps/web/src/features/file-tree/components/file-tree.tsx:94–164`
-
-Toggling a directory's expanded state causes `FileTree` to re-render, which maps over `tree` and re-renders every `TreeItem`. For a repo with 500+ files this is noticeable jank on every click.
-
-**Fix:** Wrap `TreeItem` with `React.memo`:
-```ts
-const TreeItem = memo(function TreeItem({ node, depth, expanded, onToggleDir, onSelectFile }) {
-  ...
-})
-```
-
-`onToggleDir` and `onSelectFile` are already stable `useCallback` references so memo will be effective. Add `memo` to the React import.
-
----
-
-### 8. LOW — `getBlockCount` loads all rows to count them
-**File:** `packages/db/src/queries/message-blocks.ts:282–289`
-
-```ts
-const result = db.select({ count: messageBlocks.id }).from(messageBlocks)...all()
-return result.length  // fetches N rows just to count them
-```
-
-**Fix:**
-```ts
-import { count } from "drizzle-orm"
-
-export function getBlockCount(threadId: string): number {
-  const result = db
-    .select({ count: count() })
-    .from(messageBlocks)
-    .where(eq(messageBlocks.threadId, threadId))
-    .get()
-  return result?.count ?? 0
-}
-```
-
----
-
-### 9. LOW — Add `threads(workspace_id)` index for sidebar query
-**File:** `packages/db/src/client.ts` (after line 151)
-
-The workspace query that powers the sidebar lists threads by workspace. Without an index on `workspace_id`, SQLite does a full scan of the threads table. Add:
-```sql
-CREATE INDEX IF NOT EXISTS threads_workspace_idx ON threads(workspace_id);
-```
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `packages/db/src/queries/message-blocks.ts` | Fix `getNextBlockIndex` (#1), fix `listRunningToolBlocks` (#2), fix `getBlockCount` (#8) |
-| `apps/web/src/features/workspace/components/app-sidebar.tsx` | Memo + move `useNow` into `ThreadRow` (#3) |
-| `apps/server/src/session-events.ts` | Git timeout (#4), delta batching (#5) |
-| `apps/web/src/features/chat/queries.ts` | `staleTime` / `refetchOnWindowFocus` (#6) |
-| `apps/web/src/features/file-tree/components/file-tree.tsx` | Memo `TreeItem` (#7) |
-| `packages/db/src/client.ts` | Add `threads_workspace_idx` (#9) |
+- No component `.tsx` files are modified
+- No new `border-*` or `ring-*` Tailwind classes added
+- Primary (`#1a4080` / `#3a6090`), destructive, and chart palette colors stay the same
+- Warm Jellybeans character preserved — only neutral surface levels and secondary text gray shift
 
 ---
 
 ## Verification
 
-1. **blockIndex bug** — Start a new thread, send 4+ messages. Query SQLite directly: `SELECT block_index FROM message_blocks WHERE thread_id = '...' ORDER BY created_at` — all values should now be sequential (0, 1, 2, 3…).
-2. **listRunningToolBlocks** — Profile with Chrome DevTools / Node --prof during a tool-heavy run; the reconnect path should not load hundreds of rows.
-3. **ThreadRow memo** — Open React DevTools Profiler, tick 60s clock; only the rows whose data changed should highlight.
-4. **Git timeout** — Point the workspace at a large repo; `agent_start` event should arrive within 5s instead of waiting indefinitely.
-5. **Delta batching** — Monitor SQLite write count during a long streaming response; writes should be ~10/sec instead of 50/sec.
-6. **useMessages staleTime** — Switch between threads rapidly in DevTools Network tab; no redundant `/messages` fetches on each switch.
-7. **TreeItem memo** — Open a large repo, toggle a directory; React Profiler should show only the toggled subtree re-rendering.
+1. Run dev server: `cd apps/web && npm run dev`
+2. Toggle dark/light mode (Ctrl+Shift+T) and visually check:
+   - Chat input box (`bg-card`) visually floats above the page background
+   - Sidebar thread row hover state is visible
+   - Dropdown menus (model picker, thread options) float above content
+   - Timestamps, model names, breadcrumb workspace labels are readable
+   - Tab bar (`bg-muted/20`) has visible tonal separation from content area
+   - No regression on primary foreground text (`--foreground`)

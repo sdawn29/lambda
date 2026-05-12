@@ -243,8 +243,8 @@ export function FileTree({ workspaceId, workspacePath }: FileTreeProps) {
 
   return (
     <div className="flex h-full w-full flex-col bg-background text-sidebar-foreground">
-      <SidebarHeader className="h-8 flex-row items-center justify-between border-b border-sidebar-border px-2 py-0">
-        <SidebarGroupLabel className="h-8 px-0 text-[10px] font-medium tracking-wider text-sidebar-foreground/60">
+      <SidebarHeader className="h-9 flex-row items-center justify-between border-b bg-muted/20 px-2 py-0">
+        <SidebarGroupLabel className="h-9 px-0 text-[10px] font-medium tracking-wider text-sidebar-foreground/60">
           FILES
         </SidebarGroupLabel>
         <Button

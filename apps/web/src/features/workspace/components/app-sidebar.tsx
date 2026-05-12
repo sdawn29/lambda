@@ -8,7 +8,6 @@ import {
   MoreHorizontal,
   Pin,
   Plus,
-  Search,
   Settings,
   Trash2,
 } from "lucide-react"
@@ -30,7 +29,6 @@ import {
   SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -48,7 +46,6 @@ import {
 import { useOpenPath, useOpenWorkspaceWithApp } from "@/features/electron"
 import { Button } from "@/shared/ui/button"
 import { useWorkspace, useCreateWorkspaceAction } from "../context"
-import { useCommandPalette } from "@/features/command-palette"
 import { useThreadStatus } from "@/features/chat"
 import type { Thread } from "../context"
 import { useSettingsModal } from "@/features/settings"
@@ -210,11 +207,7 @@ export function AppSidebar() {
   const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
   const { openSettings } = useSettingsModal()
-  const { openPalette } = useCommandPalette()
   const { addThreadTab } = useMainTabs()
-  const openCommandPaletteBinding = useShortcutBinding(
-    SHORTCUT_ACTIONS.OPEN_COMMAND_PALETTE
-  )
 
   async function handleConfirmDelete() {
     if (!deletingWorkspace) return
@@ -272,17 +265,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="mt-10 px-4 pb-0">
-        <button
-          onClick={openPalette}
-          className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-muted/20 px-2 text-xs text-muted-foreground transition-colors hover:bg-muted/40 dark:bg-muted/30 dark:hover:bg-muted/50"
-        >
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="flex-1 truncate text-left">Search</span>
-          <ShortcutKbd binding={openCommandPaletteBinding} />
-        </button>
-      </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="pt-10">
         {/* Pinned threads section */}
         {pinnedThreads.length > 0 && (
           <SidebarGroup>

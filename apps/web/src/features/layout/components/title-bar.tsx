@@ -5,6 +5,7 @@ import {
   TerminalSquare,
   MoreHorizontal,
   Pencil,
+  Search,
   Trash2,
   FileDiff,
   FolderTree,
@@ -42,6 +43,7 @@ import {
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { McpDialog, useMcpServerStatus } from "@/features/mcp"
+import { useCommandPalette } from "@/features/command-palette"
 import { useMainTabs } from "@/features/main-tabs"
 import { getIconName } from "@/shared/ui/file-icon"
 import { cn } from "@/shared/lib/utils"
@@ -222,6 +224,9 @@ export function TitleBar() {
     urlActiveWorkspace?.path ? toggleFileTree : null
   )
 
+  const { openPalette } = useCommandPalette()
+  const openCommandPaletteBinding = useShortcutBinding(SHORTCUT_ACTIONS.OPEN_COMMAND_PALETTE)
+
   const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
   const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
   const forwardBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_FORWARD)
@@ -295,11 +300,21 @@ export function TitleBar() {
         </Tooltip>
       </div>
 
-      {/* Breadcrumb — two-tier hierarchy: context / primary */}
+      {/* Breadcrumb — search + separator + context / primary */}
       <div
-        className="flex min-w-0 flex-1 items-center px-1"
+        className="flex min-w-0 flex-1 items-center gap-0 px-1"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
+        <button
+          type="button"
+          onClick={openPalette}
+          className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-input bg-muted/20 px-2 text-xs text-muted-foreground transition-colors hover:bg-muted/40"
+        >
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span>Search</span>
+          <ShortcutKbd binding={openCommandPaletteBinding} className="ml-0.5" />
+        </button>
+        <div className="mx-2 h-3.5 w-px shrink-0 bg-border" />
         {activeTab?.type === "thread" && activeTabThread ? (
           <div className="flex min-w-0 flex-1 items-center gap-1">
             {activeTabWorkspace && (

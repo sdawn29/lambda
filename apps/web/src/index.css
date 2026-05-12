@@ -70,12 +70,12 @@
   --background: #f3efe8;
   --foreground: #1a1815;
 
-  /* ── Card: near-white — floats above base without a heavy border ── */
-  --card: #fdfbf8;
+  /* ── Card: darker warm surface — sits visibly below base ── */
+  --card: #ece7df;
   --card-foreground: #1a1815;
 
-  /* ── Popover: same as base ── */
-  --popover: #f3efe8;
+  /* ── Popover: matches card ── */
+  --popover: #ece7df;
   --popover-foreground: #1a1815;
 
   /* ── Secondary: recessed inputs / nested panels ── */
@@ -84,7 +84,7 @@
 
   /* ── Muted: disabled / faded areas ── */
   --muted: #dedad2;
-  --muted-foreground: #6a6560;
+  --muted-foreground: #5c5854;
 
   /* ── Accent: hover / selection highlight ── */
   --accent: #d3cfc7;
@@ -98,7 +98,7 @@
   --destructive: #902020;
 
   /* ── Border: barely-there separators · Input: form field outlines ── */
-  --border: #e6e1d9;
+  --border: #e4ded5;
   --input: #d4cfc7;
   --ring: #1a4080;
 
@@ -112,14 +112,14 @@
   /* ── Radius ── */
   --radius: 0.5rem;
 
-  /* ── Sidebar: clearly distinct from base, no hard border needed ── */
-  --sidebar: #e8e4dd;
+  /* ── Sidebar: same as title bar (background) ── */
+  --sidebar: #f3efe8;
   --sidebar-foreground: #1a1815;
   --sidebar-primary: #1a4080;
   --sidebar-primary-foreground: #f3efe8;
   --sidebar-accent: #dedad3;
   --sidebar-accent-foreground: #1a1815;
-  --sidebar-border: #e0dbd4;
+  --sidebar-border: #ddd7ce;
   --sidebar-ring: #1a4080;
 }
 
@@ -152,24 +152,24 @@
   --background: #121212;
   --foreground: #e8e8d3;
 
-  /* ── Surface 1 · card: +6 above base, heavier/darker feel ── */
-  --card: #181818;
+  /* ── Surface 1 · card: darker, denser surface ── */
+  --card: #161616;
   --card-foreground: #e8e8d3;
 
-  /* ── Overlay · popover: same as main background ── */
-  --popover: #121212;
+  /* ── Overlay · popover: matches card ── */
+  --popover: #161616;
   --popover-foreground: #e8e8d3;
 
   /* ── Surface 2 · secondary: recessed inputs/panels ── */
-  --secondary: #1d1d1d;
+  --secondary: #222222;
   --secondary-foreground: #e8e8d3;
 
   /* ── Surface 3 · muted: disabled / faded areas ── */
-  --muted: #242424;
-  --muted-foreground: #888888;
+  --muted: #2b2b2b;
+  --muted-foreground: #9e9e9e;
 
   /* ── Accent · hover / selection highlight ── */
-  --accent: #303030;
+  --accent: #393939;
   --accent-foreground: #e8e8d3;
 
   /* ── Primary (jellybeans keyword steel blue, darker) ── */
@@ -180,8 +180,8 @@
   --destructive: #cc3333;
 
   /* ── Borders: subtle separators · Input: border of form fields ── */
-  --border: #212121;
-  --input: #1f1f1f;
+  --border: #1e1e1e;
+  --input: #252525;
   --ring: #3a6090;
 
   /* ── Charts (jellybeans full syntax palette) ── */
@@ -191,12 +191,12 @@
   --chart-4: #cf6a4c;
   --chart-5: #ffb964;
 
-  /* ── Sidebar: deeper than base · accent jumps to card level for contrast ── */
-  --sidebar: #0c0c0c;
+  /* ── Sidebar: same as title bar (background) ── */
+  --sidebar: #121212;
   --sidebar-foreground: #e8e8d3;
   --sidebar-primary: #3a6090;
   --sidebar-primary-foreground: #e8e8d3;
-  --sidebar-accent: #181818;
+  --sidebar-accent: #242424;
   --sidebar-accent-foreground: #e8e8d3;
   --sidebar-border: #161616;
   --sidebar-ring: #3a6090;
@@ -439,7 +439,7 @@
   }
 
   [data-slot="sidebar-container"] {
-    top: 3rem;
+    top: 2.75rem; /* h-11 — matches title bar height exactly */
   }
 
   /* Remove all native scrollbars */

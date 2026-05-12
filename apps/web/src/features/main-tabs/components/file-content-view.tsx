@@ -198,7 +198,7 @@ export const FileContentView = memo(function FileContentView({
   if (loading) {
     return (
       <div className="flex h-full flex-col">
-        <div className="border-b border-border/50 bg-muted/20">
+        <div className="border-b bg-muted/20">
           <FileHeader
             pathParts={pathParts}
             filePath={filePath}
@@ -218,7 +218,7 @@ export const FileContentView = memo(function FileContentView({
   if (error) {
     return (
       <div className="flex h-full flex-col">
-        <div className="border-b border-border/50 bg-muted/20">
+        <div className="border-b bg-muted/20">
           <FileHeader
             pathParts={pathParts}
             filePath={filePath}
@@ -236,7 +236,7 @@ export const FileContentView = memo(function FileContentView({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border/50 bg-muted/20">
+      <div className="border-b bg-muted/20">
         <FileHeader
           pathParts={pathParts}
           filePath={filePath}
