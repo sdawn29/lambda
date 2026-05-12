@@ -50,8 +50,7 @@ import { cn } from "@/shared/lib/utils"
 
 const activeTitleBarButtonClassName =
   "transition-all duration-150 text-muted-foreground/60 hover:text-foreground " +
-  "aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm " +
-  "aria-pressed:ring-1 aria-pressed:ring-border/60"
+  "aria-pressed:bg-accent aria-pressed:text-foreground"
 
 export function TitleBar() {
   const router = useRouter()
@@ -451,7 +450,7 @@ export function TitleBar() {
         <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
 
         {/* Panel toggles — segmented control; active buttons lift above the tray */}
-        <div className="flex items-center gap-px rounded-lg border border-border/40 bg-muted/50 p-0.5">
+        <div className="flex items-center gap-0.5 rounded-lg border border-border/50 bg-transparent p-0.5">
           <Tooltip>
             <TooltipTrigger
               render={
