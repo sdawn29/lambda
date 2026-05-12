@@ -37,6 +37,7 @@ import { useWorkspace } from "@/features/workspace"
 import { useWorkspaceIndex } from "@/features/workspace/queries"
 import { useTerminalForWorkspace } from "@/features/terminal/context"
 import { useDiffPanel } from "@/features/git/context"
+import { useMainTabs } from "@/features/main-tabs"
 import { useFileTree } from "@/features/file-tree/context"
 import { useSidebar } from "@/shared/ui/sidebar"
 import { useSettingsModal } from "@/features/settings"
@@ -60,6 +61,7 @@ export function CommandPalette() {
   const { threadId: activeThreadId } = useParams({ strict: false }) as { threadId?: string }
   const { workspaces, createThread } = useWorkspace()
   const diffPanel = useDiffPanel()
+  const { addFileTab } = useMainTabs()
   const fileTree = useFileTree()
   const { toggleSidebar } = useSidebar()
   const { openSettings } = useSettingsModal()
@@ -133,11 +135,10 @@ export function CommandPalette() {
         if (!workspacePath) return
         const fileName = relativePath.split(/[/\\]/).pop() || relativePath
         const filePath = `${workspacePath}/${relativePath}`
-        diffPanel.open()
-        diffPanel.addTab({ title: fileName, type: "file", filePath })
+        addFileTab({ title: fileName, filePath, workspacePath })
       })
     },
-    [run, activeWorkspace, diffPanel]
+    [run, activeWorkspace, addFileTab]
   )
 
   const allThreads = workspaces.flatMap((ws) =>

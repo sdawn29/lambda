@@ -5,6 +5,7 @@ import { ChatView, useSetActiveThreadId } from "@/features/chat"
 import { useWorkspace } from "@/features/workspace"
 import { useDiffPanel } from "@/features/git"
 import { useFileTree } from "@/features/file-tree"
+import { useMainTabs, MainTabBar } from "@/features/main-tabs"
 import { useUpdateAppSetting } from "@/features/settings/mutations"
 import { useUpdateThreadLastAccessed } from "@/features/workspace/mutations"
 import { APP_SETTINGS_KEYS } from "@/shared/lib/storage-keys"
@@ -44,6 +45,7 @@ function WorkspaceThreadRoute() {
   const { mutate: updateSetting } = useUpdateAppSetting()
   const { mutate: updateLastAccessed } = useUpdateThreadLastAccessed()
   const setActiveThreadId = useSetActiveThreadId()
+  const { addThreadTab, updateThreadTitle } = useMainTabs()
 
   // Set active thread when viewing this thread
   useEffect(() => {
@@ -85,6 +87,20 @@ function WorkspaceThreadRoute() {
     updateLastAccessed(threadId)
   }, [threadId, updateSetting, updateLastAccessed])
 
+  // Register thread tab when this route mounts (handles initial URL load)
+  useEffect(() => {
+    if (foundThread) {
+      addThreadTab(foundThread.id, foundThread.title)
+    }
+  }, [foundThread?.id, addThreadTab])
+
+  // Keep tab title in sync when thread is renamed
+  useEffect(() => {
+    if (foundThread) {
+      updateThreadTitle(foundThread.id, foundThread.title)
+    }
+  }, [foundThread?.id, foundThread?.title, updateThreadTitle])
+
   useEffect(() => {
     if (!isLoading && !foundThread) {
       navigate({ to: "/" })
@@ -121,16 +137,21 @@ function WorkspaceThreadRoute() {
   }
 
   return (
-    <div className={cn("flex h-full border-t", diffFullscreen && "h-full")}>
+    <div className="flex h-full border-t">
       <ResizablePanelGroup orientation="horizontal" className="flex-1">
         <ResizablePanel defaultSize={diffOpen ? "50" : "100"} minSize="50">
-          <ChatView
-            sessionId={foundThread.sessionId}
-            workspaceId={foundWorkspace.id}
-            threadId={foundThread.id}
-            initialModelId={foundThread.modelId}
-            initialIsStopped={foundThread.isStopped}
-          />
+          <div className="flex h-full flex-col">
+            <MainTabBar />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ChatView
+                sessionId={foundThread.sessionId}
+                workspaceId={foundWorkspace.id}
+                threadId={foundThread.id}
+                initialModelId={foundThread.modelId}
+                initialIsStopped={foundThread.isStopped}
+              />
+            </div>
+          </div>
         </ResizablePanel>
         {diffOpen && (
           <>

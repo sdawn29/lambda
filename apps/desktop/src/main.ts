@@ -324,7 +324,7 @@ async function createWindow() {
     show: false,
     backgroundColor: "#09090b",
     titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 12, y: 16 },
+    trafficLightPosition: { x: 12, y: 14 },
     webPreferences: {
       contextIsolation: true,
       devTools: true,

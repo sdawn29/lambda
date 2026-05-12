@@ -14,7 +14,7 @@ import {
   SidebarHeader,
 } from "@/shared/ui/sidebar"
 import { getFileIcon } from "@/shared/ui/file-icon"
-import { useDiffPanel } from "@/features/git"
+import { useMainTabs } from "@/features/main-tabs"
 import {
   useWorkspaceIndex,
   type WorkspaceFileEntry,
@@ -198,7 +198,7 @@ function FileTreeSkeleton() {
 
 export function FileTree({ workspaceId, workspacePath }: FileTreeProps) {
   const { data: entries = [], isLoading, isFetching } = useWorkspaceIndex(workspaceId)
-  const diffPanel = useDiffPanel()
+  const { addFileTab } = useMainTabs()
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [refreshing, setRefreshing] = useState(false)
 
@@ -220,10 +220,9 @@ export function FileTree({ workspaceId, workspacePath }: FileTreeProps) {
     (relativePath: string) => {
       const filePath = `${workspacePath}/${relativePath}`
       const name = relativePath.split("/").pop() || relativePath
-      if (!diffPanel.isOpen) diffPanel.open()
-      diffPanel.addTab({ title: name, type: "file", filePath })
+      addFileTab({ filePath, title: name, workspacePath })
     },
-    [diffPanel, workspacePath]
+    [addFileTab, workspacePath]
   )
 
   const handleRefresh = useCallback(async () => {

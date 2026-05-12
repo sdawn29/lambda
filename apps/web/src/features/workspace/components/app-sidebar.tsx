@@ -52,6 +52,7 @@ import { useCommandPalette } from "@/features/command-palette"
 import { useThreadStatus } from "@/features/chat"
 import type { Thread } from "../context"
 import { useSettingsModal } from "@/features/settings"
+import { useMainTabs } from "@/features/main-tabs"
 import { ArchivedThreadsDialog } from "./archived-threads-dialog"
 import { CreateWorkspaceDialog } from "./create-workspace-dialog"
 import {
@@ -212,6 +213,7 @@ export function AppSidebar() {
   const navigate = useNavigate()
   const { openSettings } = useSettingsModal()
   const { openPalette } = useCommandPalette()
+  const { addThreadTab } = useMainTabs()
   const openCommandPaletteBinding = useShortcutBinding(
     SHORTCUT_ACTIONS.OPEN_COMMAND_PALETTE
   )
@@ -249,6 +251,7 @@ export function AppSidebar() {
       ? async () => {
           const thread = await createThread(activeWorkspace.id)
           setCollapsed((prev) => ({ ...prev, [activeWorkspace.id]: false }))
+          addThreadTab(thread.id, thread.title)
           navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
@@ -295,12 +298,13 @@ export function AppSidebar() {
                     workspaceId={thread.workspaceId}
                     isActive={activeThreadId === thread.id}
                     now={now}
-                    onClick={() =>
+                    onClick={() => {
+                      addThreadTab(thread.id, thread.title)
                       navigate({
                         to: "/workspace/$threadId",
                         params: { threadId: thread.id },
                       })
-                    }
+                    }}
                   />
                 ))}
               </SidebarMenu>
@@ -382,6 +386,7 @@ export function AppSidebar() {
                                 ...prev,
                                 [ws.id]: false,
                               }))
+                              addThreadTab(thread.id, thread.title)
                               navigate({
                                 to: "/workspace/$threadId",
                                 params: { threadId: thread.id },
@@ -453,12 +458,13 @@ export function AppSidebar() {
                                 workspaceId={ws.id}
                                 isActive={activeThreadId === thread.id}
                                 now={now}
-                                onClick={() =>
+                                onClick={() => {
+                                  addThreadTab(thread.id, thread.title)
                                   navigate({
                                     to: "/workspace/$threadId",
                                     params: { threadId: thread.id },
                                   })
-                                }
+                                }}
                               />
                             ))}
                         </SidebarMenuSub>

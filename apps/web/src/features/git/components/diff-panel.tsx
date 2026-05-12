@@ -11,18 +11,17 @@ import {
 import {
   Archive,
   Check,
+  ChevronDown,
   Columns2,
   AlignLeft,
   GitCompare,
   History,
   Loader2,
+  MoreHorizontal,
   PackageMinus,
   PackagePlus,
-  Plus,
   Undo2,
   X,
-  ArrowUpDown,
-  ExternalLink,
   Maximize2,
   Minimize2,
 } from "lucide-react"
@@ -34,12 +33,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
-import { FileSearchModal } from "@/features/file-tree"
 import { useDiffPanel, type DiffPanelTab } from "../context"
-import { useWorkspace } from "@/features/workspace"
+import { useMainTabs } from "@/features/main-tabs"
 import { useGitStatus, useLastTurn, useRevertLastTurn } from "../queries"
 import {
   useGitStage,
@@ -155,25 +156,206 @@ const LastTurnView = memo(function LastTurnView({
   )
 })
 
+// ─── Source Control Toolbar ───────────────────────────────────────────────────
+
+const SourceControlToolbarSection = memo(function SourceControlToolbarSection({
+  sessionId,
+  view,
+  mode,
+  setMode,
+  sortMode,
+  setSortMode,
+  setStashInputOpen,
+}: {
+  sessionId: string
+  view: ContentView
+  mode: DiffMode
+  setMode: (m: DiffMode) => void
+  sortMode: SortMode
+  setSortMode: (s: SortMode) => void
+  setStashInputOpen: (open: boolean) => void
+}) {
+  const { data: lastTurnData = [] } = useLastTurn(sessionId)
+  const hasLastTurnFiles = lastTurnData.length > 0
+  const revertLastTurn = useRevertLastTurn(sessionId)
+
+  const { data: statusRaw } = useGitStatus(sessionId)
+  const { hasStaged, hasUnstaged, hasChanges } = useMemo(() => {
+    const all = (statusRaw ?? "")
+      .split("\n")
+      .map((l: string) => l.trimEnd())
+      .filter(Boolean)
+      .map(parseStatusLine)
+    return {
+      hasStaged: all.some((f: ChangedFile) => f.isStaged),
+      hasUnstaged: all.some((f: ChangedFile) => !f.isStaged),
+      hasChanges: all.length > 0,
+    }
+  }, [statusRaw])
+
+  const { stageAll, unstageAll } = useGitStageAll(sessionId)
+  const bulkWorking = stageAll.isPending || unstageAll.isPending
+
+  return (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <div className="mx-1 h-4 w-px bg-border/50" />
+
+      {/* Git actions dropdown */}
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground/70 hover:text-foreground"
+                  >
+                    <MoreHorizontal />
+                    <span className="sr-only">Git actions</span>
+                  </Button>
+                }
+              />
+            }
+          />
+          <TooltipContent>Git actions</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-48">
+          {view === "turn" ? (
+            <DropdownMenuItem
+              onClick={() => revertLastTurn.mutate()}
+              disabled={!hasLastTurnFiles || revertLastTurn.isPending}
+              className="flex items-center gap-2 text-destructive focus:text-destructive"
+            >
+              {revertLastTurn.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Undo2 className="h-3.5 w-3.5" />
+              )}
+              Revert last turn
+            </DropdownMenuItem>
+          ) : (
+            <>
+              <DropdownMenuItem
+                onClick={() => stageAll.mutateAsync()}
+                disabled={bulkWorking || !hasUnstaged}
+                className="flex items-center gap-2"
+              >
+                {stageAll.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PackagePlus className="h-3.5 w-3.5" />
+                )}
+                Stage all
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => unstageAll.mutateAsync()}
+                disabled={bulkWorking || !hasStaged}
+                className="flex items-center gap-2"
+              >
+                {unstageAll.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PackageMinus className="h-3.5 w-3.5" />
+                )}
+                Unstage all
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setStashInputOpen(true)}
+                disabled={!hasChanges}
+                className="flex items-center gap-2"
+              >
+                <Archive className="h-3.5 w-3.5" />
+                Stash changes
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Sort by
+                </DropdownMenuLabel>
+                {SORT_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onClick={() => setSortMode(opt.value)}
+                    className="flex items-center justify-between"
+                  >
+                    {opt.label}
+                    {sortMode === opt.value && (
+                      <Check className="ml-2 h-3 w-3 text-muted-foreground" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="mx-0.5 h-4 w-px bg-border/50" />
+
+      {/* Diff mode */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setMode("inline")}
+              data-active={mode === "inline"}
+              className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+            >
+              <AlignLeft />
+              <span className="sr-only">Inline view</span>
+            </Button>
+          }
+        />
+        <TooltipContent>Inline diff</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setMode("side-by-side")}
+              data-active={mode === "side-by-side"}
+              className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
+            >
+              <Columns2 />
+              <span className="sr-only">Side-by-side</span>
+            </Button>
+          }
+        />
+        <TooltipContent>Side-by-side diff</TooltipContent>
+      </Tooltip>
+    </div>
+  )
+})
+
 // ─── Source Control Content ───────────────────────────────────────────────────
 
 const SourceControlContent = memo(function SourceControlContent({
   sessionId,
+  view,
+  mode,
+  sortMode,
+  stashInputOpen,
+  setStashInputOpen,
 }: {
   sessionId: string
+  view: ContentView
+  mode: DiffMode
+  sortMode: SortMode
+  stashInputOpen: boolean
+  setStashInputOpen: (open: boolean) => void
 }) {
-  const [view, setView] = useState<ContentView>("turn")
-  const [mode, setMode] = useState<DiffMode>("inline")
-  const [sortMode, setSortMode] = useState<SortMode>("name")
-  const [stashInputOpen, setStashInputOpen] = useState(false)
-
   const { data: lastTurnData = [], isLoading: lastTurnLoading } = useLastTurn(sessionId)
-  const revertLastTurn = useRevertLastTurn(sessionId)
   const lastTurnFiles = useMemo(
     () => lastTurnData.map((f) => parseStatusLine(`${f.postStatusCode} ${f.filePath}`)).filter(Boolean),
     [lastTurnData]
   )
-  const hasLastTurnFiles = lastTurnFiles.length > 0
 
   const {
     data: statusRaw,
@@ -199,18 +381,11 @@ const SourceControlContent = memo(function SourceControlContent({
     }
   }, [statusRaw, sortMode])
 
-  const files = useMemo(() => [...staged, ...unstaged], [staged, unstaged])
   const error = statusError instanceof Error ? statusError.message : null
 
   const { stage, unstage } = useGitStage(sessionId)
-  const { stageAll, unstageAll } = useGitStageAll(sessionId)
   const { stash } = useGitStashMutations(sessionId)
   const revertFile = useGitRevertFile(sessionId)
-
-  const bulkWorking = stageAll.isPending || unstageAll.isPending
-  const hasStaged = staged.length > 0
-  const hasUnstaged = unstaged.length > 0
-  const hasChanges = files.length > 0
 
   const handleStageToggle = useCallback(
     async (file: ChangedFile) => {
@@ -222,14 +397,6 @@ const SourceControlContent = memo(function SourceControlContent({
     },
     [stage, unstage]
   )
-
-  const handleStageAll = useCallback(async () => {
-    await stageAll.mutateAsync()
-  }, [stageAll])
-
-  const handleUnstageAll = useCallback(async () => {
-    await unstageAll.mutateAsync()
-  }, [unstageAll])
 
   const handleRevert = useCallback(
     async (file: ChangedFile) => {
@@ -247,215 +414,11 @@ const SourceControlContent = memo(function SourceControlContent({
         // keep input bar open on failure
       }
     },
-    [stash]
+    [stash, setStashInputOpen]
   )
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Toolbar */}
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border/50 bg-muted/20 px-2">
-        {/* Segmented view control */}
-        <div className="flex items-center rounded-md border border-border/50 bg-muted/50 p-0.5">
-          <button
-            onClick={() => setView("turn")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
-              view === "turn"
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
-                : "text-muted-foreground hover:text-foreground/70"
-            )}
-          >
-            <History className="h-3 w-3" />
-            This Turn
-          </button>
-          <button
-            onClick={() => setView("all")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-xs font-medium transition-all duration-150",
-              view === "all"
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
-                : "text-muted-foreground hover:text-foreground/70"
-            )}
-          >
-            <GitCompare className="h-3 w-3" />
-            All Changes
-          </button>
-        </div>
-
-        <div className="flex-1" />
-
-        {/* This Turn only: revert last turn */}
-        {view === "turn" && hasLastTurnFiles && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => revertLastTurn.mutate()}
-                  disabled={revertLastTurn.isPending}
-                  className="text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 disabled:opacity-35"
-                >
-                  {revertLastTurn.isPending ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <Undo2 />
-                  )}
-                  <span className="sr-only">Revert last turn</span>
-                </Button>
-              }
-            />
-            <TooltipContent>Revert last turn changes</TooltipContent>
-          </Tooltip>
-        )}
-
-        {/* All Changes only: git actions */}
-        {view === "all" && (
-          <>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={handleStageAll}
-                    disabled={bulkWorking || !hasUnstaged}
-                    className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-                  >
-                    {stageAll.isPending ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <PackagePlus />
-                    )}
-                    <span className="sr-only">Stage all</span>
-                  </Button>
-                }
-              />
-              <TooltipContent>Stage all changes</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={handleUnstageAll}
-                    disabled={bulkWorking || !hasStaged}
-                    className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-                  >
-                    {unstageAll.isPending ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <PackageMinus />
-                    )}
-                    <span className="sr-only">Unstage all</span>
-                  </Button>
-                }
-              />
-              <TooltipContent>Unstage all changes</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setStashInputOpen(true)}
-                    disabled={!hasChanges}
-                    className="text-muted-foreground/70 hover:text-foreground disabled:opacity-35"
-                  >
-                    <Archive />
-                    <span className="sr-only">Stash changes</span>
-                  </Button>
-                }
-              />
-              <TooltipContent>Stash all changes</TooltipContent>
-            </Tooltip>
-
-            <div className="mx-0.5 h-4 w-px bg-border/50" />
-
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          data-active={sortMode !== "name"}
-                          className="text-muted-foreground/70 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-                        />
-                      }
-                    >
-                      <ArrowUpDown />
-                      <span className="sr-only">Sort files</span>
-                    </DropdownMenuTrigger>
-                  }
-                />
-                <TooltipContent>Sort files</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" className="w-44">
-                {SORT_OPTIONS.map((opt) => (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    onClick={() => setSortMode(opt.value)}
-                    className="flex items-center justify-between"
-                  >
-                    {opt.label}
-                    {sortMode === opt.value && (
-                      <Check className="ml-2 h-3 w-3 text-muted-foreground" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="mx-0.5 h-4 w-px bg-border/50" />
-          </>
-        )}
-
-        {/* View mode — always visible */}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setMode("inline")}
-                data-active={mode === "inline"}
-                className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-              >
-                <AlignLeft />
-                <span className="sr-only">Inline view</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Inline diff</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setMode("side-by-side")}
-                data-active={mode === "side-by-side"}
-                className="text-muted-foreground/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:text-accent-foreground"
-              >
-                <Columns2 />
-                <span className="sr-only">Side-by-side</span>
-              </Button>
-            }
-          />
-          <TooltipContent>Side-by-side diff</TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* Content — switches between views */}
       <div className="flex min-h-0 flex-1 flex-col">
         {view === "turn" ? (
           <LastTurnView sessionId={sessionId} mode={mode} files={lastTurnFiles} isLoading={lastTurnLoading} />
@@ -469,7 +432,7 @@ const SourceControlContent = memo(function SourceControlContent({
                 />
               )}
 
-              {loading && files.length === 0 && (
+              {loading && staged.length === 0 && unstaged.length === 0 && (
                 <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
                   Loading status…
@@ -482,7 +445,7 @@ const SourceControlContent = memo(function SourceControlContent({
                 </Alert>
               )}
 
-              {!loading && !error && files.length === 0 && (
+              {!loading && !error && staged.length === 0 && unstaged.length === 0 && (
                 <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                     <GitCompare className="h-5 w-5 text-muted-foreground/40" />
@@ -552,7 +515,7 @@ const FileContent = memo(function FileContent({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [serverUrl, setServerUrl] = useState<string>("")
-  const { addTab, open: openPanel } = useDiffPanel()
+  const { addFileTab } = useMainTabs()
   const [markdownPreview, setMarkdownPreview] = useState(false)
   const [htmlPreview, setHtmlPreview] = useState(true)
   const { resolvedTheme } = useTheme()
@@ -610,10 +573,8 @@ const FileContent = memo(function FileContent({
           <button
             type="button"
             onClick={() => {
-              openPanel()
-              addTab({
+              addFileTab({
                 title: linkFileName,
-                type: "file",
                 filePath: resolvedPath,
               })
             }}
@@ -639,7 +600,7 @@ const FileContent = memo(function FileContent({
         )
       },
     }),
-    [filePath, serverUrl, addTab, openPanel]
+    [filePath, serverUrl, addFileTab]
   )
 
   // Enable rich text preview by default for markdown/html files
@@ -820,14 +781,33 @@ function TabContent({
   sessionId,
   openWithAppId,
   workspacePath,
+  view,
+  mode,
+  sortMode,
+  stashInputOpen,
+  setStashInputOpen,
 }: {
   tab: DiffPanelTab
   sessionId: string
   openWithAppId?: string | null
   workspacePath?: string
+  view: ContentView
+  mode: DiffMode
+  sortMode: SortMode
+  stashInputOpen: boolean
+  setStashInputOpen: (open: boolean) => void
 }) {
   if (tab.type === "source-control") {
-    return <SourceControlContent sessionId={sessionId} />
+    return (
+      <SourceControlContent
+        sessionId={sessionId}
+        view={view}
+        mode={mode}
+        sortMode={sortMode}
+        stashInputOpen={stashInputOpen}
+        setStashInputOpen={setStashInputOpen}
+      />
+    )
   }
   if (tab.type === "file" && tab.filePath) {
     return (
@@ -858,19 +838,18 @@ export const DiffPanel = memo(function DiffPanel({
     tabs,
     activeTabId,
     pendingTabId,
-    addTab,
     closeTab,
     setActiveTab,
     clearPendingTab,
     currentWorkspacePath,
   } = useDiffPanel()
-  const { workspaces } = useWorkspace()
-  const currentWorkspaceId = workspaces.find(
-    (ws) => ws.path === currentWorkspacePath
-  )?.id
-  const [showAddMenu, setShowAddMenu] = useState(false)
-  const [fileSearchOpen, setFileSearchOpen] = useState(false)
   const tabRefs = useRef<Map<string, HTMLElement>>(new Map())
+
+  // Source-control tab state (lifted so toolbar and content share it)
+  const [scView, setScView] = useState<ContentView>("turn")
+  const [scMode, setScMode] = useState<DiffMode>("inline")
+  const [scSortMode, setScSortMode] = useState<SortMode>("name")
+  const [scStashInputOpen, setScStashInputOpen] = useState(false)
 
   useShortcutHandler(SHORTCUT_ACTIONS.TOGGLE_FULLSCREEN_DIFF, toggleFullscreen)
   const fullscreenBinding = useShortcutBinding(
@@ -882,53 +861,75 @@ export const DiffPanel = memo(function DiffPanel({
     [tabs, activeTabId]
   )
 
+  const isSourceControl = activeTab?.type === "source-control"
+
   // Focus the active tab whenever activeTabId changes
   useEffect(() => {
     if (activeTabId) {
-      // Focus the newly added or active tab
       const tabEl = tabRefs.current.get(activeTabId)
       if (tabEl) {
         tabEl.scrollIntoView({ block: "nearest", inline: "nearest" })
         tabEl.focus()
       }
-      // Clear pending tab after focus
       if (pendingTabId === activeTabId) {
         clearPendingTab()
       }
     }
   }, [activeTabId, pendingTabId, clearPendingTab])
 
-  const handleAddFileTab = useCallback(() => {
-    setShowAddMenu(false)
-    setFileSearchOpen(true)
-  }, [])
-
-  const handleFileSelect = useCallback(
-    (relativePath: string) => {
-      const filePath = currentWorkspacePath
-        ? `${currentWorkspacePath}/${relativePath}`
-        : relativePath
-      const fileName = relativePath.split(/[/\\]/).pop() || relativePath
-      addTab({ title: fileName, type: "file", filePath })
-    },
-    [addTab, currentWorkspacePath]
-  )
-
   return (
     <>
-      {currentWorkspaceId && (
-        <FileSearchModal
-          open={fileSearchOpen}
-          onOpenChange={setFileSearchOpen}
-          workspaceId={currentWorkspaceId}
-          onSelect={handleFileSelect}
-        />
-      )}
       <div className="flex h-full w-full flex-col bg-background">
         {/* Tab bar */}
         <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
+          {/* View selector — always on the left; clicking also activates SC content */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1.5 px-2 text-xs font-medium text-muted-foreground/80 hover:text-foreground"
+                >
+                  {scView === "turn" ? (
+                    <History className="h-3 w-3" />
+                  ) : (
+                    <GitCompare className="h-3 w-3" />
+                  )}
+                  {scView === "turn" ? "This Turn" : "All Changes"}
+                  <ChevronDown className="h-3 w-3 opacity-60" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start" className="w-40">
+              <DropdownMenuItem
+                onClick={() => { setScView("turn"); setActiveTab("tab-source-control") }}
+                className="flex items-center gap-2"
+              >
+                <History className="h-3.5 w-3.5" />
+                This Turn
+                {scView === "turn" && (
+                  <Check className="ml-auto h-3 w-3 text-muted-foreground" />
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => { setScView("all"); setActiveTab("tab-source-control") }}
+                className="flex items-center gap-2"
+              >
+                <GitCompare className="h-3.5 w-3.5" />
+                All Changes
+                {scView === "all" && (
+                  <Check className="ml-auto h-3 w-3 text-muted-foreground" />
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="mx-1 h-4 w-px bg-border/50" />
+
+          {/* File tabs only — source-control tab is implicit */}
           <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1">
-            {tabs.map((tab) => {
+            {tabs.filter((t) => t.type !== "source-control").map((tab) => {
               const isActive = tab.id === activeTabId
               return (
                 <div
@@ -944,59 +945,52 @@ export const DiffPanel = memo(function DiffPanel({
                   }}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md text-xs select-none transition-all duration-150",
-                    tab.type === "source-control" ? "px-3" : "pl-3 pr-1.5",
+                    "group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md pl-3 pr-1.5 text-xs select-none transition-all duration-150",
                     isActive
                       ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
                   )}
                 >
-                  {tab.type === "source-control" ? (
-                    <GitCompare className="size-3.5 shrink-0" />
-                  ) : (
-                    <Icon
-                      icon={`catppuccin:${getIconName(tab.title)}`}
-                      className="size-3.5 shrink-0"
-                      aria-hidden
-                    />
-                  )}
+                  <Icon
+                    icon={`catppuccin:${getIconName(tab.title)}`}
+                    className="size-3.5 shrink-0"
+                    aria-hidden
+                  />
                   <span className="max-w-30 truncate">{tab.title}</span>
-                  {tab.type !== "source-control" && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={`Close ${tab.title}`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        closeTab(tab.id)
-                      }}
-                      className={cn(
-                        "ml-auto shrink-0",
-                        isActive
-                          ? "opacity-60 hover:opacity-100"
-                          : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
-                      )}
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Close ${tab.title}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeTab(tab.id)
+                    }}
+                    className={cn(
+                      "ml-auto shrink-0",
+                      isActive
+                        ? "opacity-60 hover:opacity-100"
+                        : "opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100"
+                    )}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </Button>
                 </div>
               )
             })}
-
-            {/* Add tab dropdown */}
-            <DropdownMenu open={showAddMenu} onOpenChange={setShowAddMenu}>
-              <DropdownMenuTrigger className="flex h-7 items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
-                <Plus className="h-3.5 w-3.5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                <DropdownMenuItem onClick={handleAddFileTab}>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open File
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
+
+          {/* Git actions + diff mode — only when SC content is active */}
+          {isSourceControl && (
+            <SourceControlToolbarSection
+              sessionId={sessionId}
+              view={scView}
+              mode={scMode}
+              setMode={setScMode}
+              sortMode={scSortMode}
+              setSortMode={setScSortMode}
+              setStashInputOpen={setScStashInputOpen}
+            />
+          )}
 
           {/* Right side buttons */}
           <div className="flex shrink-0 items-center gap-0.5 px-1">
@@ -1048,6 +1042,11 @@ export const DiffPanel = memo(function DiffPanel({
               sessionId={sessionId}
               openWithAppId={openWithAppId}
               workspacePath={currentWorkspacePath ?? undefined}
+              view={scView}
+              mode={scMode}
+              sortMode={scSortMode}
+              stashInputOpen={scStashInputOpen}
+              setStashInputOpen={setScStashInputOpen}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">

@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, useParams } from "@tanstack/react-router"
-import { lazy, Suspense, useEffect, useRef } from "react"
+import { lazy, Suspense, useCallback, useEffect, useRef } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { AppSidebar } from "@/features/workspace"
@@ -15,6 +15,12 @@ import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { TerminalProvider, useTerminal } from "@/features/terminal"
 import { DiffPanelProvider, useDiffPanel } from "@/features/git"
 import { FileTreeProvider } from "@/features/file-tree"
+import {
+  MainTabsProvider,
+  MainTabBar,
+  FileContentView,
+  useMainTabs,
+} from "@/features/main-tabs"
 import { usePrefetchThreadsMessages } from "@/features/chat/hooks"
 import {
   ServerUnavailable,
@@ -33,6 +39,40 @@ const TerminalPanel = lazy(() =>
     default: module.TerminalPanel,
   }))
 )
+
+function MainContentArea() {
+  const { activeTab, addFileTab } = useMainTabs()
+  const { workspaces } = useWorkspace()
+
+  const workspacePath = activeTab?.type === "file" ? activeTab.workspacePath : undefined
+  const onOpenFile = useCallback(
+    (filePath: string, title: string) =>
+      addFileTab({ filePath, title, workspacePath }),
+    [addFileTab, workspacePath]
+  )
+
+  if (activeTab?.type === "file") {
+    const workspace = workspaces.find((ws) => ws.path === activeTab.workspacePath)
+    const openWithAppId = workspace?.openWithAppId ?? activeTab.openWithAppId ?? null
+    return (
+      <div className="flex h-full flex-col">
+        <MainTabBar />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <Suspense fallback={<div className="h-full flex-1 bg-muted/10" />}>
+            <FileContentView
+              filePath={activeTab.filePath}
+              workspacePath={activeTab.workspacePath}
+              openWithAppId={openWithAppId}
+              onOpenFile={onOpenFile}
+            />
+          </Suspense>
+        </div>
+      </div>
+    )
+  }
+
+  return <Outlet />
+}
 
 function RootLayoutInner() {
   const { isLoading, workspaces } = useWorkspace()
@@ -96,9 +136,12 @@ function RootLayoutInner() {
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <AppSidebar />
           <SidebarInset className="min-w-0 overflow-hidden">
-            <ResizablePanelGroup orientation="vertical" className="h-full">
+            <ResizablePanelGroup
+              orientation="vertical"
+              className="flex-1 min-h-0"
+            >
               <ResizablePanel className="min-h-0 overflow-hidden" minSize="20">
-                <Outlet />
+                <MainContentArea />
               </ResizablePanel>
               {anyWorkspaceHasTerminals && (
                 <>
@@ -151,9 +194,11 @@ function RootLayoutGate() {
       <TerminalProvider>
         <DiffPanelProvider>
           <FileTreeProvider>
-            <RootLayoutInner />
-            <SettingsModal />
-            <ConfigureProviderModal />
+            <MainTabsProvider>
+              <RootLayoutInner />
+              <SettingsModal />
+              <ConfigureProviderModal />
+            </MainTabsProvider>
           </FileTreeProvider>
         </DiffPanelProvider>
       </TerminalProvider>

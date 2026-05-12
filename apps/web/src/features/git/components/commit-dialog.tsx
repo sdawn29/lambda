@@ -339,6 +339,7 @@ export function CommitDialog({ sessionId }: CommitDialogProps) {
                 <Button
                   variant="outline"
                   size="default"
+                  className="h-7 w-auto gap-1.5 px-2"
                   disabled={!sessionId || committing || pushing}
                 />
               }

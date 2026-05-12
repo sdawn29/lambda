@@ -2,6 +2,7 @@ import { memo, useState, useMemo } from "react"
 import { GitCompare, ChevronDown, ChevronRight } from "lucide-react"
 import { useLastTurnChanges } from "@/features/git"
 import { useDiffPanel } from "@/features/git/context"
+import { useMainTabs } from "@/features/main-tabs"
 import { Button } from "@/shared/ui/button"
 import { type ChangedFile, parseStatusLine } from "@/features/git/components/status-badge"
 import { FileRow } from "@/features/git/components/file-list-item"
@@ -14,7 +15,8 @@ export const FileChangesCard = memo(function FileChangesCard({
   sessionId,
 }: FileChangesCardProps) {
   const { data: rawChanges } = useLastTurnChanges(sessionId)
-  const { open: openDiffPanel, addTab, currentWorkspacePath } = useDiffPanel()
+  const { open: openDiffPanel, currentWorkspacePath } = useDiffPanel()
+  const { addFileTab } = useMainTabs()
   const [expanded, setExpanded] = useState(true)
 
   const files: ChangedFile[] = useMemo(() => {
@@ -34,12 +36,11 @@ export const FileChangesCard = memo(function FileChangesCard({
   }
 
   const handleOpenFileDiff = (filePath: string) => {
-    openDiffPanel()
     const fullPath = currentWorkspacePath
       ? `${currentWorkspacePath}/${filePath}`
       : filePath
     const fileName = filePath.split("/").pop() || filePath
-    addTab({ title: fileName, type: "file", filePath: fullPath })
+    addFileTab({ title: fileName, filePath: fullPath })
   }
 
   if (!hasChanges) {
