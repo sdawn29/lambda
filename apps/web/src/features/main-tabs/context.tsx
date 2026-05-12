@@ -106,6 +106,19 @@ function mainTabsReducer(
       }
     }
 
+    case "REORDER_TABS": {
+      const { draggedId, targetId, before } = action.payload
+      if (draggedId === targetId) return state
+      const dragged = state.tabs.find((t) => t.id === draggedId)
+      if (!dragged) return state
+      const without = state.tabs.filter((t) => t.id !== draggedId)
+      const targetIdx = without.findIndex((t) => t.id === targetId)
+      if (targetIdx === -1) return state
+      const insertAt = before ? targetIdx : targetIdx + 1
+      const newTabs = [...without.slice(0, insertAt), dragged, ...without.slice(insertAt)]
+      return { ...state, tabs: newTabs }
+    }
+
     default:
       return state
   }
@@ -120,6 +133,7 @@ interface MainTabsContextValue {
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
   updateThreadTitle: (threadId: string, title: string) => void
+  reorderTabs: (draggedId: string, targetId: string, before: boolean) => void
 }
 
 const MainTabsContext = createContext<MainTabsContextValue | null>(null)
@@ -150,6 +164,11 @@ export function MainTabsProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "UPDATE_THREAD_TITLE", payload: { threadId, title } }),
     []
   )
+  const reorderTabs = useCallback(
+    (draggedId: string, targetId: string, before: boolean) =>
+      dispatch({ type: "REORDER_TABS", payload: { draggedId, targetId, before } }),
+    []
+  )
 
   const activeTab = useMemo(
     () => state.tabs.find((t) => t.id === state.activeTabId) ?? null,
@@ -166,6 +185,7 @@ export function MainTabsProvider({ children }: { children: ReactNode }) {
       closeTab,
       setActiveTab,
       updateThreadTitle,
+      reorderTabs,
     }),
     [
       state.tabs,
@@ -176,6 +196,7 @@ export function MainTabsProvider({ children }: { children: ReactNode }) {
       closeTab,
       setActiveTab,
       updateThreadTitle,
+      reorderTabs,
     ]
   )
 
