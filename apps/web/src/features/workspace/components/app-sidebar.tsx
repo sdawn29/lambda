@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useRef, memo } from "react"
 import {
   Archive,
   ExternalLink,
@@ -83,19 +83,18 @@ function useNow() {
   return now
 }
 
-function ThreadRow({
+const ThreadRow = memo(function ThreadRow({
   thread,
   workspaceId,
   isActive,
   onClick,
-  now,
 }: {
   thread: Thread
   workspaceId: string
   isActive: boolean
   onClick: () => void
-  now: number
 }) {
+  const now = useNow()
   const [confirming, setConfirming] = useState(false)
   const status = useThreadStatus(thread.id)
   const { archiveThread, pinThread, unpinThread } = useWorkspace()
@@ -194,10 +193,9 @@ function ThreadRow({
       </AlertDialog>
     </>
   )
-}
+})
 
 export function AppSidebar() {
-  const now = useNow()
   const { workspaces, createThread, deleteWorkspace } = useWorkspace()
   const { handleCreateLocal, handleCreateRemote } = useCreateWorkspaceAction()
   const openPathMutation = useOpenPath()
@@ -297,7 +295,6 @@ export function AppSidebar() {
                     thread={thread}
                     workspaceId={thread.workspaceId}
                     isActive={activeThreadId === thread.id}
-                    now={now}
                     onClick={() => {
                       addThreadTab(thread.id, thread.title)
                       navigate({
@@ -457,7 +454,6 @@ export function AppSidebar() {
                                 thread={thread}
                                 workspaceId={ws.id}
                                 isActive={activeThreadId === thread.id}
-                                now={now}
                                 onClick={() => {
                                   addThreadTab(thread.id, thread.title)
                                   navigate({

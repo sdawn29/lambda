@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and, max, count } from "drizzle-orm";
 import { db } from "../client.js";
 import { messageBlocks } from "../schema.js";
 
@@ -53,15 +53,11 @@ export function listMessageBlocks(threadId: string): MessageBlock[] {
  */
 function getNextBlockIndex(threadId: string): number {
   const result = db
-    .select({ maxIndex: messageBlocks.blockIndex })
+    .select({ maxIndex: max(messageBlocks.blockIndex) })
     .from(messageBlocks)
     .where(eq(messageBlocks.threadId, threadId))
-    .orderBy(asc(messageBlocks.blockIndex))
-    .limit(1)
-    .all();
-  
-  if (result.length === 0) return 0;
-  return (result[0].maxIndex ?? 0) + 1;
+    .get();
+  return (result?.maxIndex ?? -1) + 1;
 }
 
 /**
@@ -281,11 +277,11 @@ export function deleteThreadBlocks(threadId: string): void {
  */
 export function getBlockCount(threadId: string): number {
   const result = db
-    .select({ count: messageBlocks.id })
+    .select({ count: count() })
     .from(messageBlocks)
     .where(eq(messageBlocks.threadId, threadId))
-    .all();
-  return result.length;
+    .get();
+  return result?.count ?? 0;
 }
 
 /**
@@ -296,11 +292,16 @@ export function listRunningToolBlocks(threadId: string): MessageBlock[] {
   return db
     .select()
     .from(messageBlocks)
-    .where(eq(messageBlocks.threadId, threadId))
+    .where(
+      and(
+        eq(messageBlocks.threadId, threadId),
+        eq(messageBlocks.role, "tool"),
+        eq(messageBlocks.toolStatus, "running")
+      )
+    )
     .orderBy(asc(messageBlocks.blockIndex))
     .all()
-    .map(toMessageBlock)
-    .filter((block) => block.role === "tool" && block.toolStatus === "running");
+    .map(toMessageBlock);
 }
 
 /**

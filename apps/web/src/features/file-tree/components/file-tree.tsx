@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import {
   ChevronDown,
   ChevronRight,
@@ -91,7 +91,7 @@ function buildTree(entries: WorkspaceFileEntry[]): TreeNode[] {
   return root.children
 }
 
-function TreeItem({
+const TreeItem = memo(function TreeItem({
   node,
   depth,
   expanded,
@@ -161,7 +161,7 @@ function TreeItem({
       )}
     </div>
   )
-}
+})
 
 const SKELETON_ROWS = [
   { indent: 0, width: "w-24" },

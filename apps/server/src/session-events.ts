@@ -88,6 +88,10 @@ class SessionEventHub {
   private currentTurnStartTime = 0;
   private lastTurnChangedRaw = "";
   private lastTurnFiles: TurnFileDetail[] = [];
+  private textDeltaBuffer = "";
+  private thinkingDeltaBuffer = "";
+  private deltaFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private deltaBlockId: string | null = null;
 
   constructor(
     private readonly sessionId: string,
@@ -116,6 +120,31 @@ class SessionEventHub {
     this.lastTurnChangedRaw = "";
   }
 
+  private flushDeltas() {
+    if (this.deltaFlushTimer) {
+      clearTimeout(this.deltaFlushTimer);
+      this.deltaFlushTimer = null;
+    }
+    if (!this.deltaBlockId) return;
+    if (this.textDeltaBuffer) {
+      appendAssistantTextDelta(this.deltaBlockId, this.textDeltaBuffer);
+      this.textDeltaBuffer = "";
+    }
+    if (this.thinkingDeltaBuffer) {
+      appendAssistantThinkingDelta(this.deltaBlockId, this.thinkingDeltaBuffer);
+      this.thinkingDeltaBuffer = "";
+    }
+  }
+
+  private scheduleDeltaFlush(blockId: string) {
+    this.deltaBlockId = blockId;
+    if (this.deltaFlushTimer) return;
+    this.deltaFlushTimer = setTimeout(() => {
+      this.deltaFlushTimer = null;
+      this.flushDeltas();
+    }, 100);
+  }
+
   private parseStatusToMap(raw: string): Map<string, string> {
     const map = new Map<string, string>();
     for (const line of raw.split("\n")) {
@@ -130,8 +159,12 @@ class SessionEventHub {
 
   private async capturePreTurnStatus(): Promise<void> {
     if (!this.cwd) return;
+    const timeoutMs = 5_000;
+    const deadline = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("git-status timeout")), timeoutMs)
+    );
     try {
-      const raw = await gitStatus(this.cwd);
+      const raw = await Promise.race([gitStatus(this.cwd), deadline]);
       this.preTurnStatusMap = this.parseStatusToMap(raw);
       this.currentTurnStartTime = Date.now();
 
@@ -438,9 +471,11 @@ class SessionEventHub {
       const blockId = this.turnContext.assistantBlockId;
 
       if (assistantEvent.type === "text_delta" && typeof assistantEvent.delta === "string") {
-        appendAssistantTextDelta(blockId, assistantEvent.delta);
+        this.textDeltaBuffer += assistantEvent.delta;
+        this.scheduleDeltaFlush(blockId);
       } else if (assistantEvent.type === "thinking_delta" && typeof assistantEvent.delta === "string") {
-        appendAssistantThinkingDelta(blockId, assistantEvent.delta);
+        this.thinkingDeltaBuffer += assistantEvent.delta;
+        this.scheduleDeltaFlush(blockId);
       }
 
       // Track model/provider from partial info
@@ -521,6 +556,7 @@ class SessionEventHub {
     if (event.type === "agent_end") {
       this.toolMetaMap.clear();
       this.currentToolBlocks.clear();
+      this.flushDeltas();
 
       if (this.turnContext) {
         const responseTime = Date.now() - this.turnContext.startTime;

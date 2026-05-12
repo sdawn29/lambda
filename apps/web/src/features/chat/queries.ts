@@ -72,9 +72,9 @@ export function useMessages(sessionId: string) {
       return stored?.messages ?? undefined
     },
     gcTime: 30 * 60 * 1000,
-    staleTime: 0, // Always stale so we refetch on mount
-    refetchOnMount: true, // Refetch when coming back to thread
-    refetchOnWindowFocus: true, // Also refetch when window regains focus,
+    staleTime: 5 * 60 * 1000, // WS stream keeps cache current via setQueryData
+    refetchOnMount: "always", // Still fetch on first mount before WS connects
+    refetchOnWindowFocus: false, // WS handles freshness; avoid redundant round-trips
     enabled: !!sessionId,
   })
 }
@@ -127,7 +127,7 @@ export function useContextUsage(sessionId: string | undefined) {
     queryFn: () => fetchContextUsage(sessionId!),
     enabled: !!sessionId,
     gcTime: 30 * 1000,
-    staleTime: 0,
+    staleTime: 30_000,
     select: (data) => data.contextUsage,
   })
 }
@@ -140,7 +140,7 @@ export function useSessionStats(sessionId: string | undefined) {
     queryFn: () => fetchSessionStats(sessionId!),
     enabled: !!sessionId,
     gcTime: 30 * 1000,
-    staleTime: 0,
+    staleTime: 30_000,
     select: (data) => data.stats,
   })
 }
