@@ -57,12 +57,7 @@ function MainContentArea() {
   // When navigating to a thread route, threadId will be set so the outlet
   // renders normally, allowing the thread route to mount and register its tab.
   if (tabs.length === 0 && !threadId) {
-    return (
-      <div className="flex h-full flex-col">
-        <MainTabBar />
-        <TabsEmptyState />
-      </div>
-    )
+    return <TabsEmptyState />
   }
 
   if (activeTab?.type === "file") {

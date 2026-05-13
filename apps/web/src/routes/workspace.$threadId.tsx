@@ -14,7 +14,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/shared/ui/resizable"
-import { cn } from "@/shared/lib/utils"
+import { Skeleton } from "@/shared/ui/skeleton"
 
 const DiffPanel = lazy(() =>
   import("@/features/git").then((module) => ({
@@ -108,11 +108,10 @@ function WorkspaceThreadRoute() {
     }
   }, [isLoading, isFetching, foundThread, navigate])
 
-  if (!foundWorkspace || !foundThread || !foundThread.sessionId) {
-    return null
-  }
+  const isContentReady =
+    !!foundWorkspace && !!foundThread && !!foundThread.sessionId
 
-  if (diffFullscreen) {
+  if (diffFullscreen && isContentReady) {
     return (
       <div className="flex h-full border-t">
         <div className="flex min-w-0 flex-1">
@@ -144,17 +143,21 @@ function WorkspaceThreadRoute() {
           <div className="flex h-full flex-col">
             <MainTabBar />
             <div className="min-h-0 flex-1 overflow-hidden">
-              <ChatView
-                sessionId={foundThread.sessionId}
-                workspaceId={foundWorkspace.id}
-                threadId={foundThread.id}
-                initialModelId={foundThread.modelId}
-                initialIsStopped={foundThread.isStopped}
-              />
+              {isContentReady ? (
+                <ChatView
+                  sessionId={foundThread.sessionId}
+                  workspaceId={foundWorkspace.id}
+                  threadId={foundThread.id}
+                  initialModelId={foundThread.modelId}
+                  initialIsStopped={foundThread.isStopped}
+                />
+              ) : (
+                <ChatViewSkeleton />
+              )}
             </div>
           </div>
         </ResizablePanel>
-        {diffOpen && (
+        {diffOpen && isContentReady && (
           <>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize="45" minSize="40">
@@ -173,7 +176,7 @@ function WorkspaceThreadRoute() {
         )}
       </ResizablePanelGroup>
 
-      {fileTreeOpen && (
+      {fileTreeOpen && isContentReady && (
         <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
           <Suspense fallback={<div className="h-full w-full bg-background" />}>
             <FileTree
@@ -183,6 +186,33 @@ function WorkspaceThreadRoute() {
           </Suspense>
         </div>
       )}
+    </div>
+  )
+}
+
+function ChatViewSkeleton() {
+  return (
+    <div className="relative flex h-full flex-col overflow-hidden">
+      <div className="flex w-full flex-1 flex-col overflow-hidden pt-6 pb-4">
+        <div className="mx-auto w-full max-w-3xl space-y-6 px-6">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div className="space-y-2 pl-8">
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
+            <Skeleton className="h-4 w-3/6" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto w-full max-w-3xl shrink-0 px-6 py-2">
+        <Skeleton className="h-20 w-full rounded-xl" />
+      </div>
     </div>
   )
 }

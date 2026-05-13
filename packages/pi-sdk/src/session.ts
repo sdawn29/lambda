@@ -1,5 +1,5 @@
-import { createAgentSession, createReadOnlyTools, ModelRegistry, SessionManager } from "@mariozechner/pi-coding-agent"
-import type { AgentSession } from "@mariozechner/pi-coding-agent"
+import { createAgentSession, createReadOnlyTools, ModelRegistry, SessionManager } from "@earendil-works/pi-coding-agent"
+import type { AgentSession } from "@earendil-works/pi-coding-agent"
 import { buildAuthStorage } from "./auth.js"
 import { sessionEventGenerator } from "./stream.js"
 import type { ManagedSessionHandle, ManagedSessionStats, SdkConfig, SessionTokenStats } from "./types.js"

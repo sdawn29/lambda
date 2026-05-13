@@ -3,7 +3,7 @@ import type {
   AuthStorage,
   ModelRegistry,
   ToolDefinition,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 
 /** A slash command available in the current session. */
 export interface SlashCommand {

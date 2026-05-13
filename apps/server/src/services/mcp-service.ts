@@ -1,5 +1,5 @@
 import { McpClient, createMcpClient, mcpToolToPiTool } from "@lamda/mcp"
-import type { ToolDefinition } from "@mariozechner/pi-coding-agent"
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent"
 import type { McpServerConfig } from "@lamda/mcp"
 import {
   getMcpServers,
