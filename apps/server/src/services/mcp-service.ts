@@ -29,6 +29,15 @@ interface ClientEntry {
 
 const clientPool = new Map<string, Map<string, ClientEntry>>()
 
+// Sweep pools whose workspace no longer has any MCP servers in the DB.
+setInterval(() => {
+  for (const workspaceId of clientPool.keys()) {
+    if (getMcpServers(workspaceId).length === 0) {
+      removeAllClients(workspaceId)
+    }
+  }
+}, 15 * 60 * 1000).unref()
+
 function getClientEntry(workspaceId: string, config: McpServerConfig): ClientEntry {
   let pool = clientPool.get(workspaceId) ?? new Map()
   let entry = pool.get(config.name)

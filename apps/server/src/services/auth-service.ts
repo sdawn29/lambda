@@ -39,6 +39,19 @@ export interface ActiveLogin {
   promptResolvers: Map<string, (value: string) => void>;
   abortController: AbortController;
   rejectManualInput: ((err: Error) => void) | null;
+  createdAt: number;
 }
 
 export const activeLogins = new Map<string, ActiveLogin>();
+
+// Sweep abandoned OAuth logins that were never completed or aborted.
+const LOGIN_TTL_MS = 30 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, login] of activeLogins) {
+    if (now - login.createdAt > LOGIN_TTL_MS) {
+      login.abortController.abort();
+      activeLogins.delete(id);
+    }
+  }
+}, 5 * 60 * 1000).unref();

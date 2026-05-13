@@ -9,7 +9,13 @@ import { threadStatusBroadcaster, type ThreadStatus } from "./thread-status-broa
 const MAX_RECENT_EVENTS = 512;
 
 type ServerErrorEvent = { type: "server_error"; message: string };
-type HubEvent = SessionEvent | ServerErrorEvent;
+type TurnFileChangedEvent = {
+  type: "turn_file_changed";
+  filePath: string;
+  postStatusCode: string;
+  wasCreatedByTurn: boolean;
+};
+type HubEvent = SessionEvent | ServerErrorEvent | TurnFileChangedEvent;
 
 type SessionEventRecord = {
   id: number;
@@ -85,6 +91,7 @@ class SessionEventHub {
   private preTurnStatusMap: Map<string, string> | null = null;
   private preTurnFileContents: Map<string, string> | null = null;
   private preTurnCapturePromise: Promise<void> | null = null;
+  private currentTurnEmittedFiles = new Set<string>();
   private currentTurnStartTime = 0;
   private lastTurnChangedRaw = "";
   private lastTurnFiles: TurnFileDetail[] = [];
@@ -92,15 +99,36 @@ class SessionEventHub {
   private thinkingDeltaBuffer = "";
   private deltaFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private deltaBlockId: string | null = null;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private onIdle: (() => void) | null = null;
 
   constructor(
     private readonly sessionId: string,
     private readonly threadId: string,
     private readonly handle: ManagedSessionHandle,
     private readonly cwd: string | null = null,
+    onIdle?: () => void,
   ) {
+    this.onIdle = onIdle ?? null;
     // Start consuming immediately so we don't miss any events
     this.ensureStarted();
+  }
+
+  private scheduleIdleDispose() {
+    if (this.idleTimer || this.disposed) return;
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (this.subscribers.size === 0 && !this.disposed) {
+        this.onIdle?.();
+      }
+    }, 10 * 60 * 1000);
+  }
+
+  private cancelIdleDispose() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
   }
 
   setNextThinkingLevel(level: string) {
@@ -157,8 +185,34 @@ class SessionEventHub {
     return map;
   }
 
+  private async checkAndEmitNewFileChanges(): Promise<void> {
+    if (!this.cwd || this.disposed) return;
+    if (this.preTurnCapturePromise) await this.preTurnCapturePromise;
+    if (!this.preTurnStatusMap || this.disposed) return;
+    try {
+      const raw = await Promise.race([
+        gitStatus(this.cwd),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3_000)),
+      ]);
+      if (!this.preTurnStatusMap || this.disposed) return;
+      const postMap = this.parseStatusToMap(raw);
+      for (const [filePath, postStatusCode] of postMap) {
+        if (this.currentTurnEmittedFiles.has(filePath)) continue;
+        const preStatusCode = this.preTurnStatusMap.get(filePath) ?? "";
+        if (preStatusCode !== postStatusCode) {
+          const wasCreatedByTurn = !this.preTurnStatusMap.has(filePath);
+          this.currentTurnEmittedFiles.add(filePath);
+          this.emit({ type: "turn_file_changed", filePath, postStatusCode, wasCreatedByTurn });
+        }
+      }
+    } catch {
+      // non-critical
+    }
+  }
+
   private async capturePreTurnStatus(): Promise<void> {
     if (!this.cwd) return;
+    this.currentTurnEmittedFiles.clear();
     const timeoutMs = 5_000;
     const deadline = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("git-status timeout")), timeoutMs)
@@ -317,8 +371,12 @@ class SessionEventHub {
       closed = true;
       this.subscribers.delete(subscriberId);
       resolveClosed();
+      if (this.subscribers.size === 0) {
+        this.scheduleIdleDispose();
+      }
     };
 
+    this.cancelIdleDispose();
     this.subscribers.set(subscriberId, {
       onEvent: options.onEvent,
       close,
@@ -334,9 +392,11 @@ class SessionEventHub {
   async dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.cancelIdleDispose();
 
     this.toolMetaMap.clear();
     this.currentToolBlocks.clear();
+    this.currentTurnEmittedFiles.clear();
     this.currentRunEvents = [];
     this.runInProgress = false;
     this.preTurnStatusMap = null;
@@ -415,6 +475,10 @@ class SessionEventHub {
           // Capture post-turn status before emitting so clients see data immediately
           // when they query after receiving agent_end.
           await this.capturePostTurnStatus();
+        } else if (event.type === "tool_execution_end") {
+          // Check for file changes after each tool — non-blocking so it doesn't
+          // delay event delivery. Emits turn_file_changed for newly changed files.
+          void this.checkAndEmitNewFileChanges();
         }
         this.persist(event);
         this.emit(event);
@@ -625,7 +689,10 @@ class SessionEventRegistry {
       return existing;
     }
 
-    const hub = new SessionEventHub(sessionId, threadId, handle, cwd ?? null);
+    const hub = new SessionEventHub(
+      sessionId, threadId, handle, cwd ?? null,
+      () => { this.hubs.delete(sessionId); },
+    );
     this.hubs.set(sessionId, hub);
     hub.ensureStarted();
     return hub;

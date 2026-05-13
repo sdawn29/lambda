@@ -64,6 +64,12 @@ export interface SessionTurnEndEvent {}
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SessionAgentStartEvent {}
 
+export interface SessionTurnFileChangedEvent {
+  filePath: string;
+  postStatusCode: string;
+  wasCreatedByTurn: boolean;
+}
+
 export interface SessionAgentEndEvent {
   messages?: AgentEndMessage[];
 }
@@ -96,6 +102,7 @@ export interface SessionEventHandlers {
   onTurnEnd: (event: SessionTurnEndEvent) => void;
   onAgentStart: (event: SessionAgentStartEvent) => void;
   onAgentEnd: (event: SessionAgentEndEvent) => void;
+  onTurnFileChanged?: (event: SessionTurnFileChangedEvent) => void;
   onQueueUpdate: (event: SessionQueueUpdateEvent) => void;
   onAutoRetryStart: (event: SessionAutoRetryStartEvent) => void;
   onAutoRetryEnd: (event: SessionAutoRetryEndEvent) => void;
@@ -151,6 +158,9 @@ export function subscribeToSessionEvents(
           break
         case "agent_end":
           handlers.onAgentEnd(data as unknown as SessionAgentEndEvent)
+          break
+        case "turn_file_changed":
+          handlers.onTurnFileChanged?.(data as unknown as SessionTurnFileChangedEvent)
           break
         case "queue_update":
           handlers.onQueueUpdate(data as unknown as SessionQueueUpdateEvent)

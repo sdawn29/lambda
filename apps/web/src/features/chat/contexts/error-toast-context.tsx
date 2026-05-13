@@ -51,6 +51,8 @@ export function ErrorToastProvider({ children }: { children: ReactNode }) {
       const toastId = toast.error(error.title, {
         description,
         duration: canRetry ? Infinity : 8000,
+        onDismiss: () => { activeToastsRef.current.delete(error.id) },
+        onAutoClose: () => { activeToastsRef.current.delete(error.id) },
         action:
           canRetry
             ? {

@@ -7,7 +7,7 @@ import { subscribeToSessionEvents, type AgentEndMessage } from "../session-event
 import { messagesQueryKey, chatKeys } from "../queries"
 import { createAssistantMessage, createErrorMessage, blockToMessage, parseErrorMessage } from "../types"
 import type { AssistantMessage, Message, ToolMessage } from "../types"
-import { gitKeys } from "@/features/git/queries"
+import { gitKeys, type LastTurnFile } from "@/features/git/queries"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -549,6 +549,9 @@ export function useSessionStream({
 
           onAgentStart: () => {
             if (doneFlag.current) return
+            // Clear previous turn's file list so the new turn starts fresh
+            queryClient.setQueryData(gitKeys.lastTurn(sessionId), [])
+            queryClient.setQueryData(gitKeys.lastTurnChanges(sessionId), "")
             void (async () => {
               try {
                 const { runningTools: blocks } = await listRunningTools(sessionId)
@@ -653,6 +656,25 @@ export function useSessionStream({
               agentMessages: data.messages ?? [],
               meta,
             })
+          },
+
+          onTurnFileChanged: (data) => {
+            if (doneFlag.current) return
+            queryClient.setQueryData<LastTurnFile[]>(
+              gitKeys.lastTurn(sessionId),
+              (old) => {
+                const existing = old ?? []
+                const idx = existing.findIndex((f) => f.filePath === data.filePath)
+                if (idx !== -1) {
+                  return [
+                    ...existing.slice(0, idx),
+                    { ...existing[idx], postStatusCode: data.postStatusCode, wasCreatedByTurn: data.wasCreatedByTurn },
+                    ...existing.slice(idx + 1),
+                  ]
+                }
+                return [...existing, { filePath: data.filePath, postStatusCode: data.postStatusCode, wasCreatedByTurn: data.wasCreatedByTurn, preContent: null }]
+              }
+            )
           },
 
           onMessageEnd: () => {},

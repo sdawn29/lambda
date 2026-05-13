@@ -19,6 +19,7 @@ import {
   useLocation,
 } from "@tanstack/react-router"
 import { Button } from "@/shared/ui/button"
+import { Toggle } from "@/shared/ui/toggle"
 import { SidebarTrigger, useSidebar } from "@/shared/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
 import {
@@ -48,9 +49,6 @@ import { useMainTabs } from "@/features/main-tabs"
 import { getIconName } from "@/shared/ui/file-icon"
 import { cn } from "@/shared/lib/utils"
 
-const activeTitleBarButtonClassName =
-  "transition-all duration-150 text-muted-foreground/60 hover:text-foreground " +
-  "aria-pressed:bg-accent aria-pressed:text-foreground"
 
 export function TitleBar() {
   const router = useRouter()
@@ -450,23 +448,18 @@ export function TitleBar() {
         <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
 
         {/* Panel toggles — segmented control; active buttons lift above the tray */}
-        <div className="flex items-center gap-0.5 rounded-lg border border-border/50 bg-transparent p-0.5">
+        <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5">
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleTerminal}
-                  aria-pressed={terminalOpen}
-                  className={cn(
-                    "size-7 rounded-md",
-                    activeTitleBarButtonClassName
-                  )}
+                <Toggle
+                  pressed={terminalOpen}
+                  onPressedChange={() => toggleTerminal()}
+                  className="size-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
                 >
                   <TerminalSquare className="size-4" />
                   <span className="sr-only">Toggle terminal</span>
-                </Button>
+                </Toggle>
               }
             />
             <TooltipContent>
@@ -478,16 +471,11 @@ export function TitleBar() {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="default"
-                  onClick={toggleDiff}
-                  aria-pressed={diffOpen}
+                <Toggle
+                  pressed={diffOpen}
+                  onPressedChange={() => toggleDiff()}
                   disabled={!urlActiveWorkspace?.path}
-                  className={cn(
-                    "h-7 gap-1.5 rounded-md px-1.5 disabled:opacity-30",
-                    activeTitleBarButtonClassName
-                  )}
+                  className="h-7 gap-1.5 px-1.5 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-30 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
                 >
                   <FileDiff className="size-4 shrink-0" />
                   {diffStat &&
@@ -502,7 +490,7 @@ export function TitleBar() {
                       </span>
                     )}
                   <span className="sr-only">Toggle diff panel</span>
-                </Button>
+                </Toggle>
               }
             />
             <TooltipContent>
@@ -514,20 +502,15 @@ export function TitleBar() {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleFileTree}
-                  aria-pressed={fileTreeOpen}
+                <Toggle
+                  pressed={fileTreeOpen}
+                  onPressedChange={() => toggleFileTree()}
                   disabled={!urlActiveWorkspace?.path}
-                  className={cn(
-                    "size-7 rounded-md disabled:opacity-30",
-                    activeTitleBarButtonClassName
-                  )}
+                  className="size-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-30 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
                 >
                   <FolderTree className="size-4" />
                   <span className="sr-only">Toggle file tree</span>
-                </Button>
+                </Toggle>
               }
             />
             <TooltipContent>

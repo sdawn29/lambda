@@ -51,7 +51,11 @@ class ThreadStatusStore {
     }
     set.add(callback)
     return () => {
-      this.listeners.get(threadId)?.delete(callback)
+      const s = this.listeners.get(threadId)
+      if (s) {
+        s.delete(callback)
+        if (s.size === 0) this.listeners.delete(threadId)
+      }
     }
   }
 }
@@ -174,6 +178,7 @@ export function ThreadStatusProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
     let ws: WebSocket | null = null
+    let onMessage: ((e: MessageEvent) => void) | null = null
 
     openGlobalWebSocket()
       .then((socket) => {
@@ -183,7 +188,7 @@ export function ThreadStatusProvider({ children }: { children: ReactNode }) {
         }
         ws = socket
 
-        ws.addEventListener("message", (e: MessageEvent) => {
+        onMessage = (e: MessageEvent) => {
           if (!active) return
           try {
             const data = JSON.parse(e.data as string) as {
@@ -210,8 +215,9 @@ export function ThreadStatusProvider({ children }: { children: ReactNode }) {
           } catch (error) {
             console.error("[thread-status]", error)
           }
-        })
+        }
 
+        ws.addEventListener("message", onMessage)
         ws.addEventListener("error", () => {})
       })
       .catch((error) => {
@@ -222,6 +228,7 @@ export function ThreadStatusProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false
+      if (ws && onMessage) ws.removeEventListener("message", onMessage)
       ws?.close()
     }
   }, [setStatus])

@@ -142,7 +142,7 @@ const LastTurnView = memo(function LastTurnView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-0.5">
+    <div className="min-h-0 flex-1 overflow-y-auto py-0.5">
       {files.map((file) => (
         <FileListItem
           key={file.filePath}
