@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { lazy, Suspense, useEffect, useMemo, useRef } from "react"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 
 import { ChatView, useSetActiveThreadId } from "@/features/chat"
 import { useWorkspace, useWorkspaces } from "@/features/workspace"
@@ -70,14 +70,15 @@ function WorkspaceThreadRoute() {
   // Keep a stable sessionId for DiffPanel that only changes when the workspace
   // changes, not when the user switches threads within the same workspace.
   // Git data (status, diffs, stash) is workspace-level, not thread-level.
-  const prevWorkspaceIdRef = useRef<string | undefined>(undefined)
-  const diffPanelSessionIdRef = useRef<string | null>(null)
   const currentWorkspaceId = foundWorkspace?.id
-  if (currentWorkspaceId !== prevWorkspaceIdRef.current) {
-    prevWorkspaceIdRef.current = currentWorkspaceId
-    diffPanelSessionIdRef.current = foundThread?.sessionId ?? null
+  const [prevWorkspaceId, setPrevWorkspaceId] = useState<string | undefined>(currentWorkspaceId)
+  const [diffPanelSessionId, setDiffPanelSessionId] = useState<string | null>(
+    foundThread?.sessionId ?? null
+  )
+  if (currentWorkspaceId !== prevWorkspaceId) {
+    setPrevWorkspaceId(currentWorkspaceId)
+    setDiffPanelSessionId(foundThread?.sessionId ?? null)
   }
-  const diffPanelSessionId = diffPanelSessionIdRef.current
 
   // Set workspace path in diff panel context for breadcrumb navigation
   const currentPathRef = useRef<string | null>(null)

@@ -191,7 +191,19 @@ export function subscribeToSessionEvents(
     }
   }
 
+  // Unclean close (network drop, server crash) — fire transport error only if the
+  // WebSocket was terminated without a proper close handshake.  Clean closes
+  // (code 1000, e.g. from our own cleanup calling ws.close()) set wasClean=true
+  // and are silently ignored here; the doneFlag guard in the handler catches any
+  // edge cases.
+  const handleClose = (event: CloseEvent) => {
+    if (!event.wasClean) {
+      handlers.onTransportError?.(event)
+    }
+  }
+
   ws.addEventListener("message", handleMessage)
+  ws.addEventListener("close", handleClose)
 
   if (handlers.onTransportError) {
     ws.addEventListener("error", handlers.onTransportError)
@@ -199,6 +211,7 @@ export function subscribeToSessionEvents(
 
   return () => {
     ws.removeEventListener("message", handleMessage)
+    ws.removeEventListener("close", handleClose)
     if (handlers.onTransportError) {
       ws.removeEventListener("error", handlers.onTransportError)
     }

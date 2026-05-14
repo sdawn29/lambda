@@ -319,6 +319,11 @@ export function useSessionStream({
   const lastPromptRef = useRef<{ text: string; thinkingLevel?: string } | null>(null)
   const pendingThinkingLevelRef = useRef<string | null>(null)
 
+  // True while an assistant turn is in progress (message_start → agent_end).
+  // Used to suppress spurious transport errors from idle WebSocket closes that
+  // happen after agent_end (e.g. server graceful shutdown between turns).
+  const agentRunningRef = useRef(false)
+
   // Always-current callbacks — stored in a ref so the queue processor (which
   // is stable across renders) always calls the latest versions.
   const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd })
@@ -571,6 +576,7 @@ export function useSessionStream({
           onMessageStart: (data) => {
             if (doneFlag.current) return
             if (data.message?.role !== "assistant") return
+            agentRunningRef.current = true
             turnMetaRef.current = {
               startTime: Date.now(),
               thinkingLevel: pendingThinkingLevelRef.current ?? undefined,
@@ -644,6 +650,7 @@ export function useSessionStream({
 
           onAgentEnd: (data) => {
             if (doneFlag.current) return
+            agentRunningRef.current = false
             // Snapshot and clear turn meta before flushing so the agent_end
             // event carries the final accumulated model/provider/timing.
             const meta = turnMetaRef.current
@@ -719,6 +726,11 @@ export function useSessionStream({
 
           onTransportError: () => {
             if (doneFlag.current) return
+            // Suppress false positives: if the WebSocket closes while no agent
+            // turn is in progress (idle close after agent_end), do nothing.
+            // A real mid-turn disconnect will have agentRunningRef=true.
+            if (!agentRunningRef.current) return
+            agentRunningRef.current = false
             doneFlag.current = true
             enqueueNow({
               kind: "transport_error",
@@ -737,6 +749,7 @@ export function useSessionStream({
     const pendingToolStart = pendingToolStartRef.current
     return () => {
       doneFlag.current = true
+      agentRunningRef.current = false
       sessionDoneFlags.delete(sessionId)
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       eventQueueRef.current = []

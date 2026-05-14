@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import type { AssistantMessage, ErrorAction } from "../types"
 import {
   ArrowDownIcon,
@@ -328,6 +329,10 @@ export function ChatView({
       },
       onError: (err: unknown) => {
         console.error("[abort]", err)
+        toast.error("Failed to stop", {
+          description: "Could not stop the agent. It may still be running.",
+          duration: 5000,
+        })
       },
     })
   }, [abortSessionMutation, markStopped, threadId, updateThreadStopped])
@@ -558,6 +563,7 @@ export function ChatView({
             onSend={handleSend}
             onStop={handleStop}
             isLoading={isLoading}
+            isAborting={abortSessionMutation.isPending}
             branch={branch}
             branches={branches}
             onBranchSelect={handleBranchSelect}

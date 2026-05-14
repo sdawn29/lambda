@@ -41,6 +41,8 @@ interface ChatTextboxProps {
     thinkingLevel?: string
   ) => void
   isLoading?: boolean
+  /** True while the abort request is in-flight — disables the stop button to prevent double-clicks. */
+  isAborting?: boolean
   onStop?: () => void
   placeholder?: string
   className?: string
@@ -60,6 +62,7 @@ export const ChatTextbox = memo(
     {
       onSend,
       isLoading = false,
+      isAborting = false,
       onStop,
       placeholder = "Ask anything… @ for files, / for commands",
       className,
@@ -442,14 +445,15 @@ export const ChatTextbox = memo(
                       <Button
                         size="icon-sm"
                         onClick={onStop}
+                        disabled={isAborting}
                         aria-label="Stop generation"
-                        className="rounded-full animate-in bg-destructive duration-150 fade-in-0 zoom-in-90 hover:bg-destructive/90 aspect-square"
+                        className="rounded-full animate-in bg-destructive duration-150 fade-in-0 zoom-in-90 hover:bg-destructive/90 aspect-square disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <div className="h-2.5 w-2.5 rounded-sm bg-white" />
                       </Button>
                     }
                   />
-                  <TooltipContent>Stop</TooltipContent>
+                  <TooltipContent>{isAborting ? "Stopping…" : "Stop"}</TooltipContent>
                 </Tooltip>
               ) : (
                 <Tooltip>
