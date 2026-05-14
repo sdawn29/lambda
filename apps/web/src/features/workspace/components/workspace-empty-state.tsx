@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Bot, CheckCircle2, Circle, GitBranch, SquareTerminal } from "lucide-react"
+import { Bot, CheckCircle2, GitBranch, SquareTerminal } from "lucide-react"
 
 import { Button } from "@/shared/ui/button"
 import { useConfigureProvider } from "@/features/settings"
@@ -28,7 +28,9 @@ const FEATURES = [
 function useHasProvider() {
   const { data: apiKeys } = useProviders()
   const { data: oauthProviders } = useOAuthProviders()
-  const hasApiKey = apiKeys ? Object.values(apiKeys).some((v) => Boolean(v)) : false
+  const hasApiKey = apiKeys
+    ? Object.values(apiKeys).some((v) => Boolean(v))
+    : false
   const hasOAuth = oauthProviders?.some((p) => p.loggedIn) ?? false
   return hasApiKey || hasOAuth
 }
@@ -57,12 +59,16 @@ function StepRow({
           <CheckCircle2 className="size-5 text-primary" strokeWidth={2} />
         ) : (
           <div className="flex size-5 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/25">
-            <span className="text-[10px] font-semibold text-primary">{number}</span>
+            <span className="text-[10px] font-semibold text-primary">
+              {number}
+            </span>
           </div>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-0.5">
-        <p className={`text-sm font-medium leading-snug ${done ? "text-muted-foreground line-through" : ""}`}>
+        <p
+          className={`text-sm leading-snug font-medium ${done ? "text-muted-foreground line-through" : ""}`}
+        >
           {title}
         </p>
         <p className="text-xs text-muted-foreground">{description}</p>
@@ -95,14 +101,21 @@ export function WorkspaceEmptyState() {
   return (
     <>
       <div className="flex h-full items-center justify-center p-6">
-        <div className="animate-in fade-in-0 zoom-in-95 duration-300 w-full max-w-md space-y-7">
+        <div className="w-full max-w-md animate-in space-y-7 duration-300 fade-in-0 zoom-in-95">
           {/* Brand header */}
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-[#1c1c1e] ring-1 ring-white/5 shadow-md">
-              <span className="font-black text-3xl leading-none" style={{ color: "#d4a017" }}>Λ</span>
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-[#1c1c1e] shadow-md ring-1 ring-white/5">
+              <span
+                className="text-3xl leading-none font-black"
+                style={{ color: "#d4a017" }}
+              >
+                Λ
+              </span>
             </div>
             <div className="space-y-1">
-              <h1 className="text-xl font-semibold tracking-tight">Welcome to Lamda</h1>
+              <h1 className="text-xl font-semibold tracking-tight">
+                Welcome to Lamda
+              </h1>
               <p className="text-sm text-muted-foreground">
                 Complete two quick steps to start coding with your AI agent.
               </p>
@@ -141,8 +154,12 @@ export function WorkspaceEmptyState() {
                   <Icon className="size-3.5 text-primary/80" />
                 </div>
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-semibold leading-tight">{label}</p>
-                  <p className="text-[10px] leading-snug text-muted-foreground">{description}</p>
+                  <p className="text-[11px] leading-tight font-semibold">
+                    {label}
+                  </p>
+                  <p className="text-[10px] leading-snug text-muted-foreground">
+                    {description}
+                  </p>
                 </div>
               </div>
             ))}
