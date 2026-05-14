@@ -1,14 +1,10 @@
-import { memo, useCallback, useState } from "react"
-import { ChevronRight, GitCommit, Loader2 } from "lucide-react"
-import { Icon } from "@iconify/react"
-import { getIconName } from "@/shared/ui/file-icon"
+import { memo, useState } from "react"
+import { GitCommit, Loader2 } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
-import { useGitLog, useGitShowFiles, useGitShowFileDiff } from "../queries"
+import { useGitLog, useGitShowFiles } from "../queries"
 import type { CommitFile, LogEntry } from "../api"
-import { DiffView } from "./diff-view"
-import { StatusBadge } from "./status-badge"
-import { DiffStat, parseDiffCounts } from "./diff-stat"
-import { LoadingSpinner } from "@/shared/ui/loading-spinner"
+import { type ChangedFile } from "./status-badge"
+import { FileListItem } from "./file-list-item"
 
 function formatRelativeDate(isoDate: string): string {
   const date = new Date(isoDate)
@@ -26,92 +22,13 @@ function formatRelativeDate(isoDate: string): string {
   return `${Math.floor(months / 12)}y ago`
 }
 
-function commitFileToChangedFile(f: CommitFile) {
+function commitFileToChangedFile(f: CommitFile): ChangedFile {
   return {
     raw: f.status + " ",
     filePath: f.path,
     isStaged: false,
     isUntracked: false,
   }
-}
-
-function CommitFileItem({
-  sessionId,
-  sha,
-  file,
-}: {
-  sessionId: string
-  sha: string
-  file: CommitFile
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const { data: diff, isLoading } = useGitShowFileDiff(sessionId, sha, file.path, expanded)
-
-  const counts = diff != null ? parseDiffCounts(diff) : null
-  const changedFile = commitFileToChangedFile(file)
-
-  const pathParts = file.path.split("/")
-  const fileName = pathParts[pathParts.length - 1] ?? file.path
-  const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") + "/" : null
-
-  const handleClick = useCallback(() => {
-    setExpanded((v) => !v)
-  }, [])
-
-  return (
-    <div className="mx-1.5 my-1 overflow-hidden rounded-md border border-border/40">
-      <div className="flex w-full items-center transition-colors hover:bg-muted/30">
-        <button
-          onClick={handleClick}
-          className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-2.5 pr-1 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <ChevronRight
-            className={cn(
-              "size-3 shrink-0 text-muted-foreground/40 transition-transform duration-150",
-              expanded && "rotate-90"
-            )}
-          />
-          <StatusBadge file={changedFile} />
-          <Icon
-            icon={`catppuccin:${getIconName(fileName)}`}
-            className="size-3 shrink-0"
-            aria-hidden
-          />
-          <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden pr-2">
-            <span className="shrink-0 font-mono text-xs font-medium text-foreground/85">
-              {fileName}
-            </span>
-            {dirPath && (
-              <span className="truncate font-mono text-[10px] text-muted-foreground/40">
-                {dirPath}
-              </span>
-            )}
-            {counts != null && (counts.added > 0 || counts.removed > 0) && (
-              <DiffStat added={counts.added} removed={counts.removed} />
-            )}
-          </span>
-        </button>
-      </div>
-
-      {expanded && (
-        <div className="animate-in border-t border-border/20 bg-muted/10 px-3 pb-3 duration-150 fade-in-0 slide-in-from-top-1">
-          {isLoading ? (
-            <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
-              <LoadingSpinner size="sm" />
-              Loading diff…
-            </div>
-          ) : diff ? (
-            <DiffView
-              diff={diff}
-              filePath={file.path}
-              mode="inline"
-              className="mt-2 rounded-md border-border/50"
-            />
-          ) : null}
-        </div>
-      )}
-    </div>
-  )
 }
 
 function CommitRow({
@@ -125,54 +42,67 @@ function CommitRow({
   const { data: files, isLoading } = useGitShowFiles(sessionId, entry.sha, expanded)
 
   return (
-    <div className="border-b border-border/40 last:border-0">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-      >
-        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted">
-          <GitCommit className="h-3 w-3 text-muted-foreground/60" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-foreground">
+    <div className="relative mb-0.5 flex items-start gap-0.5">
+      {/* Commit icon */}
+      <div className="mt-[5px] flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+        <GitCommit
+          className={cn(
+            "size-[15px] rotate-90 transition-colors duration-150",
+            expanded ? "text-primary/70" : "text-muted-foreground/40"
+          )}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="min-w-0 flex-1 pb-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="group w-full rounded-md px-1.5 py-1 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <p className="truncate text-xs font-medium leading-snug text-foreground/85 group-hover:text-foreground">
             {entry.subject || "(no message)"}
           </p>
-          <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground/60">
-            <span className="font-mono">{entry.shortSha}</span>
+          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground/45">
+            <span className="rounded bg-muted/60 px-1 font-mono text-muted-foreground/60">
+              {entry.shortSha}
+            </span>
             <span>·</span>
             <span>{entry.author}</span>
             <span>·</span>
             <span>{formatRelativeDate(entry.date)}</span>
           </div>
-        </div>
-      </button>
+        </button>
 
-      {expanded && (
-        <div className="pb-2">
-          {isLoading ? (
-            <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" />
-              Loading…
-            </div>
-          ) : files && files.length > 0 ? (
-            <div>
-              {files.map((f) => (
-                <CommitFileItem
-                  key={f.path}
-                  sessionId={sessionId}
-                  sha={entry.sha}
-                  file={f}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="px-3 py-2 text-[11px] text-muted-foreground/60">
-              No files changed
-            </p>
-          )}
-        </div>
-      )}
+        {expanded && (
+          <div className="animate-in fade-in-0 mt-1.5 overflow-hidden rounded-md border border-border/40 duration-150">
+            {isLoading ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                Loading…
+              </div>
+            ) : files && files.length > 0 ? (
+              <div className="divide-y divide-border/20">
+                {files.map((f) => (
+                  <FileListItem
+                    key={f.path}
+                    file={commitFileToChangedFile(f)}
+                    sessionId={sessionId}
+                    sha={entry.sha}
+                    counts={{ added: f.added, removed: f.removed }}
+                    mode="inline"
+                    showActions={false}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="px-3 py-2 text-[11px] text-muted-foreground/50">
+                No files changed
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -214,14 +144,12 @@ export const HistoryView = memo(function HistoryView({
   }
 
   return (
-    <div className={cn("min-h-0 flex-1 overflow-y-auto")}>
-      {entries.map((entry) => (
-        <CommitRow
-          key={entry.sha}
-          entry={entry}
-          sessionId={sessionId}
-        />
-      ))}
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div className="relative">
+        {entries.map((entry) => (
+          <CommitRow key={entry.sha} entry={entry} sessionId={sessionId} />
+        ))}
+      </div>
     </div>
   )
 })

@@ -5,7 +5,8 @@ export type DiffLineKind = "added" | "removed" | "context" | "skipped"
 
 export interface DiffLine {
   kind: DiffLineKind
-  lineNum: string
+  oldLineNum: string
+  newLineNum: string
   content: string
 }
 
@@ -36,11 +37,4 @@ export interface CharRange {
 export interface WordDiffMap {
   removed: Map<number, CharRange[]>
   added: Map<number, CharRange[]>
-}
-
-export interface DiffHunk {
-  header: string
-  rawPatch: string
-  startIndex: number
-  lineCount: number
 }

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/shared/lib/utils"
 import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
 import { useTheme } from "@/shared/components/theme-provider"
-import type { DiffHunk, DiffMode, ThemeStyle, WordDiffMap } from "./types"
+import type { DiffMode, ThemeStyle, WordDiffMap } from "./types"
 import { buildHighlightMap, detectLanguage } from "./highlight"
-import { parseDiff, parseHunks } from "./parser"
+import { parseDiff } from "./parser"
 import { DiffRow } from "./diff-row"
 import { buildSideBySideRows, SideBySideView } from "./side-by-side"
 import { buildWordDiffMap } from "./word-diff"
@@ -21,9 +21,8 @@ interface DiffViewProps {
   filePath?: string
   className?: string
   mode?: DiffMode
-  onStageHunk?: (hunkPatch: string) => void
-  onUnstageHunk?: (hunkPatch: string) => void
-  isStaged?: boolean
+  /** Max height of the scrollable diff body. Defaults to 20rem (320px). Pass null to remove the cap. */
+  maxHeight?: string | null
 }
 
 export function DiffView({
@@ -31,9 +30,7 @@ export function DiffView({
   filePath,
   className,
   mode = "inline",
-  onStageHunk,
-  onUnstageHunk,
-  isStaged,
+  maxHeight = "20rem",
 }: DiffViewProps) {
   const { theme } = useTheme()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -81,12 +78,6 @@ export function DiffView({
   )
 
   const wordDiffMap: WordDiffMap = useMemo(() => buildWordDiffMap(lines), [lines])
-
-  const hunksByStartIndex = useMemo<Map<number, DiffHunk>>(() => {
-    if (!onStageHunk && !onUnstageHunk) return new Map()
-    const hunks = parseHunks(diff)
-    return new Map(hunks.map((h) => [h.startIndex, h]))
-  }, [diff, onStageHunk, onUnstageHunk])
 
   const sideBySideRows = useMemo(() => {
     if (mode !== "side-by-side") return null
@@ -161,8 +152,8 @@ export function DiffView({
             current === nextScrollTop ? current : nextScrollTop
           )
         }}
+        style={maxHeight != null ? { maxHeight } : undefined}
         className={cn(
-          "max-h-80",
           mode === "side-by-side"
             ? "overflow-x-hidden overflow-y-auto"
             : "overflow-auto"
@@ -190,10 +181,6 @@ export function DiffView({
                         ? wordDiffMap.added.get(absIdx)
                         : undefined
                   }
-                  hunk={hunksByStartIndex.get(absIdx)}
-                  onStageHunk={onStageHunk}
-                  onUnstageHunk={onUnstageHunk}
-                  isStaged={isStaged}
                 />
               )
             })}
@@ -216,17 +203,19 @@ export function DiffView({
       </div>
 
       {(added > 0 || removed > 0) && (
-        <div className="flex items-center gap-3 border-t border-border/60 bg-muted/20 px-3 py-1.5 font-sans text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 border-t border-border/60 bg-muted/20 px-3 py-1 font-sans">
           {removed > 0 && (
-            <span className="text-red-500">−{removed} removed</span>
+            <span className="inline-flex items-center rounded-full bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-red-500 dark:bg-red-500/15 dark:text-red-400">
+              −{removed}
+            </span>
           )}
           {added > 0 && (
-            <span className="text-green-600 dark:text-green-400">
-              +{added} added
+            <span className="inline-flex items-center rounded-full bg-green-500/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-green-600 dark:bg-green-500/15 dark:text-green-400">
+              +{added}
             </span>
           )}
           {highlightingDisabled && (
-            <span className="ml-auto text-[10px] text-muted-foreground/80">
+            <span className="ml-auto text-[10px] text-muted-foreground/50">
               Syntax highlighting disabled for large diff
             </span>
           )}

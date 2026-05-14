@@ -24,7 +24,7 @@ export const SectionCard = memo(function SectionCard({
     <div className={cn("mx-2 mt-1.5 overflow-hidden rounded-lg border border-border/50", className)}>
       <button
         onClick={() => setCollapsed((v) => !v)}
-        className="flex h-auto w-full items-center justify-start gap-2 bg-muted/30 px-3 py-2 transition-colors hover:bg-muted/50"
+        className="flex h-7 w-full items-center gap-1.5 bg-muted/30 px-2.5 transition-colors hover:bg-muted/50"
       >
         <ChevronRight
           className={cn(
@@ -32,14 +32,17 @@ export const SectionCard = memo(function SectionCard({
             !collapsed && "rotate-90"
           )}
         />
-        <span className="text-[10px] font-semibold tracking-wide text-muted-foreground/60 uppercase">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
           {label}
         </span>
         {isLoading && (
           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/40" />
         )}
         {!isLoading && count != null && count > 0 && (
-          <Badge variant="secondary" className="h-4 min-w-4 rounded-full px-1 text-[10px]">
+          <Badge
+            variant="secondary"
+            className="h-4 min-w-4 rounded-full px-1 text-[10px] tabular-nums"
+          >
             {count}
           </Badge>
         )}

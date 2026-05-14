@@ -47,11 +47,13 @@ function SideBySideCell({
   map,
   themeStyle,
   wordDiffRanges,
+  side,
 }: {
   entry: { line: DiffLine; diffIndex: number } | null
   map: HighlightMap
   themeStyle: ThemeStyle
   wordDiffRanges?: CharRange[]
+  side: "left" | "right"
 }) {
   if (!entry) {
     return <div className="h-5 min-w-full" />
@@ -63,6 +65,7 @@ function SideBySideCell({
   const isRemoved = line.kind === "removed"
   const isNeutral = line.kind === "context" || isSkipped
   const tokens = getLineTokens(line, diffIndex, map)
+  const lineNum = side === "left" ? line.oldLineNum : line.newLineNum
 
   return (
     <div
@@ -72,23 +75,54 @@ function SideBySideCell({
         isRemoved && "bg-red-500/8"
       )}
     >
-      <span
+      {/* Gutter */}
+      <div
         className={cn(
-          "sticky left-0 z-10 w-8 shrink-0 border-r pr-2 text-right text-xs select-none",
-          isAdded && "border-green-500/20 text-green-400/50",
-          isRemoved && "border-red-500/20 text-red-400/50",
-          isNeutral && "border-border/40 text-muted-foreground/40",
+          "sticky left-0 z-10 flex shrink-0 select-none",
           isAdded && "bg-green-50 dark:bg-green-950",
           isRemoved && "bg-red-50 dark:bg-red-950",
           isNeutral && "bg-background"
         )}
       >
-        {isSkipped ? "" : line.lineNum}
-      </span>
+        {/* Color strip */}
+        <span
+          className={cn(
+            "w-0.5 shrink-0",
+            isAdded && "bg-green-500/50",
+            isRemoved && "bg-red-500/50"
+          )}
+        />
+
+        {/* Line number */}
+        <span
+          className={cn(
+            "w-7 shrink-0 border-r pr-1.5 text-right font-mono text-[10px] leading-5",
+            isAdded && "border-green-500/20 text-green-400/70",
+            isRemoved && "border-red-500/20 text-red-400/70",
+            isNeutral && "border-border/40 text-muted-foreground/30"
+          )}
+        >
+          {isSkipped ? "" : lineNum}
+        </span>
+
+        {/* Sign */}
+        <span
+          className={cn(
+            "w-4 shrink-0 text-center font-mono text-[11px] leading-5",
+            isAdded && "text-green-500",
+            isRemoved && "text-red-500",
+            isNeutral && "text-muted-foreground/20"
+          )}
+        >
+          {isAdded ? "+" : isRemoved ? "−" : ""}
+        </span>
+      </div>
+
+      {/* Content */}
       <span
         className={cn(
           "w-max shrink-0 pl-2 whitespace-pre",
-          isSkipped && "text-muted-foreground/40 italic"
+          isSkipped && "font-mono text-[10px] italic text-muted-foreground/40"
         )}
       >
         {isSkipped ? (
@@ -141,6 +175,7 @@ function SideBySideColumn({
             entry={entry}
             map={map}
             themeStyle={themeStyle}
+            side={side}
             wordDiffRanges={
               entry
                 ? side === "left"

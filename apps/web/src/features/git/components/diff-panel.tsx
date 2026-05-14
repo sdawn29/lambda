@@ -54,7 +54,6 @@ import {
   useGitRevertFile,
   useGitFetch,
   useGitPull,
-  useGitApplyPatch,
 } from "../mutations"
 import { type ChangedFile, parseStatusLine } from "./status-badge"
 import { type DiffMode } from "./diff-view"
@@ -447,22 +446,6 @@ const SourceControlContent = memo(function SourceControlContent({
     [revertFile]
   )
 
-  const applyPatch = useGitApplyPatch(sessionId)
-
-  const handleStageHunk = useCallback(
-    (hunkPatch: string) => {
-      applyPatch.mutate({ patch: hunkPatch, reverse: false })
-    },
-    [applyPatch]
-  )
-
-  const handleUnstageHunk = useCallback(
-    (hunkPatch: string) => {
-      applyPatch.mutate({ patch: hunkPatch, reverse: true })
-    },
-    [applyPatch]
-  )
-
   const handleStashConfirm = useCallback(
     async (message: string) => {
       try {
@@ -554,8 +537,6 @@ const SourceControlContent = memo(function SourceControlContent({
                   mode={mode}
                   onStageToggle={handleStageToggle}
                   onRevert={handleRevert}
-                  onStageHunk={handleStageHunk}
-                  onUnstageHunk={handleUnstageHunk}
                   emptyText="No staged changes"
                 />
               )}
@@ -568,8 +549,6 @@ const SourceControlContent = memo(function SourceControlContent({
                   mode={mode}
                   onStageToggle={handleStageToggle}
                   onRevert={handleRevert}
-                  onStageHunk={handleStageHunk}
-                  onUnstageHunk={handleUnstageHunk}
                 />
               )}
             </div>

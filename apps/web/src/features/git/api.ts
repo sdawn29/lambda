@@ -177,6 +177,8 @@ export async function gitShow(sessionId: string, sha: string): Promise<string> {
 export interface CommitFile {
   path: string
   status: string
+  added: number
+  removed: number
 }
 
 export async function gitShowFiles(sessionId: string, sha: string): Promise<CommitFile[]> {
@@ -229,14 +231,3 @@ export function revertLastTurn(sessionId: string): Promise<void> {
   return apiFetch<void>(`${base(sessionId)}/last-turn/revert`, { method: "POST" })
 }
 
-export function gitApplyPatch(
-  sessionId: string,
-  patch: string,
-  reverse = false
-): Promise<void> {
-  return apiFetch<void>(`${base(sessionId)}/apply-patch`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ patch, reverse }),
-  })
-}

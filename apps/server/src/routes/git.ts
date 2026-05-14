@@ -31,7 +31,6 @@ import {
   gitShow,
   gitShowFiles,
   gitShowFileDiff,
-  gitApplyPatch,
 } from "@lamda/git";
 import { generateCommitMessage } from "@lamda/pi-sdk";
 import { store } from "../store.js";
@@ -280,19 +279,6 @@ git.post("/session/:id/git/unstage-all", async (c) => {
   if (!cwd) return c.json({ error: "Session not found" }, 404);
   await gitUnstageAll(cwd);
   return new Response(null, { status: 204 });
-});
-
-git.post("/session/:id/git/apply-patch", async (c) => {
-  const cwd = gitCwd(c.req.param("id"));
-  if (!cwd) return c.json({ error: "Session not found" }, 404);
-  const body = await c.req.json<{ patch?: string; reverse?: boolean }>();
-  if (!body.patch) return c.json({ error: "patch is required" }, 400);
-  try {
-    await gitApplyPatch(cwd, body.patch, body.reverse ?? false);
-    return new Response(null, { status: 204 });
-  } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
-  }
 });
 
 git.post("/session/:id/git/revert-file", async (c) => {

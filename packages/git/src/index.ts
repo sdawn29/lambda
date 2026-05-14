@@ -1,4 +1,4 @@
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -384,14 +384,32 @@ export async function gitLog(cwd: string, maxCount = 50): Promise<string> {
 export async function gitShowFiles(
   cwd: string,
   sha: string,
-): Promise<{ path: string; status: string }[]> {
+): Promise<{ path: string; status: string; added: number; removed: number }[]> {
   try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["diff-tree", "--no-commit-id", "-r", "--name-status", sha],
-      { cwd, timeout: 10000 },
-    )
-    return stdout
+    const [nameStatusResult, numstatResult] = await Promise.all([
+      execFileAsync("git", ["diff-tree", "--no-commit-id", "-r", "--name-status", sha], {
+        cwd,
+        timeout: 10000,
+      }),
+      execFileAsync("git", ["diff-tree", "--no-commit-id", "-r", "--numstat", sha], {
+        cwd,
+        timeout: 10000,
+      }),
+    ])
+
+    const statMap = new Map<string, { added: number; removed: number }>()
+    for (const line of numstatResult.stdout.trim().split("\n").filter(Boolean)) {
+      const parts = line.split("\t")
+      const added = parseInt(parts[0] ?? "0", 10)
+      const removed = parseInt(parts[1] ?? "0", 10)
+      // for renamed files numstat uses the new path as the last tab-separated field
+      const path = parts.length > 2 ? (parts[parts.length - 1] ?? "") : (parts[1] ?? "")
+      if (path) {
+        statMap.set(path, { added: isNaN(added) ? 0 : added, removed: isNaN(removed) ? 0 : removed })
+      }
+    }
+
+    return nameStatusResult.stdout
       .trim()
       .split("\n")
       .filter(Boolean)
@@ -401,7 +419,8 @@ export async function gitShowFiles(
         // Normalize R100/C100 → R/C; use the new (last) path for renames/copies
         const status = rawStatus[0] ?? "M"
         const path = parts.length > 2 ? (parts[parts.length - 1] ?? "") : (parts[1] ?? "")
-        return { status, path }
+        const stat = statMap.get(path) ?? { added: 0, removed: 0 }
+        return { status, path, ...stat }
       })
   } catch {
     return []
@@ -476,31 +495,6 @@ export async function getAheadBehind(
   } catch {
     return null;
   }
-}
-
-/**
- * Applies a patch string to the staging area via stdin.
- * Pass `reverse = true` to unstage the hunks.
- */
-export async function gitApplyPatch(
-  cwd: string,
-  patch: string,
-  reverse = false,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const args = ["apply", "--cached", "--whitespace=nowarn"];
-    if (reverse) args.push("--reverse");
-    const child = spawn("git", args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
-    let stderr = "";
-    child.stderr?.on("data", (d: Buffer) => {
-      stderr += d.toString();
-    });
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(stderr.trim() || `git apply failed with code ${code}`));
-    });
-    child.stdin?.end(patch);
-  });
 }
 
 /** Returns the full staged diff (`git diff --cached`). */

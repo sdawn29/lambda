@@ -18,7 +18,6 @@ import {
   gitFetch,
   gitPull,
   gitGenerateCommitMessage,
-  gitApplyPatch,
 } from "./api"
 import {
   gitKeys,
@@ -170,17 +169,6 @@ export function useGitPull(sessionId: string) {
       await invalidateGitSession(queryClient, sessionId)
       await invalidateWorkspaceFiles(queryClient)
     },
-  })
-}
-
-// ── Apply patch (hunk staging) ────────────────────────────────────────────────
-
-export function useGitApplyPatch(sessionId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ patch, reverse }: { patch: string; reverse?: boolean }) =>
-      gitApplyPatch(sessionId, patch, reverse),
-    onSuccess: () => invalidateGitSession(queryClient, sessionId),
   })
 }
 
