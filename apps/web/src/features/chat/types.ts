@@ -84,7 +84,7 @@ export interface ErrorMessage {
 }
 
 export type ErrorAction =
-  | { type: "retry"; prompt?: string }
+  | { type: "retry"; prompt?: string; thinkingLevel?: string }
   | { type: "continue" }
   | { type: "dismiss" }
 

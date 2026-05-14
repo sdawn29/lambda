@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, type ReactNode } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import { useMainTabsStore } from "@/features/main-tabs/store"
 
 import { useWorkspaces } from "./queries"
 import {
@@ -163,6 +164,7 @@ export function useWorkspace() {
 export function useCreateWorkspaceAction() {
   const { createWorkspace, cloneRepository } = useWorkspace()
   const navigate = useNavigate()
+  const addThreadTab = useMainTabsStore((s) => s.addThreadTab)
 
   const handleCreateLocal = useCallback(
     async (path: string) => {
@@ -170,13 +172,14 @@ export function useCreateWorkspaceAction() {
       const workspace = await createWorkspace(folderName, path)
       const firstThread = workspace.threads[0]
       if (firstThread) {
+        addThreadTab(firstThread.id, firstThread.title, true)
         navigate({
           to: "/workspace/$threadId",
           params: { threadId: firstThread.id },
         })
       }
     },
-    [createWorkspace, navigate]
+    [createWorkspace, navigate, addThreadTab]
   )
 
   const handleCreateRemote = useCallback(
@@ -184,13 +187,14 @@ export function useCreateWorkspaceAction() {
       const workspace = await cloneRepository(url, path)
       const firstThread = workspace.threads[0]
       if (firstThread) {
+        addThreadTab(firstThread.id, firstThread.title, true)
         navigate({
           to: "/workspace/$threadId",
           params: { threadId: firstThread.id },
         })
       }
     },
-    [cloneRepository, navigate]
+    [cloneRepository, navigate, addThreadTab]
   )
 
   return { handleCreateLocal, handleCreateRemote }

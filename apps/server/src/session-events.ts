@@ -509,10 +509,13 @@ class SessionEventHub {
 
         // Create assistant block in DB
         const blockId = insertAssistantStartBlock(this.threadId);
+        // Preserve thinkingLevel across multiple message_starts in one agent turn
+        // (e.g. after tool calls). pendingThinkingLevel is only set for the first call.
+        const inheritedThinkingLevel = this.turnContext?.thinkingLevel;
         this.turnContext = {
           assistantBlockId: blockId,
           startTime: Date.now(),
-          thinkingLevel: this.pendingThinkingLevel ?? undefined,
+          thinkingLevel: inheritedThinkingLevel ?? this.pendingThinkingLevel ?? undefined,
         };
         this.pendingThinkingLevel = null;
       }

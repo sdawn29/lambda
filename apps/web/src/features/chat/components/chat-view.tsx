@@ -170,9 +170,9 @@ export function ChatView({
         dismissError(id)
       } else if (action.type === "retry" && action.prompt) {
         dismissError(id)
-        startUserPrompt(action.prompt)
+        startUserPrompt(action.prompt, action.thinkingLevel)
         sendPromptMutation.mutate(
-          { text: action.prompt },
+          { text: action.prompt, thinkingLevel: action.thinkingLevel },
           { onError: markSendFailed }
         )
       }
@@ -540,14 +540,19 @@ export function ChatView({
                   !initialSnapshot.keys.has(key)
                 // Only show the metadata bar (time + copy) on the last assistant
                 // block in a turn — i.e. when no further assistant message follows
-                // before the next user/error/abort message.
+                // before the next user/error/abort message, and only once the turn
+                // is complete (not while the agent is still streaming).
                 let isLastInTurn = true
                 let turnMessages: AssistantMessage[] | undefined
                 if (message.role === "assistant") {
-                  for (let j = index + 1; j < visibleMessages.length; j++) {
-                    if (visibleMessages[j].role !== "tool") {
-                      isLastInTurn = visibleMessages[j].role !== "assistant"
-                      break
+                  if (isLoading) {
+                    isLastInTurn = false
+                  } else {
+                    for (let j = index + 1; j < visibleMessages.length; j++) {
+                      if (visibleMessages[j].role !== "tool") {
+                        isLastInTurn = visibleMessages[j].role !== "assistant"
+                        break
+                      }
                     }
                   }
                   if (isLastInTurn) {

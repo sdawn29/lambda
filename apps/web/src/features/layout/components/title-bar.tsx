@@ -428,7 +428,7 @@ export function TitleBar() {
               className="min-w-0 truncate text-sm font-semibold text-foreground"
               title={fileRelativePath}
             >
-              {fileRelativePath || activeTabFile.title}
+              {activeTabFile.title}
             </span>
           </div>
         ) : null}

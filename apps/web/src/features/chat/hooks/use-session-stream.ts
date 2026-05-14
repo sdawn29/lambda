@@ -419,7 +419,7 @@ export function useSessionStream({
                 createErrorMessage("Retry Failed", finalError, {
                   retryable: true,
                   action: lastPrompt
-                    ? { type: "retry", prompt: lastPrompt.text }
+                    ? { type: "retry", prompt: lastPrompt.text, thinkingLevel: lastPrompt.thinkingLevel }
                     : { type: "dismiss" },
                 })
               )
@@ -459,7 +459,7 @@ export function useSessionStream({
               createErrorMessage("Error", message, {
                 retryable: true,
                 action: lastPrompt
-                  ? { type: "retry", prompt: lastPrompt.text }
+                  ? { type: "retry", prompt: lastPrompt.text, thinkingLevel: lastPrompt.thinkingLevel }
                   : { type: "dismiss" },
               })
             )
@@ -478,7 +478,7 @@ export function useSessionStream({
                 "The connection to the server was lost. Please try again.",
                 {
                   action: lastPrompt
-                    ? { type: "retry", prompt: lastPrompt.text }
+                    ? { type: "retry", prompt: lastPrompt.text, thinkingLevel: lastPrompt.thinkingLevel }
                     : { type: "dismiss" },
                 }
               )
@@ -577,9 +577,13 @@ export function useSessionStream({
             if (doneFlag.current) return
             if (data.message?.role !== "assistant") return
             agentRunningRef.current = true
+            // Preserve thinkingLevel across multiple message_starts within one agent turn.
+            // pendingThinkingLevelRef is only populated for the first LLM call; subsequent
+            // calls (after tool results) must inherit the level set by the user.
+            const inheritedThinkingLevel = turnMetaRef.current?.thinkingLevel
             turnMetaRef.current = {
               startTime: Date.now(),
-              thinkingLevel: pendingThinkingLevelRef.current ?? undefined,
+              thinkingLevel: inheritedThinkingLevel ?? pendingThinkingLevelRef.current ?? undefined,
             }
             pendingThinkingLevelRef.current = null
             enqueue({ kind: "message_start" })
