@@ -67,6 +67,18 @@ function WorkspaceThreadRoute() {
     [foundWorkspace, threadId]
   )
 
+  // Keep a stable sessionId for DiffPanel that only changes when the workspace
+  // changes, not when the user switches threads within the same workspace.
+  // Git data (status, diffs, stash) is workspace-level, not thread-level.
+  const prevWorkspaceIdRef = useRef<string | undefined>(undefined)
+  const diffPanelSessionIdRef = useRef<string | null>(null)
+  const currentWorkspaceId = foundWorkspace?.id
+  if (currentWorkspaceId !== prevWorkspaceIdRef.current) {
+    prevWorkspaceIdRef.current = currentWorkspaceId
+    diffPanelSessionIdRef.current = foundThread?.sessionId ?? null
+  }
+  const diffPanelSessionId = diffPanelSessionIdRef.current
+
   // Set workspace path in diff panel context for breadcrumb navigation
   const currentPathRef = useRef<string | null>(null)
   useEffect(() => {
@@ -117,7 +129,7 @@ function WorkspaceThreadRoute() {
         <div className="flex min-w-0 flex-1">
           <Suspense fallback={<div className="h-full flex-1 bg-muted/10" />}>
             <DiffPanel
-              sessionId={foundThread.sessionId!}
+              sessionId={diffPanelSessionId ?? foundThread.sessionId!}
               openWithAppId={foundWorkspace.openWithAppId}
             />
           </Suspense>
@@ -167,7 +179,7 @@ function WorkspaceThreadRoute() {
                 }
               >
                 <DiffPanel
-                  sessionId={foundThread.sessionId!}
+                  sessionId={diffPanelSessionId ?? foundThread.sessionId!}
                   openWithAppId={foundWorkspace.openWithAppId}
                 />
               </Suspense>

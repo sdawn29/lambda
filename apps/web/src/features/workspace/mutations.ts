@@ -30,6 +30,7 @@ import {
 } from "@/features/chat/api"
 import { chatKeys } from "@/features/chat/queries"
 import { gitKeys } from "@/features/git/queries"
+import { useMainTabsStore } from "@/features/main-tabs/store"
 
 function setWorkspacesData(
   queryClient: QueryClient,
@@ -310,6 +311,7 @@ export function useArchiveThread() {
       )
       queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
       queryClient.invalidateQueries({ queryKey: ["threads", "archived"] })
+      useMainTabsStore.getState().closeTab(`thread-${threadId}`)
     },
   })
 }

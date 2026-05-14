@@ -251,21 +251,9 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   const isWrite = normalizedToolName === "write" && isWriteArgs(msg.args)
   const writeArgs = isWrite ? (msg.args as WriteArgs) : null
 
-  // Edit and write tools auto-expand; everything else starts collapsed.
-  // The useEffect below keeps expanded in sync if isWrite/isEdit first
-  // resolves to true on a re-render rather than at mount (e.g. when args
-  // stream in after the component already mounted).
-  const [expanded, setExpanded] = useState(isEdit || isWrite)
+  const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if ((isEdit || isWrite) && !expanded) {
-      setExpanded(true)
-    }
-    // Only auto-expand, never auto-collapse via this effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, isWrite])
 
   useEffect(() => {
     return () => {

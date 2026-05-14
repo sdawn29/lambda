@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import type { ErrorAction } from "../types"
+import type { AssistantMessage, ErrorAction } from "../types"
 import {
   ArrowDownIcon,
   Code2Icon,
@@ -23,7 +23,6 @@ import {
   AlertDialogAction,
 } from "@/shared/ui/alert-dialog"
 import { Button } from "@/shared/ui/button"
-import { useWorkspace } from "@/features/workspace"
 import { useSlashCommands, useSessionStats, chatKeys } from "../queries"
 import { useBranch } from "@/features/git/queries"
 import { useBranches } from "@/features/git/queries"
@@ -37,6 +36,7 @@ import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
 import {
   useUpdateThreadModel,
   useUpdateThreadStopped,
+  useUpdateThreadTitle,
 } from "@/features/workspace/mutations"
 import { useChatStream } from "../use-chat-stream"
 import { getChatSyncEngine } from "../hooks/use-chat-sync-engine"
@@ -97,7 +97,7 @@ export function ChatView({
   // Tracks the last-rendered session so we can detect switches during render.
   const [localSessionId, setLocalSessionId] = useState(sessionId)
   const scrollSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const { setThreadTitle } = useWorkspace()
+  const updateTitleMutation = useUpdateThreadTitle()
 
   // React's "adjusting state while rendering" pattern — reset all session-local
   // state in one batched pass when the active session changes, avoiding the
@@ -211,62 +211,63 @@ export function ChatView({
   // ── Restore scroll position or scroll to bottom on thread change ──────────────
   // If the thread has been visited before and has a saved position, restore it.
   // Otherwise, scroll to bottom (new thread behavior).
-  useEffect(() => {
+  // useLayoutEffect runs before the browser paints, so scroll position is
+  // applied atomically with the DOM update — no one-frame flash of wrong position.
+  useLayoutEffect(() => {
     initialScrollDoneRef.current = false
     pinnedRef.current = true
 
-    const frame = requestAnimationFrame(() => {
-      const el = scrollContainerRef.current
-      if (!el) return
+    const el = scrollContainerRef.current
+    if (!el) return
 
-      // Update scroll button visibility inside RAF callback to avoid sync setState in effect
-      setShowScrollButton(false)
+    // Check if this thread has been visited before
+    // First check query cache, then localStorage
+    let savedMeta = queryClient.getQueryData<{
+      scrollTop: number
+      isPinned: boolean
+      visited?: boolean
+    }>(chatKeys.scroll(sessionId))
 
-      // Check if this thread has been visited before
-      // First check query cache, then localStorage
-      let savedMeta = queryClient.getQueryData<{
-        scrollTop: number
-        isPinned: boolean
-        visited?: boolean
-      }>(chatKeys.scroll(sessionId))
-
-      // If not in cache, check localStorage (persisted across sessions)
-      if (!savedMeta?.visited) {
-        const localMeta = syncEngine.getScrollMeta(sessionId)
-        if (localMeta) {
-          savedMeta = localMeta
-        }
+    // If not in cache, check localStorage (persisted across sessions)
+    if (!savedMeta?.visited) {
+      const localMeta = syncEngine.getScrollMeta(sessionId)
+      if (localMeta) {
+        savedMeta = localMeta
       }
+    }
 
-      if (savedMeta?.visited) {
-        // Restore previous scroll position
-        el.scrollTop = savedMeta.scrollTop
-        pinnedRef.current = savedMeta.isPinned
-      } else {
-        // New thread - scroll to bottom and mark as visited
-        el.scrollTop = el.scrollHeight
-        // Mark as visited so next time we restore this position
-        const visitedMeta = {
-          scrollTop: el.scrollTop,
-          isPinned: pinnedRef.current,
-          visited: true,
-        }
-        queryClient.setQueryData(chatKeys.scroll(sessionId), visitedMeta)
-        syncEngine.saveScrollMeta(sessionId, visitedMeta)
+    if (savedMeta?.visited) {
+      // Restore previous scroll position
+      el.scrollTop = savedMeta.scrollTop
+      pinnedRef.current = savedMeta.isPinned
+    } else {
+      // New thread - scroll to bottom and mark as visited
+      el.scrollTop = el.scrollHeight
+      // Mark as visited so next time we restore this position
+      const visitedMeta = {
+        scrollTop: el.scrollTop,
+        isPinned: pinnedRef.current,
+        visited: true,
       }
-    })
+      queryClient.setQueryData(chatKeys.scroll(sessionId), visitedMeta)
+      syncEngine.saveScrollMeta(sessionId, visitedMeta)
+    }
 
-    return () => cancelAnimationFrame(frame)
+    // Sync scroll button visibility with the restored position (no setState needed
+    // here since pinnedRef drives the auto-scroll effect, not showScrollButton).
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    setShowScrollButton(distanceFromBottom >= 80)
   }, [threadId, sessionId, queryClient, syncEngine])
 
   useEffect(() => {
-    if (!pinnedRef.current) return
     const el = scrollContainerRef.current
     if (!el) return
     const frame = requestAnimationFrame(() => {
-      // Always use instant scrollTop assignment for reliability.
-      // scrollIntoView with smooth behavior can be interrupted by DOM
-      // updates mid-animation, leaving the view short of the true bottom.
+      // Guard inside the RAF so it's checked after useLayoutEffect has already
+      // set pinnedRef to the restored value for this thread. If we checked
+      // pinnedRef before the RAF, we'd always read `true` (set at the top of
+      // the layout effect) and incorrectly scroll to bottom on every switch.
+      if (!pinnedRef.current) return
       el.scrollTop = el.scrollHeight
     })
 
@@ -350,7 +351,7 @@ export function ChatView({
       if (!hasConversationHistory) {
         generateTitleMutation.mutate(text, {
           onSuccess: ({ title }) =>
-            setThreadTitle(workspaceId, threadId, title),
+            updateTitleMutation.mutate({ workspaceId, threadId, title }),
         })
       }
       pinnedRef.current = true
@@ -377,7 +378,7 @@ export function ChatView({
       startUserPrompt,
       workspaceId,
       threadId,
-      setThreadTitle,
+      updateTitleMutation,
       updateThreadStopped,
     ]
   )
@@ -490,6 +491,27 @@ export function ChatView({
                   initialSnapshot !== null &&
                   initialSnapshot.sessionId === sessionId &&
                   !initialSnapshot.keys.has(key)
+                // Only show the metadata bar (time + copy) on the last assistant
+                // block in a turn — i.e. when no further assistant message follows
+                // before the next user/error/abort message.
+                let isLastInTurn = true
+                let turnMessages: AssistantMessage[] | undefined
+                if (message.role === "assistant") {
+                  for (let j = index + 1; j < visibleMessages.length; j++) {
+                    if (visibleMessages[j].role !== "tool") {
+                      isLastInTurn = visibleMessages[j].role !== "assistant"
+                      break
+                    }
+                  }
+                  if (isLastInTurn) {
+                    turnMessages = []
+                    for (let j = index; j >= 0; j--) {
+                      const m = visibleMessages[j]
+                      if (m.role === "user" || m.role === "abort") break
+                      if (m.role === "assistant") turnMessages.unshift(m as AssistantMessage)
+                    }
+                  }
+                }
                 return (
                   <div key={key} className="pb-3">
                     <MessageRow
@@ -498,6 +520,8 @@ export function ChatView({
                       showThinking={showThinkingSetting}
                       onAction={handleErrorAction}
                       isNewMessage={isNewMessage}
+                      isLastInTurn={isLastInTurn}
+                      turnMessages={turnMessages}
                     />
                   </div>
                 )

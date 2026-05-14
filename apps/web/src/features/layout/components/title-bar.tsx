@@ -123,7 +123,16 @@ export function TitleBar() {
       urlActiveWorkspace?.id ?? "",
       urlActiveWorkspace?.path ?? ""
     )
-  const activeSessionId = urlActiveThread?.sessionId ?? ""
+  // Stable sessionId for diffStat — only refreshes when the workspace changes,
+  // not when the user switches threads within the same workspace.
+  const prevDiffWorkspaceIdRef = useRef<string | undefined>(undefined)
+  const stableDiffSessionIdRef = useRef<string>("")
+  if (urlActiveWorkspace?.id !== prevDiffWorkspaceIdRef.current) {
+    prevDiffWorkspaceIdRef.current = urlActiveWorkspace?.id
+    stableDiffSessionIdRef.current = urlActiveThread?.sessionId ?? ""
+  }
+  const activeSessionId = stableDiffSessionIdRef.current
+
   const { data: platform } = useElectronPlatform()
   const { data: isFullscreen = false } = useElectronFullscreen()
   const { data: diffStat } = useGitDiffStat(activeSessionId)

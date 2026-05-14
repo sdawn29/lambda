@@ -59,12 +59,16 @@ interface AssistantMessageBlockProps {
   message: AssistantMessage
   showThinking: boolean
   isNew?: boolean
+  isLastInTurn?: boolean
+  turnMessages?: AssistantMessage[]
 }
 
 function AssistantMessageBlock({
   message,
   showThinking,
   isNew = true,
+  isLastInTurn = true,
+  turnMessages,
 }: AssistantMessageBlockProps) {
   const hasThinking = showThinking && message.thinking.trim().length > 0
   const hasContent = message.content.length > 0
@@ -120,7 +124,7 @@ function AssistantMessageBlock({
         </div>
       )}
 
-      {!hasError && (
+      {isLastInTurn && !hasError && (
         <div className="flex items-center gap-3">
           {hasMeta && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -147,7 +151,16 @@ function AssistantMessageBlock({
           {message.createdAt != null && (
             <TimeStamp timestamp={message.createdAt} />
           )}
-          <CopyButton text={assistantCopyText(message, showThinking)} />
+          <CopyButton
+            text={
+              turnMessages
+                ? turnMessages
+                    .map((m) => assistantCopyText(m, showThinking))
+                    .filter(Boolean)
+                    .join("\n\n")
+                : assistantCopyText(message, showThinking)
+            }
+          />
         </div>
       )}
     </div>
@@ -262,6 +275,8 @@ export interface MessageRowProps {
   showThinking: boolean
   onAction?: (action: ErrorAction, id: string) => void
   isNewMessage?: boolean
+  isLastInTurn?: boolean
+  turnMessages?: AssistantMessage[]
 }
 
 function AbortBlock({ message: _ }: { message: AbortMessage }) {
@@ -283,6 +298,8 @@ export const MessageRow = memo(function MessageRow({
   showThinking,
   onAction,
   isNewMessage = true,
+  isLastInTurn = true,
+  turnMessages,
 }: MessageRowProps) {
   if (message.role === "tool") {
     return <ToolCallBlock msg={message} isNew={isNewMessage} />
@@ -335,6 +352,8 @@ export const MessageRow = memo(function MessageRow({
       message={message}
       showThinking={showThinking}
       isNew={isNewMessage}
+      isLastInTurn={isLastInTurn}
+      turnMessages={turnMessages}
     />
   )
 })
