@@ -459,7 +459,8 @@ export function SettingsPage() {
         {/* Footer */}
         <div className="mt-auto border-t px-3 py-3">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="font-mono font-medium">λ Code</span>
+            <span className="font-black" style={{ color: "#d4a017" }}>Λ</span>
+            <span className="font-medium">Lamda</span>
             {import.meta.env.DEV ? (
               <Badge variant="outline" className="ml-auto">
                 dev

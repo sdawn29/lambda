@@ -15,8 +15,8 @@ export function TabsEmptyState() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-10 select-none">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
-          <span className="font-mono text-2xl font-bold leading-none text-primary">λ</span>
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-[#1c1c1e] ring-1 ring-white/5 shadow-md">
+          <span className="font-black text-2xl leading-none" style={{ color: "#d4a017" }}>Λ</span>
         </div>
         <div className="space-y-1">
           <p className="text-base font-semibold tracking-tight">Lamda</p>

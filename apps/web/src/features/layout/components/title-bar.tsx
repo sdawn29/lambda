@@ -256,6 +256,11 @@ export function TitleBar() {
         )}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
+        <div className="flex items-center gap-1 select-none">
+          <span className="font-black text-sm leading-none" style={{ color: "#d4a017" }}>Λ</span>
+          <span className="text-xs font-semibold tracking-wide text-foreground/70">Lamda</span>
+        </div>
+        <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
         <Tooltip>
           <TooltipTrigger
             render={

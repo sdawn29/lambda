@@ -98,8 +98,8 @@ export function WorkspaceEmptyState() {
         <div className="animate-in fade-in-0 zoom-in-95 duration-300 w-full max-w-md space-y-7">
           {/* Brand header */}
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
-              <span className="font-mono text-3xl font-bold leading-none text-primary">λ</span>
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-[#1c1c1e] ring-1 ring-white/5 shadow-md">
+              <span className="font-black text-3xl leading-none" style={{ color: "#d4a017" }}>Λ</span>
             </div>
             <div className="space-y-1">
               <h1 className="text-xl font-semibold tracking-tight">Welcome to Lamda</h1>

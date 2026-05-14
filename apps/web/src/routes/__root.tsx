@@ -32,6 +32,7 @@ import {
 import { SettingsModal, ConfigureProviderModal } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
+import { SplashScreen } from "@/shared/components/splash-screen"
 import { Toaster } from "@/shared/ui/sonner"
 import { cn } from "@/shared/lib/utils"
 
@@ -254,7 +255,7 @@ function RootLayoutInner() {
   }, [activeTerminalOpen])
 
   if (isLoading) {
-    return
+    return <SplashScreen />
   }
 
   return (
@@ -313,7 +314,7 @@ function RootLayoutInner() {
 function RootLayoutGate() {
   const { data: serverStatus } = useElectronServerStatus()
 
-  if (!serverStatus) return null
+  if (!serverStatus || serverStatus.status === "starting") return <SplashScreen />
   if (serverStatus.status !== "ready") {
     return <ServerUnavailable status={serverStatus} />
   }

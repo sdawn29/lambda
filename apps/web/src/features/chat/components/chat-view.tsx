@@ -453,8 +453,8 @@ export function ChatView({
           {visibleMessages.length === 0 && !isLoading && (
             <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-6 text-center select-none">
               <div className="flex flex-col items-center gap-3">
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
-                  <span className="font-mono text-3xl font-bold leading-none text-primary">λ</span>
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-[#1c1c1e] ring-1 ring-white/5 shadow-md">
+                  <span className="font-black text-3xl leading-none" style={{ color: "#d4a017" }}>Λ</span>
                 </div>
                 <div className="space-y-1.5">
                   <p className="text-lg font-semibold tracking-tight">How can I help?</p>
