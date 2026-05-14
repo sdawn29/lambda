@@ -21,25 +21,31 @@ export type MainTab = ThreadMainTab | FileMainTab
 interface MainTabsStore {
   tabs: MainTab[]
   activeTabId: string | null
-  addThreadTab: (threadId: string, title: string) => void
+  pendingThreadIds: Set<string>
+  addThreadTab: (threadId: string, title: string, pending?: boolean) => void
   addFileTab: (tab: Omit<FileMainTab, "id" | "type">) => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
   updateThreadTitle: (threadId: string, title: string) => void
+  confirmThread: (threadId: string) => void
   reorderTabs: (draggedId: string, targetId: string, before: boolean) => void
 }
 
 export const useMainTabsStore = create<MainTabsStore>()((set) => ({
   tabs: [],
   activeTabId: null,
+  pendingThreadIds: new Set(),
 
-  addThreadTab: (threadId, title) =>
+  addThreadTab: (threadId, title, pending = false) =>
     set((s) => {
       const existing = s.tabs.find((t) => t.type === "thread" && t.threadId === threadId)
       if (existing) return { activeTabId: existing.id }
       const id = `thread-${threadId}`
       const newTab: ThreadMainTab = { id, type: "thread", threadId, title }
-      return { tabs: [...s.tabs, newTab], activeTabId: id }
+      const pendingThreadIds = pending
+        ? new Set([...s.pendingThreadIds, threadId])
+        : s.pendingThreadIds
+      return { tabs: [...s.tabs, newTab], activeTabId: id, pendingThreadIds }
     }),
 
   addFileTab: (tab) =>
@@ -66,6 +72,14 @@ export const useMainTabsStore = create<MainTabsStore>()((set) => ({
     }),
 
   setActiveTab: (id) => set({ activeTabId: id }),
+
+  confirmThread: (threadId) =>
+    set((s) => {
+      if (!s.pendingThreadIds.has(threadId)) return s
+      const next = new Set(s.pendingThreadIds)
+      next.delete(threadId)
+      return { pendingThreadIds: next }
+    }),
 
   updateThreadTitle: (threadId, title) =>
     set((s) => {

@@ -1,5 +1,5 @@
 import { createRootRoute, Outlet, useParams } from "@tanstack/react-router"
-import { lazy, Suspense, useCallback, useEffect, useRef } from "react"
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { AppSidebar } from "@/features/workspace"
@@ -14,12 +14,14 @@ import { TooltipProvider } from "@/shared/ui/tooltip"
 import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { useTerminal } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
+import { useFileTree } from "@/features/file-tree"
 import {
   MainTabBar,
   FileContentView,
   TabsEmptyState,
   useMainTabs,
 } from "@/features/main-tabs"
+
 import { usePrefetchThreadsMessages } from "@/features/chat/hooks"
 import {
   ServerUnavailable,
@@ -39,46 +41,166 @@ const TerminalPanel = lazy(() =>
   }))
 )
 
+const DiffPanel = lazy(() =>
+  import("@/features/git").then((module) => ({
+    default: module.DiffPanel,
+  }))
+)
+
+const FileTree = lazy(() =>
+  import("@/features/file-tree").then((module) => ({
+    default: module.FileTree,
+  }))
+)
+
 function MainContentArea() {
   const { activeTab, tabs, addFileTab } = useMainTabs()
   const { workspaces } = useWorkspace()
   const { threadId } = useParams({ strict: false }) as { threadId?: string }
+  const { isOpen: diffOpen, isFullscreen: diffFullscreen } = useDiffPanel()
+  const { isOpen: fileTreeOpen } = useFileTree()
 
-  const workspacePath = activeTab?.type === "file" ? activeTab.workspacePath : undefined
+  // Compute thread workspace info for panel state
+  const threadWorkspace = workspaces.find((ws) =>
+    ws.threads.some((t) => t.id === threadId)
+  )
+  const threadObj = threadWorkspace?.threads.find((t) => t.id === threadId)
+
+  // Stable sessionId for DiffPanel: only resets when the workspace changes,
+  // not when the user switches threads within the same workspace.
+  const [prevThreadWorkspaceId, setPrevThreadWorkspaceId] = useState<string | undefined>(
+    threadWorkspace?.id
+  )
+  const [diffPanelSessionId, setDiffPanelSessionId] = useState<string | null>(
+    threadObj?.sessionId ?? null
+  )
+  if (threadWorkspace?.id !== prevThreadWorkspaceId) {
+    setPrevThreadWorkspaceId(threadWorkspace?.id)
+    setDiffPanelSessionId(threadObj?.sessionId ?? null)
+  }
+
+  // Compute file tab workspace info
+  const fileWorkspace =
+    activeTab?.type === "file"
+      ? workspaces.find((ws) => ws.path === activeTab.workspacePath)
+      : undefined
+  const fileTabSessionId =
+    fileWorkspace?.threads.find((t) => t.sessionId)?.sessionId ?? null
+  const fileOpenWithAppId =
+    fileWorkspace?.openWithAppId ??
+    (activeTab?.type === "file" ? activeTab.openWithAppId : null) ??
+    null
+
+  const fileWorkspacePath = activeTab?.type === "file" ? activeTab.workspacePath : undefined
   const onOpenFile = useCallback(
     (filePath: string, title: string) =>
-      addFileTab({ filePath, title, workspacePath }),
-    [addFileTab, workspacePath]
+      addFileTab({ filePath, title, workspacePath: fileWorkspacePath }),
+    [addFileTab, fileWorkspacePath]
   )
 
+  const isFileTab = activeTab?.type === "file"
+  const isThreadTab = activeTab?.type === "thread" || (!activeTab && !!threadId)
+
+  // Unified panel state derived from whichever tab type is active
+  const sessionId = isFileTab ? fileTabSessionId : diffPanelSessionId
+  const panelWorkspaceId = isFileTab ? fileWorkspace?.id : threadWorkspace?.id
+  const panelWorkspacePath = isFileTab ? fileWorkspace?.path : threadWorkspace?.path
+  const openWithAppId = isFileTab ? fileOpenWithAppId : (threadWorkspace?.openWithAppId ?? null)
+  const isContentReady = isFileTab
+    ? !!fileTabSessionId
+    : (!!threadWorkspace && !!threadObj && !!threadObj.sessionId)
+
   // Show empty state only when no tabs AND no thread in the URL.
-  // When navigating to a thread route, threadId will be set so the outlet
-  // renders normally, allowing the thread route to mount and register its tab.
   if (tabs.length === 0 && !threadId) {
     return <TabsEmptyState />
   }
 
-  if (activeTab?.type === "file") {
-    const workspace = workspaces.find((ws) => ws.path === activeTab.workspacePath)
-    const openWithAppId = workspace?.openWithAppId ?? activeTab.openWithAppId ?? null
+  const showFullscreen = diffFullscreen && isContentReady && !!sessionId
+
+  // Fullscreen diff mode: DiffPanel takes the full content area.
+  if (showFullscreen) {
     return (
-      <div className="flex h-full flex-col">
-        <MainTabBar />
-        <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="flex h-full overflow-hidden border-t">
+        <div className="flex min-w-0 flex-1">
           <Suspense fallback={<div className="h-full flex-1 bg-muted/10" />}>
-            <FileContentView
-              filePath={activeTab.filePath}
-              workspacePath={activeTab.workspacePath}
-              openWithAppId={openWithAppId}
-              onOpenFile={onOpenFile}
+            <DiffPanel
+              sessionId={sessionId!}
+              openWithAppId={openWithAppId ?? undefined}
             />
           </Suspense>
         </div>
+        {fileTreeOpen && panelWorkspaceId && panelWorkspacePath && (
+          <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
+            <Suspense fallback={<div className="h-full w-full bg-background" />}>
+              <FileTree
+                workspaceId={panelWorkspaceId}
+                workspacePath={panelWorkspacePath}
+              />
+            </Suspense>
+          </div>
+        )}
+        {/* Keep thread route mounted so its effects (setActiveThreadId, etc.) continue running */}
+        {isThreadTab && <Outlet />}
       </div>
     )
   }
 
-  return <Outlet />
+  // Normal mode: single ResizablePanelGroup with shared DiffPanel and FileTree.
+  return (
+    <div className="flex h-full overflow-hidden">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="flex-1"
+      >
+        <ResizablePanel defaultSize={diffOpen ? "55" : "100"} minSize="40">
+          <div className="flex h-full flex-col">
+            <MainTabBar />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {activeTab?.type === "file" ? (
+                <Suspense fallback={<div className="h-full flex-1 bg-muted/10" />}>
+                  <FileContentView
+                    filePath={activeTab.filePath}
+                    workspacePath={activeTab.workspacePath}
+                    openWithAppId={fileOpenWithAppId}
+                    onOpenFile={onOpenFile}
+                  />
+                </Suspense>
+              ) : (
+                <Outlet />
+              )}
+            </div>
+          </div>
+        </ResizablePanel>
+        {diffOpen && isContentReady && sessionId && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize="45" minSize="30">
+              <Suspense
+                fallback={
+                  <div className="h-full border-l border-border/60 bg-muted/10" />
+                }
+              >
+                <DiffPanel
+                  sessionId={sessionId}
+                  openWithAppId={openWithAppId ?? undefined}
+                />
+              </Suspense>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+      {fileTreeOpen && panelWorkspaceId && panelWorkspacePath && (
+        <div className="h-full w-56 shrink-0 border-l border-sidebar-border">
+          <Suspense fallback={<div className="h-full w-full bg-background" />}>
+            <FileTree
+              workspaceId={panelWorkspaceId}
+              workspacePath={panelWorkspacePath}
+            />
+          </Suspense>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function RootLayoutInner() {

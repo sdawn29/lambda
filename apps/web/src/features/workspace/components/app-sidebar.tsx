@@ -5,6 +5,7 @@ import {
   Folder,
   FolderOpen,
   Loader2,
+  MessageSquare,
   MoreHorizontal,
   Pin,
   Plus,
@@ -207,7 +208,7 @@ export function AppSidebar() {
   const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
   const { openSettings } = useSettingsModal()
-  const { addThreadTab } = useMainTabs()
+  const { addThreadTab, pendingThreadIds } = useMainTabs()
 
   async function handleConfirmDelete() {
     if (!deletingWorkspace) return
@@ -242,7 +243,7 @@ export function AppSidebar() {
       ? async () => {
           const thread = await createThread(activeWorkspace.id)
           setCollapsed((prev) => ({ ...prev, [activeWorkspace.id]: false }))
-          addThreadTab(thread.id, thread.title)
+          addThreadTab(thread.id, thread.title, true)
           navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
@@ -256,10 +257,10 @@ export function AppSidebar() {
   const newThreadBinding = useShortcutBinding(SHORTCUT_ACTIONS.NEW_THREAD)
   const openSettingsBinding = useShortcutBinding(SHORTCUT_ACTIONS.OPEN_SETTINGS)
 
-  // Collect all pinned threads across all workspaces
+  // Collect all pinned threads across all workspaces, excluding pending ones
   const pinnedThreads = workspaces.flatMap((ws) =>
     ws.threads
-      .filter((t) => t.isPinned)
+      .filter((t) => t.isPinned && !pendingThreadIds.has(t.id))
       .map((t) => ({ ...t, workspaceId: ws.id, workspaceName: ws.name }))
   )
 
@@ -366,7 +367,7 @@ export function AppSidebar() {
                                 ...prev,
                                 [ws.id]: false,
                               }))
-                              addThreadTab(thread.id, thread.title)
+                              addThreadTab(thread.id, thread.title, true)
                               navigate({
                                 to: "/workspace/$threadId",
                                 params: { threadId: thread.id },
@@ -426,11 +427,11 @@ export function AppSidebar() {
                       </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {!collapsed[ws.id] &&
-                      ws.threads.filter((t) => !t.isPinned).length > 0 && (
+                    {!collapsed[ws.id] && (
+                      ws.threads.filter((t) => !t.isPinned && !pendingThreadIds.has(t.id)).length > 0 ? (
                         <SidebarMenuSub className="animate-in duration-150 fade-in-0 slide-in-from-top-1">
                           {ws.threads
-                            .filter((t) => !t.isPinned)
+                            .filter((t) => !t.isPinned && !pendingThreadIds.has(t.id))
                             .map((thread) => (
                               <ThreadRow
                                 key={thread.id}
@@ -447,7 +448,36 @@ export function AppSidebar() {
                               />
                             ))}
                         </SidebarMenuSub>
-                      )}
+                      ) : (
+                        <div className="animate-in fade-in-0 slide-in-from-top-1 duration-150 mx-2 my-1.5 flex flex-col items-center gap-3 rounded-xl bg-muted/30 px-4 py-4 text-center">
+                          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                            <MessageSquare className="size-3.5 text-primary/60" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[11px] font-medium text-foreground/70">No threads yet</p>
+                            <p className="text-[10px] leading-snug text-muted-foreground/60">
+                              Start a conversation with your AI agent
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-full gap-1 text-[11px]"
+                            onClick={async () => {
+                              const thread = await createThread(ws.id)
+                              addThreadTab(thread.id, thread.title, true)
+                              navigate({
+                                to: "/workspace/$threadId",
+                                params: { threadId: thread.id },
+                              })
+                            }}
+                          >
+                            <Plus className="size-3" />
+                            New thread
+                          </Button>
+                        </div>
+                      )
+                    )}
                   </SidebarMenuItem>
                 ))
               )}

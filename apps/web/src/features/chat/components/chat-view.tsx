@@ -8,6 +8,9 @@ import {
   BugIcon,
   TestTubeIcon,
   PlugZapIcon,
+  Wand2Icon,
+  FileSearchIcon,
+  GitBranchIcon,
 } from "lucide-react"
 
 import { useShortcutHandler } from "@/shared/components/keyboard-shortcuts-provider"
@@ -42,6 +45,16 @@ import {
 import { useChatStream } from "../use-chat-stream"
 import { getChatSyncEngine } from "../hooks/use-chat-sync-engine"
 import { FileChangesCard } from "./file-changes-card"
+import { useMainTabs } from "@/features/main-tabs"
+
+const PROMPT_SUGGESTIONS = [
+  { icon: Code2Icon, text: "Explain this codebase", description: "Walk me through the project structure and key patterns" },
+  { icon: BugIcon, text: "Debug an issue", description: "Describe a bug and let me investigate the root cause" },
+  { icon: TestTubeIcon, text: "Write tests", description: "Add unit, integration, or end-to-end test coverage" },
+  { icon: Wand2Icon, text: "Refactor code", description: "Improve readability, structure, or performance" },
+  { icon: FileSearchIcon, text: "Find something", description: "Locate a function, component, or pattern" },
+  { icon: GitBranchIcon, text: "Review changes", description: "Explain recent git changes in plain language" },
+] as const
 
 interface ChatViewProps {
   sessionId: string
@@ -99,6 +112,7 @@ export function ChatView({
   const [localSessionId, setLocalSessionId] = useState(sessionId)
   const scrollSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const updateTitleMutation = useUpdateThreadTitle()
+  const { confirmThread } = useMainTabs()
 
   // React's "adjusting state while rendering" pattern — reset all session-local
   // state in one batched pass when the active session changes, avoiding the
@@ -355,8 +369,11 @@ export function ChatView({
     ) => {
       if (!hasConversationHistory) {
         generateTitleMutation.mutate(text, {
-          onSuccess: ({ title }) =>
-            updateTitleMutation.mutate({ workspaceId, threadId, title }),
+          onSuccess: ({ title }) => {
+            updateTitleMutation.mutate({ workspaceId, threadId, title })
+            confirmThread(threadId)
+          },
+          onError: () => confirmThread(threadId),
         })
       }
       pinnedRef.current = true
@@ -385,6 +402,7 @@ export function ChatView({
       threadId,
       updateTitleMutation,
       updateThreadStopped,
+      confirmThread,
     ]
   )
 
@@ -433,18 +451,14 @@ export function ChatView({
           className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {visibleMessages.length === 0 && !isLoading && (
-            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-5 px-6 text-center select-none">
+            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-6 text-center select-none">
               <div className="flex flex-col items-center gap-3">
-                <div className="flex size-14 items-center justify-center rounded-2xl border border-border/40 bg-muted/50 shadow-sm">
-                  <span className="text-3xl leading-none font-light text-muted-foreground/40 select-none">
-                    λ
-                  </span>
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                  <span className="font-mono text-3xl font-bold leading-none text-primary">λ</span>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-semibold text-foreground/80">
-                    How can I help?
-                  </p>
-                  <p className="text-xs text-muted-foreground/60">
+                <div className="space-y-1.5">
+                  <p className="text-lg font-semibold tracking-tight">How can I help?</p>
+                  <p className="text-xs text-muted-foreground">
                     Use{" "}
                     <kbd className="rounded border border-border/60 bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">
                       @
@@ -457,23 +471,22 @@ export function ChatView({
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {[
-                  { icon: Code2Icon, text: "Explain this codebase" },
-                  { icon: BugIcon, text: "Find and fix bugs" },
-                  { icon: TestTubeIcon, text: "Write tests" },
-                ].map(({ icon: Icon, text: prompt }) => (
-                  <Button
-                    key={prompt}
+              <div className="grid w-full max-w-lg grid-cols-3 gap-2">
+                {PROMPT_SUGGESTIONS.map(({ icon: Icon, text, description }) => (
+                  <button
+                    key={text}
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => chatTextboxRef.current?.setValue(prompt)}
-                    className="h-auto gap-1.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => chatTextboxRef.current?.setValue(text)}
+                    className="group flex flex-col items-start gap-2 rounded-xl border bg-card/60 p-3 text-left transition-colors hover:border-primary/20 hover:bg-card"
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    {prompt}
-                  </Button>
+                    <div className="flex size-7 items-center justify-center rounded-lg bg-primary/8 text-primary/70 transition-colors group-hover:bg-primary/15">
+                      <Icon className="size-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-medium leading-tight text-foreground/80">{text}</p>
+                      <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">{description}</p>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Loader2, MessageSquare, Plus, X } from "lucide-react"
 import { Icon } from "@iconify/react"
@@ -6,7 +6,6 @@ import { getIconName } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { useMainTabs, type MainTab } from "../store"
-import { FileSearchModal } from "@/features/file-tree"
 import { useWorkspace } from "@/features/workspace"
 import { useThreadStatus } from "@/features/chat"
 
@@ -19,11 +18,10 @@ function ThreadTabIcon({ threadId }: { threadId: string }) {
 }
 
 export function MainTabBar() {
-  const { tabs, activeTabId, activeTab, closeTab, setActiveTab, addFileTab, reorderTabs } = useMainTabs()
+  const { tabs, activeTabId, activeTab, closeTab, setActiveTab, addThreadTab, reorderTabs, pendingThreadIds } = useMainTabs()
   const navigate = useNavigate()
   const { threadId: activeThreadId } = useParams({ strict: false }) as { threadId?: string }
-  const { workspaces } = useWorkspace()
-  const [fileSearchOpen, setFileSearchOpen] = useState(false)
+  const { workspaces, createThread, deleteThread } = useWorkspace()
   const draggedTabId = useRef<string | null>(null)
   const [draggingTabId, setDraggingTabId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null)
@@ -33,15 +31,12 @@ export function MainTabBar() {
       ? workspaces.find((ws) => ws.path === activeTab.workspacePath)
       : workspaces.find((ws) => ws.threads.some((t) => t.id === activeThreadId))
 
-  const handleFileSelect = useCallback(
-    (relativePath: string) => {
-      if (!activeWorkspace) return
-      const fileName = relativePath.split(/[/\\]/).pop() || relativePath
-      const filePath = `${activeWorkspace.path}/${relativePath}`
-      addFileTab({ title: fileName, filePath, workspacePath: activeWorkspace.path })
-    },
-    [activeWorkspace, addFileTab]
-  )
+  const handleNewThread = useCallback(async () => {
+    if (!activeWorkspace) return
+    const thread = await createThread(activeWorkspace.id)
+    addThreadTab(thread.id, thread.title, true)
+    navigate({ to: "/workspace/$threadId", params: { threadId: thread.id } })
+  }, [activeWorkspace, createThread, addThreadTab, navigate])
 
   const handleTabClick = (tab: MainTab) => {
     setActiveTab(tab.id)
@@ -74,19 +69,18 @@ export function MainTabBar() {
       }
     }
 
+    if (tab.type === "thread" && pendingThreadIds.has(tab.threadId)) {
+      const ws = workspaces.find((w) => w.threads.some((t) => t.id === tab.threadId))
+      if (ws) {
+        deleteThread(ws.id, tab.threadId).catch(() => {})
+      }
+    }
+
     closeTab(tab.id)
   }
 
   return (
     <>
-      {activeWorkspace && (
-        <FileSearchModal
-          open={fileSearchOpen}
-          onOpenChange={setFileSearchOpen}
-          workspaceId={activeWorkspace.id}
-          onSelect={handleFileSelect}
-        />
-      )}
       <div className="flex h-9 shrink-0 items-center border-b bg-muted/20 px-1 gap-0.5 overflow-x-auto scrollbar-none">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
@@ -170,9 +164,9 @@ export function MainTabBar() {
 
       {activeWorkspace && (
         <button
-          onClick={() => setFileSearchOpen(true)}
+          onClick={handleNewThread}
           className="flex h-7 items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-          aria-label="Open file"
+          aria-label="New thread"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>

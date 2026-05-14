@@ -4,27 +4,41 @@ import { useKeyboardShortcuts } from "@/shared/components/keyboard-shortcuts-pro
 import { SHORTCUT_LABELS } from "@/shared/lib/keyboard-shortcuts"
 
 const HINTS = [
-  { action: "new_thread", icon: MessageSquarePlus } as const,
-  { action: "open_command_palette", icon: Search } as const,
-  { action: "new_workspace", icon: FolderPlus } as const,
+  { action: "new_thread", icon: MessageSquarePlus, description: "Start a fresh conversation" } as const,
+  { action: "open_command_palette", icon: Search, description: "Jump to any action or file" } as const,
+  { action: "new_workspace", icon: FolderPlus, description: "Open a local or remote repo" } as const,
 ]
 
 export function TabsEmptyState() {
   const { shortcuts } = useKeyboardShortcuts()
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
-      <div>
-        <p className="text-sm font-medium">No open tabs</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Select a thread from the sidebar or use a shortcut to get started.
-        </p>
+    <div className="flex h-full flex-col items-center justify-center gap-10 select-none">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+          <span className="font-mono text-2xl font-bold leading-none text-primary">λ</span>
+        </div>
+        <div className="space-y-1">
+          <p className="text-base font-semibold tracking-tight">Lamda</p>
+          <p className="max-w-[200px] text-xs text-muted-foreground">
+            Your AI-powered coding workspace
+          </p>
+        </div>
       </div>
-      <div className="flex flex-col gap-2">
-        {HINTS.map(({ action, icon: Icon }) => (
-          <div key={action} className="flex items-center gap-3 text-xs text-muted-foreground">
-            <Icon className="size-3.5 shrink-0" />
-            <span className="w-36 text-left">{SHORTCUT_LABELS[action]}</span>
+
+      <div className="w-80 overflow-hidden rounded-xl border bg-card/60">
+        {HINTS.map(({ action, icon: Icon, description }, i) => (
+          <div
+            key={action}
+            className={`group flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-accent/50 ${i !== 0 ? "border-t" : ""}`}
+          >
+            <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary/70 group-hover:bg-primary/12 transition-colors">
+              <Icon className="size-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-foreground/80">{SHORTCUT_LABELS[action]}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{description}</p>
+            </div>
             <ShortcutKbd binding={shortcuts[action]} />
           </div>
         ))}

@@ -109,6 +109,8 @@ export function TitleBar() {
     )
   }, [activeTabFile, workspaces])
 
+  const effectiveWorkspacePath = urlActiveWorkspace?.path ?? fileWorkspace?.path
+
   const fileRelativePath = !activeTabFile
     ? ""
     : !activeTabFile.workspacePath ||
@@ -227,7 +229,7 @@ export function TitleBar() {
   )
   useShortcutHandler(
     SHORTCUT_ACTIONS.TOGGLE_FILE_TREE,
-    urlActiveWorkspace?.path ? toggleFileTree : null
+    effectiveWorkspacePath ? toggleFileTree : null
   )
 
   const { openPalette } = useCommandPalette()
@@ -464,7 +466,8 @@ export function TitleBar() {
                 <Toggle
                   pressed={terminalOpen}
                   onPressedChange={() => toggleTerminal()}
-                  className="size-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+                  disabled={!effectiveWorkspacePath}
+                  className="size-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-30 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
                 >
                   <TerminalSquare className="size-4" />
                   <span className="sr-only">Toggle terminal</span>
@@ -483,7 +486,7 @@ export function TitleBar() {
                 <Toggle
                   pressed={diffOpen}
                   onPressedChange={() => toggleDiff()}
-                  disabled={!urlActiveWorkspace?.path}
+                  disabled={!effectiveWorkspacePath}
                   className="h-7 gap-1.5 px-1.5 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-30 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
                 >
                   <FileDiff className="size-4 shrink-0" />
@@ -514,7 +517,7 @@ export function TitleBar() {
                 <Toggle
                   pressed={fileTreeOpen}
                   onPressedChange={() => toggleFileTree()}
-                  disabled={!urlActiveWorkspace?.path}
+                  disabled={!effectiveWorkspacePath}
                   className="size-7 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-30 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
                 >
                   <FolderTree className="size-4" />
