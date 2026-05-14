@@ -9,7 +9,7 @@ import {
   Settings2,
   FileText,
 } from "lucide-react"
-import { useSettingsModal } from "@/features/settings/context"
+import { useSettingsModal } from "@/features/settings"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"

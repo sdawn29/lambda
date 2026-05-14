@@ -20,7 +20,7 @@ import { messagesQueryKey } from "./queries"
 import { dismissSessionError } from "./api"
 import { createErrorMessage } from "./types"
 import type { ErrorMessage, Message } from "./types"
-import { useSetThreadStatus } from "./thread-status-context"
+import { useSetThreadStatus } from "./thread-status-store"
 import { gitStatusKey, gitKeys } from "@/features/git/queries"
 
 const FILE_MODIFYING_TOOLS = new Set([

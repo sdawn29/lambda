@@ -78,7 +78,7 @@ import {
   eventToBinding,
   type ShortcutAction,
 } from "@/shared/lib/keyboard-shortcuts"
-import { useConfigureProvider } from "../configure-provider-context"
+import { useConfigureProvider } from "../configure-provider-store"
 import { cn } from "@/shared/lib/utils"
 import {
   useElectronUpdateStatus,

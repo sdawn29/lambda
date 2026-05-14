@@ -1,5 +1,5 @@
 import { Dialog, DialogContent } from "@/shared/ui/dialog"
-import { useSettingsModal } from "../context"
+import { useSettingsModal } from "../store"
 import { SettingsPage } from "./settings-page"
 
 export function SettingsModal() {

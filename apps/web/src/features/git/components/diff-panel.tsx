@@ -39,7 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
-import { useDiffPanel, type DiffPanelTab } from "../context"
+import { useDiffPanel, type DiffPanelTab } from "../store"
 import { useMainTabs } from "@/features/main-tabs"
 import { useGitStatus, useLastTurn, useRevertLastTurn } from "../queries"
 import {

@@ -1,4 +1,4 @@
-export { DiffPanelProvider, useDiffPanel } from "./context"
+export { useDiffPanel } from "./store"
 export { DiffPanel } from "./components/diff-panel"
 export { CommitDialog } from "./components/commit-dialog"
 export { BranchSelector } from "./components/branch-selector"

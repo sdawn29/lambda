@@ -24,7 +24,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/shared/ui/command"
-import { useCommandPalette } from "../context"
+import { useCommandPalette } from "../store"
 import {
   useShortcutHandler,
   useShortcutBinding,
@@ -35,10 +35,10 @@ import {
 } from "@/shared/lib/keyboard-shortcuts"
 import { useWorkspace } from "@/features/workspace"
 import { useWorkspaceIndex } from "@/features/workspace/queries"
-import { useTerminalForWorkspace } from "@/features/terminal/context"
-import { useDiffPanel } from "@/features/git/context"
+import { useTerminalForWorkspace } from "@/features/terminal"
+import { useDiffPanel } from "@/features/git"
 import { useMainTabs } from "@/features/main-tabs"
-import { useFileTree } from "@/features/file-tree/context"
+import { useFileTree } from "@/features/file-tree/store"
 import { useSidebar } from "@/shared/ui/sidebar"
 import { useSettingsModal } from "@/features/settings"
 import { useTheme } from "@/shared/components/theme-provider"

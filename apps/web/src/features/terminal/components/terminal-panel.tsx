@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit"
 import { Plus, Trash2, X, TerminalSquare } from "lucide-react"
 import { Button } from "@/shared/ui/button"
 import { useTheme } from "@/shared/components/theme-provider"
-import { useTerminal } from "../context"
+import { useTerminal } from "../store"
 import { getServerUrl } from "@/shared/lib/client"
 import { cn } from "@/shared/lib/utils"
 import "@xterm/xterm/css/xterm.css"
@@ -251,9 +251,9 @@ export const TerminalPanel = memo(function TerminalPanel({
   cwd,
 }: TerminalPanelProps) {
   const ctx = useTerminal()
-  const allStates = ctx.getAllStates()
+  const allStates = ctx.states
 
-  const activeState = allStates.get(activeWorkspaceId)
+  const activeState = allStates[activeWorkspaceId]
   const tabs = activeState?.tabs ?? []
   const activeTabId = activeState?.activeTabId ?? null
 
@@ -335,7 +335,7 @@ export const TerminalPanel = memo(function TerminalPanel({
       {/* Terminal instances — ALL workspace instances are mounted here.
           Inactive workspace/tab instances are CSS-hidden so their PTY connections stay alive. */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        {Array.from(allStates.entries()).flatMap(([wsId, state]) =>
+        {Object.entries(allStates).flatMap(([wsId, state]) =>
           state.tabs.map((tab) => (
             <TerminalInstance
               key={tab.id}

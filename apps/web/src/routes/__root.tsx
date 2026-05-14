@@ -12,11 +12,9 @@ import {
 import { SidebarInset, SidebarProvider } from "@/shared/ui/sidebar"
 import { TooltipProvider } from "@/shared/ui/tooltip"
 import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
-import { TerminalProvider, useTerminal } from "@/features/terminal"
-import { DiffPanelProvider, useDiffPanel } from "@/features/git"
-import { FileTreeProvider } from "@/features/file-tree"
+import { useTerminal } from "@/features/terminal"
+import { useDiffPanel } from "@/features/git"
 import {
-  MainTabsProvider,
   MainTabBar,
   FileContentView,
   TabsEmptyState,
@@ -88,7 +86,7 @@ function RootLayoutInner() {
   const { threadId: activeThreadId } = useParams({ strict: false }) as {
     threadId?: string
   }
-  const { getState } = useTerminal()
+  const { states: terminalStates } = useTerminal()
   const { isFullscreen: diffFullscreen } = useDiffPanel()
 
   // Prefetch all thread messages in the background for instant thread switching
@@ -99,7 +97,7 @@ function RootLayoutInner() {
   )
 
   const activeTerminalState = activeWorkspace
-    ? getState(activeWorkspace.id)
+    ? (terminalStates[activeWorkspace.id] ?? null)
     : null
   // Show the terminal panel when it's open for the active workspace and diff is not fullscreen
   const activeTerminalOpen =
@@ -107,7 +105,7 @@ function RootLayoutInner() {
 
   // Keep panel mounted as long as any workspace has terminal tabs (preserves PTY processes)
   const anyWorkspaceHasTerminals = workspaces.some(
-    (ws) => getState(ws.id).tabs.length > 0
+    (ws) => (terminalStates[ws.id]?.tabs.length ?? 0) > 0
   )
 
   const terminalPanelRef = useRef<PanelImperativeHandle>(null)
@@ -115,7 +113,7 @@ function RootLayoutInner() {
   // When there is no active workspace (e.g. home page), fall back to the first workspace
   // that has terminal tabs so TerminalPanel stays mounted and PTY processes stay alive.
   const terminalHost =
-    activeWorkspace ?? workspaces.find((ws) => getState(ws.id).tabs.length > 0)
+    activeWorkspace ?? workspaces.find((ws) => (terminalStates[ws.id]?.tabs.length ?? 0) > 0)
 
   // Programmatically expand/collapse the panel when the active workspace's terminal state changes.
   // Deferred via setTimeout so the panel has time to register its constraints with the group
@@ -200,17 +198,9 @@ function RootLayoutGate() {
 
   return (
     <WorkspaceProvider>
-      <TerminalProvider>
-        <DiffPanelProvider>
-          <FileTreeProvider>
-            <MainTabsProvider>
-              <RootLayoutInner />
-              <SettingsModal />
-              <ConfigureProviderModal />
-            </MainTabsProvider>
-          </FileTreeProvider>
-        </DiffPanelProvider>
-      </TerminalProvider>
+      <RootLayoutInner />
+      <SettingsModal />
+      <ConfigureProviderModal />
     </WorkspaceProvider>
   )
 }

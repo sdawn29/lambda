@@ -1,5 +1,5 @@
-export { MainTabsProvider, useMainTabs } from "./context"
-export type { MainTab, ThreadMainTab, FileMainTab } from "./context"
+export { useMainTabs } from "./store"
+export type { MainTab, ThreadMainTab, FileMainTab } from "./store"
 export { MainTabBar } from "./components/main-tab-bar"
 export { FileContentView } from "./components/file-content-view"
 export { TabsEmptyState } from "./components/tabs-empty-state"

@@ -1,7 +1,7 @@
 import { memo, useState, useMemo } from "react"
 import { GitCompare, ChevronDown, ChevronRight } from "lucide-react"
 import { useLastTurnChanges } from "@/features/git"
-import { useDiffPanel } from "@/features/git/context"
+import { useDiffPanel } from "@/features/git"
 import { useMainTabs } from "@/features/main-tabs"
 import { Button } from "@/shared/ui/button"
 import { type ChangedFile, parseStatusLine } from "@/features/git/components/status-badge"
