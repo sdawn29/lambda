@@ -744,7 +744,7 @@ export function useSessionStream({
       unsubscribe?.()
       ws?.close()
     }
-  }, [sessionId, enqueue, enqueueNow])
+  }, [sessionId, enqueue, enqueueNow, queryClient])
 
   return {
     lastPromptRef,

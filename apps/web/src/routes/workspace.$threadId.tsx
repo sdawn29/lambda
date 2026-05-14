@@ -73,7 +73,7 @@ function WorkspaceThreadRoute() {
     const newPath = foundWorkspace?.path ?? null
     if (newPath !== currentPathRef.current) {
       currentPathRef.current = newPath
-      setCurrentWorkspace(newPath)
+      setCurrentWorkspace(newPath ?? "")
     }
     return () => {
       currentPathRef.current = null
@@ -93,14 +93,14 @@ function WorkspaceThreadRoute() {
     if (foundThread) {
       addThreadTab(foundThread.id, foundThread.title)
     }
-  }, [foundThread?.id, addThreadTab])
+  }, [foundThread, addThreadTab])
 
   // Keep tab title in sync when thread is renamed
   useEffect(() => {
     if (foundThread) {
       updateThreadTitle(foundThread.id, foundThread.title)
     }
-  }, [foundThread?.id, foundThread?.title, updateThreadTitle])
+  }, [foundThread, updateThreadTitle])
 
   useEffect(() => {
     if (!isLoading && !isFetching && !foundThread) {
@@ -117,7 +117,7 @@ function WorkspaceThreadRoute() {
         <div className="flex min-w-0 flex-1">
           <Suspense fallback={<div className="h-full flex-1 bg-muted/10" />}>
             <DiffPanel
-              sessionId={foundThread.sessionId}
+              sessionId={foundThread.sessionId!}
               openWithAppId={foundWorkspace.openWithAppId}
             />
           </Suspense>
@@ -145,7 +145,7 @@ function WorkspaceThreadRoute() {
             <div className="min-h-0 flex-1 overflow-hidden">
               {isContentReady ? (
                 <ChatView
-                  sessionId={foundThread.sessionId}
+                  sessionId={foundThread.sessionId!}
                   workspaceId={foundWorkspace.id}
                   threadId={foundThread.id}
                   initialModelId={foundThread.modelId}
@@ -167,7 +167,7 @@ function WorkspaceThreadRoute() {
                 }
               >
                 <DiffPanel
-                  sessionId={foundThread.sessionId}
+                  sessionId={foundThread.sessionId!}
                   openWithAppId={foundWorkspace.openWithAppId}
                 />
               </Suspense>

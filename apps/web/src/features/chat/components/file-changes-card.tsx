@@ -32,7 +32,6 @@ export const FileChangesCard = memo(function FileChangesCard({
 
   const handleOpenDiff = () => {
     openDiffPanel()
-    addTab({ title: "Source Control", type: "source-control" })
   }
 
   const handleOpenFileDiff = (filePath: string) => {

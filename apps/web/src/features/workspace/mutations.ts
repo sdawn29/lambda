@@ -185,7 +185,7 @@ export function useUpdateThreadTitle() {
       // No invalidation needed — optimistic update keeps cache consistent.
       // Invalidation would re-fetch all workspaces and trigger unnecessary re-renders.
     },
-    onError: (_error, _variables) => {
+    onError: () => {
       // On error, invalidate to restore server state (title may not have been saved)
       queryClient.invalidateQueries({ queryKey: workspacesQueryKey })
     },
