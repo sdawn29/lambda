@@ -14,7 +14,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip"
 import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { useTerminal } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
-import { useFileTree } from "@/features/file-tree"
+import { useFileTree } from "@/features/file-tree/store"
 import {
   MainTabBar,
   FileContentView,
@@ -306,7 +306,6 @@ function RootLayoutInner() {
         </div>
         <CommandPalette />
       </SidebarProvider>
-      {/* <TanStackRouterDevtools /> */}
     </TooltipProvider>
   )
 }

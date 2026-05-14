@@ -102,7 +102,8 @@ export function ChatView({
   const updateThreadStopped = useUpdateThreadStopped()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(false)
-  const initialScrollDoneRef = useRef(false)
+  const isScrollingToBottomRef = useRef(false)
+  const lastScrollTopRef = useRef(0)
   const chatTextboxRef = useRef<ChatTextboxHandle>(null)
   // Messages present on the first non-empty render (from cache) skip entry animations.
   // Only messages that arrive after the initial snapshot get animate-in treatment.
@@ -229,7 +230,7 @@ export function ChatView({
   // useLayoutEffect runs before the browser paints, so scroll position is
   // applied atomically with the DOM update — no one-frame flash of wrong position.
   useLayoutEffect(() => {
-    initialScrollDoneRef.current = false
+    isScrollingToBottomRef.current = false
     pinnedRef.current = true
 
     const el = scrollContainerRef.current
@@ -293,6 +294,29 @@ export function ChatView({
     const el = scrollContainerRef.current
     if (!el) return
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+
+    if (isScrollingToBottomRef.current) {
+      const scrolledUp = el.scrollTop < lastScrollTopRef.current
+      lastScrollTopRef.current = el.scrollTop
+      if (distanceFromBottom < 10) {
+        // Animation reached the bottom — clear the in-flight flag
+        isScrollingToBottomRef.current = false
+        saveScrollPosition(el.scrollTop)
+        return
+      }
+      if (!scrolledUp) {
+        // Still animating downward — skip pinned/button updates to avoid
+        // flipping pinnedRef false mid-animation (which would break auto-scroll
+        // for any message that arrives before the animation finishes)
+        saveScrollPosition(el.scrollTop)
+        return
+      }
+      // User scrolled up to interrupt the animation — clear flag and handle normally
+      isScrollingToBottomRef.current = false
+    } else {
+      lastScrollTopRef.current = el.scrollTop
+    }
+
     pinnedRef.current = distanceFromBottom < 80
     setShowScrollButton(distanceFromBottom >= 80)
     saveScrollPosition(el.scrollTop)
@@ -301,8 +325,13 @@ export function ChatView({
   const scrollToBottom = useCallback(() => {
     const el = scrollContainerRef.current
     if (!el) return
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
     pinnedRef.current = true
+    setShowScrollButton(false)
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distanceFromBottom < 10) return  // Already at bottom
+    isScrollingToBottomRef.current = true
+    lastScrollTopRef.current = el.scrollTop
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
   }, [])
 
   const handleModelChange = useCallback(

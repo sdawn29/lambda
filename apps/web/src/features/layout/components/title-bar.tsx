@@ -32,7 +32,7 @@ import {
 import { useWorkspace } from "@/features/workspace"
 import { useTerminalForWorkspace } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
-import { useFileTree } from "@/features/file-tree"
+import { useFileTree } from "@/features/file-tree/store"
 import { useElectronFullscreen, useElectronPlatform } from "@/features/electron"
 import { CommitDialog } from "@/features/git"
 import { useGitDiffStat } from "@/features/git/queries"
@@ -48,7 +48,6 @@ import { useCommandPalette } from "@/features/command-palette"
 import { useMainTabs } from "@/features/main-tabs"
 import { getIconName } from "@/shared/ui/file-icon"
 import { cn } from "@/shared/lib/utils"
-
 
 export function TitleBar() {
   const router = useRouter()
@@ -233,7 +232,9 @@ export function TitleBar() {
   )
 
   const { openPalette } = useCommandPalette()
-  const openCommandPaletteBinding = useShortcutBinding(SHORTCUT_ACTIONS.OPEN_COMMAND_PALETTE)
+  const openCommandPaletteBinding = useShortcutBinding(
+    SHORTCUT_ACTIONS.OPEN_COMMAND_PALETTE
+  )
 
   const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
   const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
@@ -252,13 +253,20 @@ export function TitleBar() {
       <div
         className={cn(
           "flex shrink-0 items-center gap-0.5 pr-2",
-          isMac && !isFullscreen ? "pl-20" : "pl-1.5"
+          isMac && !isFullscreen ? "pl-20" : "pl-4"
         )}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <div className="flex items-center gap-1 select-none">
-          <span className="font-black text-sm leading-none" style={{ color: "#d4a017" }}>Λ</span>
-          <span className="text-xs font-semibold tracking-wide text-foreground/70">Lamda</span>
+          <span
+            className="text-sm leading-none font-black"
+            style={{ color: "#d4a017" }}
+          >
+            Λ
+          </span>
+          <span className="text-xs font-semibold tracking-wide text-foreground/70">
+            Lamda
+          </span>
         </div>
         <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
         <Tooltip>
