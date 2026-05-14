@@ -121,6 +121,14 @@ export function gitPush(sessionId: string): Promise<void> {
   return apiFetch<void>(`${base(sessionId)}/push`, { method: "POST" })
 }
 
+export function gitFetch(sessionId: string): Promise<void> {
+  return apiFetch<void>(`${base(sessionId)}/fetch`, { method: "POST" })
+}
+
+export function gitPull(sessionId: string): Promise<void> {
+  return apiFetch<void>(`${base(sessionId)}/pull`, { method: "POST" })
+}
+
 export async function gitClone(url: string, path: string): Promise<void> {
   return apiFetch<void>("/git/clone", {
     method: "POST",
@@ -142,6 +150,56 @@ export async function gitGenerateCommitMessage(
     }
   )
   return message
+}
+
+export interface LogEntry {
+  sha: string
+  shortSha: string
+  author: string
+  date: string
+  subject: string
+}
+
+export async function gitLog(sessionId: string, limit = 50): Promise<LogEntry[]> {
+  const { entries } = await apiFetch<{ entries: LogEntry[] }>(
+    `${base(sessionId)}/log?limit=${limit}`
+  )
+  return entries
+}
+
+export async function gitShow(sessionId: string, sha: string): Promise<string> {
+  const { diff } = await apiFetch<{ diff: string }>(
+    `${base(sessionId)}/show?sha=${encodeURIComponent(sha)}`
+  )
+  return diff
+}
+
+export interface CommitFile {
+  path: string
+  status: string
+}
+
+export async function gitShowFiles(sessionId: string, sha: string): Promise<CommitFile[]> {
+  const { files } = await apiFetch<{ files: CommitFile[] }>(
+    `${base(sessionId)}/show-files?sha=${encodeURIComponent(sha)}`
+  )
+  return files
+}
+
+export async function gitShowFileDiff(sessionId: string, sha: string, filePath: string): Promise<string> {
+  const params = new URLSearchParams({ sha, file: filePath })
+  const { diff } = await apiFetch<{ diff: string }>(
+    `${base(sessionId)}/show-file-diff?${params}`
+  )
+  return diff
+}
+
+export async function getAheadBehind(
+  sessionId: string
+): Promise<{ ahead: number | null; behind: number | null }> {
+  return apiFetch<{ ahead: number | null; behind: number | null }>(
+    `${base(sessionId)}/ahead-behind`
+  )
 }
 
 export async function getLastTurnChanges(sessionId: string): Promise<string> {
@@ -169,4 +227,16 @@ export async function getLastTurn(sessionId: string): Promise<LastTurnFile[]> {
 
 export function revertLastTurn(sessionId: string): Promise<void> {
   return apiFetch<void>(`${base(sessionId)}/last-turn/revert`, { method: "POST" })
+}
+
+export function gitApplyPatch(
+  sessionId: string,
+  patch: string,
+  reverse = false
+): Promise<void> {
+  return apiFetch<void>(`${base(sessionId)}/apply-patch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patch, reverse }),
+  })
 }

@@ -1,6 +1,7 @@
 import { cn } from "@/shared/lib/utils"
-import type { DiffLine, HighlightMap, ThemeStyle } from "./types"
+import type { CharRange, DiffLine, HighlightMap, ThemeStyle, WordDiffMap } from "./types"
 import { getLineTokens, renderTokens } from "./highlight"
+import { renderWithWordDiff } from "./word-diff"
 
 export interface SideBySideRow {
   left: { line: DiffLine; diffIndex: number } | null
@@ -45,10 +46,12 @@ function SideBySideCell({
   entry,
   map,
   themeStyle,
+  wordDiffRanges,
 }: {
   entry: { line: DiffLine; diffIndex: number } | null
   map: HighlightMap
   themeStyle: ThemeStyle
+  wordDiffRanges?: CharRange[]
 }) {
   if (!entry) {
     return <div className="h-5 min-w-full" />
@@ -88,7 +91,29 @@ function SideBySideCell({
           isSkipped && "text-muted-foreground/40 italic"
         )}
       >
-        {isSkipped ? "⋯" : renderTokens(tokens, themeStyle)}
+        {isSkipped ? (
+          "⋯"
+        ) : wordDiffRanges && wordDiffRanges.length > 0 ? (
+          renderWithWordDiff(line.content, wordDiffRanges, isAdded).map((part, i) =>
+            part.highlighted ? (
+              <span
+                key={i}
+                className={cn(
+                  "rounded-sm",
+                  isAdded
+                    ? "bg-green-500/30 dark:bg-green-400/25"
+                    : "bg-red-500/30 dark:bg-red-400/25"
+                )}
+              >
+                {part.text}
+              </span>
+            ) : (
+              <span key={i}>{part.text}</span>
+            )
+          )
+        ) : (
+          renderTokens(tokens, themeStyle)
+        )}
       </span>
     </div>
   )
@@ -98,10 +123,14 @@ function SideBySideColumn({
   entries,
   map,
   themeStyle,
+  wordDiffMap,
+  side,
 }: {
   entries: Array<{ line: DiffLine; diffIndex: number } | null>
   map: HighlightMap
   themeStyle: ThemeStyle
+  wordDiffMap: WordDiffMap
+  side: "left" | "right"
 }) {
   return (
     <div className="min-w-0 overflow-x-auto">
@@ -112,6 +141,13 @@ function SideBySideColumn({
             entry={entry}
             map={map}
             themeStyle={themeStyle}
+            wordDiffRanges={
+              entry
+                ? side === "left"
+                  ? wordDiffMap.removed.get(entry.diffIndex)
+                  : wordDiffMap.added.get(entry.diffIndex)
+                : undefined
+            }
           />
         ))}
       </div>
@@ -123,10 +159,12 @@ export function SideBySideView({
   rows,
   map,
   themeStyle,
+  wordDiffMap,
 }: {
   rows: SideBySideRow[]
   map: HighlightMap
   themeStyle: ThemeStyle
+  wordDiffMap: WordDiffMap
 }) {
   return (
     <div className="grid min-w-0 grid-cols-2 divide-x divide-border/30">
@@ -134,11 +172,15 @@ export function SideBySideView({
         entries={rows.map((row) => row.left)}
         map={map}
         themeStyle={themeStyle}
+        wordDiffMap={wordDiffMap}
+        side="left"
       />
       <SideBySideColumn
         entries={rows.map((row) => row.right)}
         map={map}
         themeStyle={themeStyle}
+        wordDiffMap={wordDiffMap}
+        side="right"
       />
     </div>
   )

@@ -14,18 +14,23 @@ import {
   ChevronDown,
   Columns2,
   AlignLeft,
+  GitCommit,
   GitCompare,
   History,
   Loader2,
   MoreHorizontal,
   PackageMinus,
   PackagePlus,
+  Search,
   Undo2,
   X,
   Maximize2,
   Minimize2,
+  CloudDownload,
+  RefreshCw,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
+import { Input } from "@/shared/ui/input"
 import { Icon } from "@iconify/react"
 import { getIconName } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
@@ -47,12 +52,16 @@ import {
   useGitStageAll,
   useGitStashMutations,
   useGitRevertFile,
+  useGitFetch,
+  useGitPull,
+  useGitApplyPatch,
 } from "../mutations"
 import { type ChangedFile, parseStatusLine } from "./status-badge"
 import { type DiffMode } from "./diff-view"
 import { StashInputBar } from "./stash-input-bar"
 import { StashSection } from "./stash-section"
 import { FilesSection } from "./files-section"
+import { HistoryView } from "./history-view"
 import { FileListItem } from "./file-list-item"
 import { FileHeader } from "./file-header"
 import { SORT_OPTIONS, type SortMode, applySortMode } from "./sort-utils"
@@ -101,7 +110,7 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 // ─── Last Turn View ───────────────────────────────────────────────────────────
 
-type ContentView = "turn" | "all"
+type ContentView = "turn" | "all" | "history"
 
 const LastTurnView = memo(function LastTurnView({
   sessionId,
@@ -195,6 +204,9 @@ const SourceControlToolbarSection = memo(function SourceControlToolbarSection({
 
   const { stageAll, unstageAll } = useGitStageAll(sessionId)
   const bulkWorking = stageAll.isPending || unstageAll.isPending
+  const fetch = useGitFetch(sessionId)
+  const pull = useGitPull(sessionId)
+  const remoteWorking = fetch.isPending || pull.isPending
 
   return (
     <div className="flex shrink-0 items-center gap-0.5">
@@ -237,6 +249,31 @@ const SourceControlToolbarSection = memo(function SourceControlToolbarSection({
             </DropdownMenuItem>
           ) : (
             <>
+              <DropdownMenuItem
+                onClick={() => fetch.mutate()}
+                disabled={remoteWorking}
+                className="flex items-center gap-2"
+              >
+                {fetch.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Fetch
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => pull.mutate()}
+                disabled={remoteWorking}
+                className="flex items-center gap-2"
+              >
+                {pull.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CloudDownload className="h-3.5 w-3.5" />
+                )}
+                Pull
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => stageAll.mutateAsync()}
                 disabled={bulkWorking || !hasUnstaged}
@@ -363,23 +400,28 @@ const SourceControlContent = memo(function SourceControlContent({
     error: statusError,
   } = useGitStatus(sessionId)
 
+  const [filter, setFilter] = useState("")
+
   const { staged, unstaged } = useMemo(() => {
+    const q = filter.toLowerCase()
     const all = (statusRaw ?? "")
       .split("\n")
       .map((l: string) => l.trimEnd())
       .filter(Boolean)
       .map(parseStatusLine)
+    const matchesFilter = (f: ChangedFile) =>
+      !q || f.filePath.toLowerCase().includes(q)
     return {
       staged: applySortMode(
-        all.filter((f: ChangedFile) => f.isStaged),
+        all.filter((f: ChangedFile) => f.isStaged && matchesFilter(f)),
         sortMode
       ),
       unstaged: applySortMode(
-        all.filter((f: ChangedFile) => !f.isStaged),
+        all.filter((f: ChangedFile) => !f.isStaged && matchesFilter(f)),
         sortMode
       ),
     }
-  }, [statusRaw, sortMode])
+  }, [statusRaw, sortMode, filter])
 
   const error = statusError instanceof Error ? statusError.message : null
 
@@ -405,6 +447,22 @@ const SourceControlContent = memo(function SourceControlContent({
     [revertFile]
   )
 
+  const applyPatch = useGitApplyPatch(sessionId)
+
+  const handleStageHunk = useCallback(
+    (hunkPatch: string) => {
+      applyPatch.mutate({ patch: hunkPatch, reverse: false })
+    },
+    [applyPatch]
+  )
+
+  const handleUnstageHunk = useCallback(
+    (hunkPatch: string) => {
+      applyPatch.mutate({ patch: hunkPatch, reverse: true })
+    },
+    [applyPatch]
+  )
+
   const handleStashConfirm = useCallback(
     async (message: string) => {
       try {
@@ -422,6 +480,8 @@ const SourceControlContent = memo(function SourceControlContent({
       <div className="flex min-h-0 flex-1 flex-col">
         {view === "turn" ? (
           <LastTurnView sessionId={sessionId} mode={mode} files={lastTurnFiles} isLoading={lastTurnLoading} />
+        ) : view === "history" ? (
+          <HistoryView sessionId={sessionId} />
         ) : (
           <>
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -431,6 +491,26 @@ const SourceControlContent = memo(function SourceControlContent({
                   onCancel={() => setStashInputOpen(false)}
                 />
               )}
+
+              {/* Filter input */}
+              <div className="relative px-2 py-1.5">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+                <Input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="Filter files…"
+                  className="h-7 pl-7 pr-7 text-xs"
+                />
+                {filter && (
+                  <button
+                    type="button"
+                    onClick={() => setFilter("")}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
 
               {loading && staged.length === 0 && unstaged.length === 0 && (
                 <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
@@ -451,8 +531,17 @@ const SourceControlContent = memo(function SourceControlContent({
                     <GitCompare className="h-5 w-5 text-muted-foreground/40" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground/60">No changes</p>
-                    <p className="text-[10px] text-muted-foreground/40">Your working tree is clean</p>
+                    {filter ? (
+                      <>
+                        <p className="text-xs font-medium text-muted-foreground/60">No files match</p>
+                        <p className="text-[10px] text-muted-foreground/40">Try a different filter</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-medium text-muted-foreground/60">No changes</p>
+                        <p className="text-[10px] text-muted-foreground/40">Your working tree is clean</p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -465,6 +554,8 @@ const SourceControlContent = memo(function SourceControlContent({
                   mode={mode}
                   onStageToggle={handleStageToggle}
                   onRevert={handleRevert}
+                  onStageHunk={handleStageHunk}
+                  onUnstageHunk={handleUnstageHunk}
                   emptyText="No staged changes"
                 />
               )}
@@ -477,6 +568,8 @@ const SourceControlContent = memo(function SourceControlContent({
                   mode={mode}
                   onStageToggle={handleStageToggle}
                   onRevert={handleRevert}
+                  onStageHunk={handleStageHunk}
+                  onUnstageHunk={handleUnstageHunk}
                 />
               )}
             </div>
@@ -893,10 +986,12 @@ export const DiffPanel = memo(function DiffPanel({
                 >
                   {scView === "turn" ? (
                     <History className="h-3 w-3" />
+                  ) : scView === "history" ? (
+                    <GitCommit className="h-3 w-3" />
                   ) : (
                     <GitCompare className="h-3 w-3" />
                   )}
-                  {scView === "turn" ? "This Turn" : "All Changes"}
+                  {scView === "turn" ? "This Turn" : scView === "history" ? "History" : "All Changes"}
                   <ChevronDown className="h-3 w-3 opacity-60" />
                 </Button>
               }
@@ -919,6 +1014,16 @@ export const DiffPanel = memo(function DiffPanel({
                 <GitCompare className="h-3.5 w-3.5" />
                 All Changes
                 {scView === "all" && (
+                  <Check className="ml-auto h-3 w-3 text-muted-foreground" />
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => { setScView("history"); setActiveTab("tab-source-control") }}
+                className="flex items-center gap-2"
+              >
+                <GitCommit className="h-3.5 w-3.5" />
+                History
+                {scView === "history" && (
                   <Check className="ml-auto h-3 w-3 text-muted-foreground" />
                 )}
               </DropdownMenuItem>
@@ -979,8 +1084,8 @@ export const DiffPanel = memo(function DiffPanel({
             })}
           </div>
 
-          {/* Git actions + diff mode — only when SC content is active */}
-          {isSourceControl && (
+          {/* Git actions + diff mode — only when SC content is active and not in history view */}
+          {isSourceControl && scView !== "history" && (
             <SourceControlToolbarSection
               sessionId={sessionId}
               view={scView}

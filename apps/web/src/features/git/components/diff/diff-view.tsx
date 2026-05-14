@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/shared/lib/utils"
 import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
 import { useTheme } from "@/shared/components/theme-provider"
-import type { DiffMode, ThemeStyle } from "./types"
+import type { DiffHunk, DiffMode, ThemeStyle, WordDiffMap } from "./types"
 import { buildHighlightMap, detectLanguage } from "./highlight"
-import { parseDiff } from "./parser"
+import { parseDiff, parseHunks } from "./parser"
 import { DiffRow } from "./diff-row"
 import { buildSideBySideRows, SideBySideView } from "./side-by-side"
+import { buildWordDiffMap } from "./word-diff"
 
 export type { DiffMode }
 export { detectLanguage }
@@ -20,6 +21,9 @@ interface DiffViewProps {
   filePath?: string
   className?: string
   mode?: DiffMode
+  onStageHunk?: (hunkPatch: string) => void
+  onUnstageHunk?: (hunkPatch: string) => void
+  isStaged?: boolean
 }
 
 export function DiffView({
@@ -27,6 +31,9 @@ export function DiffView({
   filePath,
   className,
   mode = "inline",
+  onStageHunk,
+  onUnstageHunk,
+  isStaged,
 }: DiffViewProps) {
   const { theme } = useTheme()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -72,6 +79,14 @@ export function DiffView({
     () => buildHighlightMap(lines, highlightLanguage),
     [highlightLanguage, lines]
   )
+
+  const wordDiffMap: WordDiffMap = useMemo(() => buildWordDiffMap(lines), [lines])
+
+  const hunksByStartIndex = useMemo<Map<number, DiffHunk>>(() => {
+    if (!onStageHunk && !onUnstageHunk) return new Map()
+    const hunks = parseHunks(diff)
+    return new Map(hunks.map((h) => [h.startIndex, h]))
+  }, [diff, onStageHunk, onUnstageHunk])
 
   const sideBySideRows = useMemo(() => {
     if (mode !== "side-by-side") return null
@@ -159,22 +174,38 @@ export function DiffView({
 
         {mode === "inline" ? (
           <div className="w-max min-w-full">
-            {visibleLines.map((line, i) => (
-              <DiffRow
-                key={startIndex + i}
-                line={line}
-                diffIndex={startIndex + i}
-                map={highlightMap}
-                themeStyle={themeStyle}
-              />
-            ))}
+            {visibleLines.map((line, i) => {
+              const absIdx = startIndex + i
+              return (
+                <DiffRow
+                  key={absIdx}
+                  line={line}
+                  diffIndex={absIdx}
+                  map={highlightMap}
+                  themeStyle={themeStyle}
+                  wordDiffRanges={
+                    line.kind === "removed"
+                      ? wordDiffMap.removed.get(absIdx)
+                      : line.kind === "added"
+                        ? wordDiffMap.added.get(absIdx)
+                        : undefined
+                  }
+                  hunk={hunksByStartIndex.get(absIdx)}
+                  onStageHunk={onStageHunk}
+                  onUnstageHunk={onUnstageHunk}
+                  isStaged={isStaged}
+                />
+              )
+            })}
           </div>
         ) : (
+
           visibleSideBySideRows.length > 0 && (
             <SideBySideView
               rows={visibleSideBySideRows}
               map={highlightMap}
               themeStyle={themeStyle}
+              wordDiffMap={wordDiffMap}
             />
           )
         )}

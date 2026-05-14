@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { gitStatus, gitFileDiff, gitDiffStat, gitStashList, getLastTurnChanges, getLastTurn, revertLastTurn } from "./api"
+import { gitStatus, gitFileDiff, gitDiffStat, gitStashList, getLastTurnChanges, getLastTurn, revertLastTurn, getAheadBehind, gitLog, gitShow, gitShowFiles, gitShowFileDiff } from "./api"
 import { getBranch, listBranches } from "@/features/chat/api"
 
 const gitRootKey = ["git"] as const
@@ -25,6 +25,16 @@ export const gitKeys = {
     [...gitSessionKey(sessionId), "last-turn-changes"] as const,
   lastTurn: (sessionId: string) =>
     [...gitSessionKey(sessionId), "last-turn"] as const,
+  aheadBehind: (sessionId: string) =>
+    [...gitSessionKey(sessionId), "ahead-behind"] as const,
+  log: (sessionId: string) =>
+    [...gitSessionKey(sessionId), "log"] as const,
+  show: (sessionId: string, sha: string) =>
+    [...gitSessionKey(sessionId), "show", sha] as const,
+  showFiles: (sessionId: string, sha: string) =>
+    [...gitSessionKey(sessionId), "show-files", sha] as const,
+  showFileDiff: (sessionId: string, sha: string, filePath: string) =>
+    [...gitSessionKey(sessionId), "show-file-diff", sha, filePath] as const,
 }
 
 // ── Git status ────────────────────────────────────────────────────────────────
@@ -112,6 +122,58 @@ export function useBranches(sessionId: string) {
     queryFn: () => listBranches(sessionId),
     enabled: !!sessionId,
     staleTime: 30_000,
+  })
+}
+
+// ── Git Log / Show ────────────────────────────────────────────────────────────
+
+export function useGitLog(sessionId: string) {
+  return useQuery({
+    queryKey: gitKeys.log(sessionId),
+    queryFn: () => gitLog(sessionId),
+    enabled: !!sessionId,
+    staleTime: 10_000,
+  })
+}
+
+export function useGitShow(sessionId: string, sha: string, enabled: boolean) {
+  return useQuery({
+    queryKey: gitKeys.show(sessionId, sha),
+    queryFn: () => gitShow(sessionId, sha),
+    enabled: enabled && !!sessionId && !!sha,
+    gcTime: 60_000,
+    staleTime: Infinity,
+  })
+}
+
+export function useGitShowFiles(sessionId: string, sha: string, enabled: boolean) {
+  return useQuery({
+    queryKey: gitKeys.showFiles(sessionId, sha),
+    queryFn: () => gitShowFiles(sessionId, sha),
+    enabled: enabled && !!sessionId && !!sha,
+    gcTime: 5 * 60_000,
+    staleTime: Infinity,
+  })
+}
+
+export function useGitShowFileDiff(sessionId: string, sha: string, filePath: string, enabled: boolean) {
+  return useQuery({
+    queryKey: gitKeys.showFileDiff(sessionId, sha, filePath),
+    queryFn: () => gitShowFileDiff(sessionId, sha, filePath),
+    enabled: enabled && !!sessionId && !!sha && !!filePath,
+    gcTime: 5 * 60_000,
+    staleTime: Infinity,
+  })
+}
+
+// ── Ahead / Behind ────────────────────────────────────────────────────────────
+
+export function useAheadBehind(sessionId: string) {
+  return useQuery({
+    queryKey: gitKeys.aheadBehind(sessionId),
+    queryFn: () => getAheadBehind(sessionId),
+    enabled: !!sessionId,
+    staleTime: 15_000,
   })
 }
 

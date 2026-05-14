@@ -27,3 +27,20 @@ export interface HighlightMap {
   newLineIndex: number[]
   oldLineIndex: number[]
 }
+
+export interface CharRange {
+  start: number
+  end: number
+}
+
+export interface WordDiffMap {
+  removed: Map<number, CharRange[]>
+  added: Map<number, CharRange[]>
+}
+
+export interface DiffHunk {
+  header: string
+  rawPatch: string
+  startIndex: number
+  lineCount: number
+}

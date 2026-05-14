@@ -12,6 +12,8 @@ import {
   gitFileDiff,
   gitCommit,
   gitPush,
+  gitFetch,
+  gitPull,
   gitStage,
   gitUnstage,
   gitStageAll,
@@ -24,6 +26,12 @@ import {
   gitDiffStat,
   gitRevertFile,
   gitStagedDiff,
+  getAheadBehind,
+  gitLog,
+  gitShow,
+  gitShowFiles,
+  gitShowFileDiff,
+  gitApplyPatch,
 } from "@lamda/git";
 import { generateCommitMessage } from "@lamda/pi-sdk";
 import { store } from "../store.js";
@@ -171,6 +179,77 @@ git.post("/session/:id/git/push", async (c) => {
   }
 });
 
+git.post("/session/:id/git/fetch", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  try {
+    await gitFetch(cwd);
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    return c.json({ error: parseGitError(err, "Fetch failed") }, 500);
+  }
+});
+
+git.post("/session/:id/git/pull", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  try {
+    await gitPull(cwd);
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    return c.json({ error: parseGitError(err, "Pull failed") }, 500);
+  }
+});
+
+git.get("/session/:id/git/ahead-behind", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ ahead: null, behind: null });
+  const result = await getAheadBehind(cwd);
+  return c.json(result ?? { ahead: null, behind: null });
+});
+
+git.get("/session/:id/git/log", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ entries: [] });
+  const limitParam = c.req.query("limit");
+  const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 50, 200) : 50;
+  const raw = await gitLog(cwd, limit);
+  const entries = raw
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [sha, shortSha, author, date, ...subjectParts] = line.split("|");
+      return { sha, shortSha, author, date, subject: subjectParts.join("|") };
+    });
+  return c.json({ entries });
+});
+
+git.get("/session/:id/git/show", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const sha = c.req.query("sha");
+  if (!sha) return c.json({ error: "sha query param is required" }, 400);
+  return c.json({ diff: await gitShow(cwd, sha) });
+});
+
+git.get("/session/:id/git/show-files", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const sha = c.req.query("sha");
+  if (!sha) return c.json({ error: "sha query param is required" }, 400);
+  return c.json({ files: await gitShowFiles(cwd, sha) });
+});
+
+git.get("/session/:id/git/show-file-diff", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const sha = c.req.query("sha");
+  const file = c.req.query("file");
+  if (!sha) return c.json({ error: "sha query param is required" }, 400);
+  if (!file) return c.json({ error: "file query param is required" }, 400);
+  return c.json({ diff: await gitShowFileDiff(cwd, sha, file) });
+});
+
 git.post("/session/:id/git/stage", async (c) => {
   const cwd = gitCwd(c.req.param("id"));
   if (!cwd) return c.json({ error: "Session not found" }, 404);
@@ -201,6 +280,19 @@ git.post("/session/:id/git/unstage-all", async (c) => {
   if (!cwd) return c.json({ error: "Session not found" }, 404);
   await gitUnstageAll(cwd);
   return new Response(null, { status: 204 });
+});
+
+git.post("/session/:id/git/apply-patch", async (c) => {
+  const cwd = gitCwd(c.req.param("id"));
+  if (!cwd) return c.json({ error: "Session not found" }, 404);
+  const body = await c.req.json<{ patch?: string; reverse?: boolean }>();
+  if (!body.patch) return c.json({ error: "patch is required" }, 400);
+  try {
+    await gitApplyPatch(cwd, body.patch, body.reverse ?? false);
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+  }
 });
 
 git.post("/session/:id/git/revert-file", async (c) => {

@@ -11,6 +11,8 @@ export const FilesSection = memo(function FilesSection({
   mode,
   onStageToggle,
   onRevert,
+  onStageHunk,
+  onUnstageHunk,
   emptyText,
 }: {
   label: string
@@ -19,6 +21,8 @@ export const FilesSection = memo(function FilesSection({
   mode: DiffMode
   onStageToggle: (file: ChangedFile) => Promise<void>
   onRevert: (file: ChangedFile) => Promise<void>
+  onStageHunk?: (hunkPatch: string) => void
+  onUnstageHunk?: (hunkPatch: string) => void
   emptyText?: string
 }) {
   return (
@@ -34,6 +38,8 @@ export const FilesSection = memo(function FilesSection({
           mode={mode}
           onStageToggle={onStageToggle}
           onRevert={onRevert}
+          onStageHunk={onStageHunk}
+          onUnstageHunk={onUnstageHunk}
         />
       ))}
     </SectionCard>

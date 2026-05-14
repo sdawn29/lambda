@@ -9,12 +9,16 @@ export const FileAccordionItem = memo(function FileAccordionItem({
   mode,
   onStageToggle,
   onRevert,
+  onStageHunk,
+  onUnstageHunk,
 }: {
   file: ChangedFile
   sessionId: string
   mode: DiffMode
   onStageToggle: (file: ChangedFile) => Promise<void>
   onRevert: (file: ChangedFile) => Promise<void>
+  onStageHunk?: (hunkPatch: string) => void
+  onUnstageHunk?: (hunkPatch: string) => void
 }) {
   return (
     <FileListItem
@@ -24,6 +28,8 @@ export const FileAccordionItem = memo(function FileAccordionItem({
       showActions={true}
       onStage={onStageToggle}
       onRevert={onRevert}
+      onStageHunk={onStageHunk}
+      onUnstageHunk={onUnstageHunk}
     />
   )
 })

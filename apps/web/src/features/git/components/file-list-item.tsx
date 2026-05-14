@@ -27,6 +27,8 @@ interface FileListItemProps {
   showActions?: boolean
   onStage?: (file: ChangedFile) => Promise<void>
   onRevert?: (file: ChangedFile) => Promise<void>
+  onStageHunk?: (hunkPatch: string) => void
+  onUnstageHunk?: (hunkPatch: string) => void
   /** Disable the entire row */
   disabled?: boolean
   /** Additional classes for the row container */
@@ -43,6 +45,8 @@ export const FileListItem = memo(function FileListItem({
   showActions = false,
   onStage,
   onRevert,
+  onStageHunk,
+  onUnstageHunk,
   disabled = false,
   className,
 }: FileListItemProps) {
@@ -187,6 +191,9 @@ export const FileListItem = memo(function FileListItem({
               filePath={file.filePath}
               mode={mode}
               className="mt-2 rounded-md border-border/50"
+              onStageHunk={onStageHunk}
+              onUnstageHunk={onUnstageHunk}
+              isStaged={file.isStaged}
             />
           ) : null}
         </div>

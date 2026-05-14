@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -351,6 +351,156 @@ export async function gitDiffStat(
 /** Pushes the current branch to its upstream: `git push`. */
 export async function gitPush(cwd: string): Promise<void> {
   await execFileAsync("git", ["push"], { cwd, timeout: 30000 });
+}
+
+/** Fetches from the remote without merging: `git fetch`. */
+export async function gitFetch(cwd: string): Promise<void> {
+  await execFileAsync("git", ["fetch"], { cwd, timeout: 30000 });
+}
+
+/** Pulls from the remote (fetch + merge): `git pull`. */
+export async function gitPull(cwd: string): Promise<void> {
+  await execFileAsync("git", ["pull"], { cwd, timeout: 30000 });
+}
+
+/**
+ * Returns structured git log output. Each line is pipe-delimited:
+ * fullSha|shortSha|authorName|authorDate(ISO)|subject
+ */
+export async function gitLog(cwd: string, maxCount = 50): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["log", "--pretty=format:%H|%h|%an|%ai|%s", `-${maxCount}`],
+      { cwd, timeout: 10000 },
+    );
+    return stdout;
+  } catch {
+    return "";
+  }
+}
+
+/** Returns the list of files changed in a single commit with their status codes. */
+export async function gitShowFiles(
+  cwd: string,
+  sha: string,
+): Promise<{ path: string; status: string }[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["diff-tree", "--no-commit-id", "-r", "--name-status", sha],
+      { cwd, timeout: 10000 },
+    )
+    return stdout
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const parts = line.split("\t")
+        const rawStatus = parts[0] ?? "M"
+        // Normalize R100/C100 → R/C; use the new (last) path for renames/copies
+        const status = rawStatus[0] ?? "M"
+        const path = parts.length > 2 ? (parts[parts.length - 1] ?? "") : (parts[1] ?? "")
+        return { status, path }
+      })
+  } catch {
+    return []
+  }
+}
+
+/** Returns the unified diff for a single file within a specific commit. */
+export async function gitShowFileDiff(
+  cwd: string,
+  sha: string,
+  filePath: string,
+): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["diff-tree", "-p", "--no-commit-id", "-U3", sha, "--", filePath],
+      { cwd, timeout: 10000 },
+    )
+    return stdout
+  } catch (err: unknown) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "stdout" in err &&
+      typeof (err as { stdout?: unknown }).stdout === "string"
+    ) {
+      return (err as { stdout: string }).stdout
+    }
+    return ""
+  }
+}
+
+/** Returns the unified diff for a single commit: `git show --unified=3 <sha>`. */
+export async function gitShow(cwd: string, sha: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["show", "--unified=3", sha],
+      { cwd, timeout: 10000 },
+    );
+    return stdout;
+  } catch (err: unknown) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "stdout" in err &&
+      typeof (err as { stdout?: unknown }).stdout === "string"
+    ) {
+      return (err as { stdout: string }).stdout;
+    }
+    return "";
+  }
+}
+
+/**
+ * Returns how many commits the current branch is ahead of and behind its upstream.
+ * Returns null when no upstream is configured.
+ */
+export async function getAheadBehind(
+  cwd: string,
+): Promise<{ ahead: number; behind: number } | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["rev-list", "--left-right", "--count", "@{u}...HEAD"],
+      { cwd, timeout: 5000 },
+    );
+    const parts = stdout.trim().split("\t");
+    const behind = parseInt(parts[0] ?? "0", 10);
+    const ahead = parseInt(parts[1] ?? "0", 10);
+    return { ahead: isNaN(ahead) ? 0 : ahead, behind: isNaN(behind) ? 0 : behind };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Applies a patch string to the staging area via stdin.
+ * Pass `reverse = true` to unstage the hunks.
+ */
+export async function gitApplyPatch(
+  cwd: string,
+  patch: string,
+  reverse = false,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const args = ["apply", "--cached", "--whitespace=nowarn"];
+    if (reverse) args.push("--reverse");
+    const child = spawn("git", args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
+    let stderr = "";
+    child.stderr?.on("data", (d: Buffer) => {
+      stderr += d.toString();
+    });
+    child.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || `git apply failed with code ${code}`));
+    });
+    child.stdin?.end(patch);
+  });
 }
 
 /** Returns the full staged diff (`git diff --cached`). */

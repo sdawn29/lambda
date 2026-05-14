@@ -1,15 +1,31 @@
 import { cn } from "@/shared/lib/utils"
-import type { DiffLine, HighlightMap, ThemeStyle } from "./types"
+import type { CharRange, DiffHunk, DiffLine, HighlightMap, ThemeStyle } from "./types"
 import { getLineTokens, renderTokens } from "./highlight"
+import { renderWithWordDiff } from "./word-diff"
 
 interface DiffRowProps {
   line: DiffLine
   diffIndex: number
   map: HighlightMap
   themeStyle: ThemeStyle
+  wordDiffRanges?: CharRange[]
+  hunk?: DiffHunk
+  onStageHunk?: (hunkPatch: string) => void
+  onUnstageHunk?: (hunkPatch: string) => void
+  isStaged?: boolean
 }
 
-export function DiffRow({ line, diffIndex, map, themeStyle }: DiffRowProps) {
+export function DiffRow({
+  line,
+  diffIndex,
+  map,
+  themeStyle,
+  wordDiffRanges,
+  hunk,
+  onStageHunk,
+  onUnstageHunk,
+  isStaged,
+}: DiffRowProps) {
   const tokens = getLineTokens(line, diffIndex, map)
   const isAdded = line.kind === "added"
   const isRemoved = line.kind === "removed"
@@ -56,14 +72,55 @@ export function DiffRow({ line, diffIndex, map, themeStyle }: DiffRowProps) {
         </span>
       </div>
 
+      {line.kind === "skipped" && hunk && (onStageHunk || onUnstageHunk) ? (
+        <span className="flex min-w-full items-center justify-between pl-3 pr-2">
+          <span className="text-muted-foreground/40 italic text-[10px]">
+            {hunk.header}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              isStaged
+                ? onUnstageHunk?.(hunk.rawPatch)
+                : onStageHunk?.(hunk.rawPatch)
+            }
+            className="ml-2 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {isStaged ? "Unstage hunk" : "Stage hunk"}
+          </button>
+        </span>
+      ) : (
       <span
         className={cn(
           "w-max shrink-0 pl-3 whitespace-pre",
           line.kind === "skipped" && "text-muted-foreground/40 italic"
         )}
       >
-        {line.kind === "skipped" ? "⋯" : renderTokens(tokens, themeStyle)}
+        {line.kind === "skipped" ? (
+          "⋯"
+        ) : wordDiffRanges && wordDiffRanges.length > 0 ? (
+          renderWithWordDiff(line.content, wordDiffRanges, isAdded).map((part, i) =>
+            part.highlighted ? (
+              <span
+                key={i}
+                className={cn(
+                  "rounded-sm",
+                  isAdded
+                    ? "bg-green-500/30 dark:bg-green-400/25"
+                    : "bg-red-500/30 dark:bg-red-400/25"
+                )}
+              >
+                {part.text}
+              </span>
+            ) : (
+              <span key={i}>{part.text}</span>
+            )
+          )
+        ) : (
+          renderTokens(tokens, themeStyle)
+        )}
       </span>
+      )}
     </div>
   )
 }
