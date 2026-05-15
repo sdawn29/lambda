@@ -1,11 +1,8 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react"
 import {
-  ChevronLeft,
-  ChevronRight,
   TerminalSquare,
   MoreHorizontal,
   Pencil,
-  Search,
   Trash2,
   FileDiff,
   FolderTree,
@@ -21,7 +18,7 @@ import {
 } from "@tanstack/react-router"
 import { Button } from "@/shared/ui/button"
 import { Toggle } from "@/shared/ui/toggle"
-import { SidebarTrigger, useSidebar } from "@/shared/ui/sidebar"
+import { useSidebar } from "@/shared/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
 import {
   DropdownMenu,
@@ -46,7 +43,6 @@ import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { McpDialog, useMcpServerStatus } from "@/features/mcp"
 import { TasksDialog } from "@/features/tasks"
-import { useCommandPalette } from "@/features/command-palette"
 import { useMainTabs } from "@/features/main-tabs"
 import { getIconName } from "@/shared/ui/file-icon"
 import { cn } from "@/shared/lib/utils"
@@ -57,7 +53,7 @@ export function TitleBar() {
   const { pathname } = useLocation()
   const isSettings = pathname === "/settings"
   const { workspaces, setThreadTitle, deleteThread } = useWorkspace()
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state: sidebarState } = useSidebar()
   const { isOpen: diffOpen, toggle: toggleDiff } = useDiffPanel()
   const { isOpen: fileTreeOpen, toggle: toggleFileTree } = useFileTree()
   const { activeTab, tabs, closeTab } = useMainTabs()
@@ -121,11 +117,14 @@ export function TitleBar() {
           .slice(activeTabFile.workspacePath.length)
           .replace(/^[/\\]+/, "")
 
-  const { isOpen: terminalOpen, toggle: toggleTerminal, runCommand: runTerminalCommand } =
-    useTerminalForWorkspace(
-      urlActiveWorkspace?.id ?? "",
-      urlActiveWorkspace?.path ?? ""
-    )
+  const {
+    isOpen: terminalOpen,
+    toggle: toggleTerminal,
+    runCommand: runTerminalCommand,
+  } = useTerminalForWorkspace(
+    urlActiveWorkspace?.id ?? "",
+    urlActiveWorkspace?.path ?? ""
+  )
   // Stable sessionId for diffStat — only refreshes when the workspace changes,
   // not when the user switches threads within the same workspace.
   const prevDiffWorkspaceIdRef = useRef<string | undefined>(undefined)
@@ -234,14 +233,6 @@ export function TitleBar() {
     effectiveWorkspacePath ? toggleFileTree : null
   )
 
-  const { openPalette } = useCommandPalette()
-  const openCommandPaletteBinding = useShortcutBinding(
-    SHORTCUT_ACTIONS.OPEN_COMMAND_PALETTE
-  )
-
-  const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
-  const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
-  const forwardBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_FORWARD)
   const diffBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_DIFF_PANEL)
   const terminalBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_TERMINAL)
   const renameBinding = useShortcutBinding(SHORTCUT_ACTIONS.RENAME_THREAD)
@@ -249,96 +240,18 @@ export function TitleBar() {
 
   return (
     <div
-      className="sticky top-0 z-20 flex h-11 shrink-0 items-center border-b bg-background"
+      className="sticky top-0 z-20 flex h-11 shrink-0 items-center border-b bg-background pl-2"
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
-      {/* Left — navigation cluster */}
+      {/* Breadcrumb — search + separator + context / primary */}
       <div
         className={cn(
-          "flex shrink-0 items-center gap-0.5 pr-2",
-          isMac && !isFullscreen ? "pl-20" : "pl-4"
+          "flex min-w-0 flex-1 items-center gap-0 px-1 transition-[padding-left] duration-200 ease-linear",
+          sidebarState === "collapsed" &&
+            (isMac && !isFullscreen ? "pl-48" : "pl-28")
         )}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
-        <div className="flex items-center gap-1 select-none">
-          <span
-            className="text-sm leading-none font-black"
-            style={{ color: "#d4a017" }}
-          >
-            Λ
-          </span>
-          <span className="text-xs font-semibold tracking-wide text-foreground/70">
-            Lamda
-          </span>
-        </div>
-        <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <SidebarTrigger className="size-7 text-muted-foreground/70 hover:text-foreground" />
-            }
-          />
-          <TooltipContent>
-            Toggle sidebar{" "}
-            <ShortcutKbd binding={sidebarBinding} className="ml-1" />
-          </TooltipContent>
-        </Tooltip>
-        <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => router.history.back()}
-                disabled={!canGoBack}
-                className="size-6 text-muted-foreground/60 hover:text-foreground disabled:opacity-25"
-              >
-                <ChevronLeft className="size-3.5" />
-                <span className="sr-only">Go back</span>
-              </Button>
-            }
-          />
-          <TooltipContent>
-            Go back <ShortcutKbd binding={backBinding} className="ml-1" />
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => router.history.forward()}
-                disabled={!canGoForward}
-                className="size-6 text-muted-foreground/60 hover:text-foreground disabled:opacity-25"
-              >
-                <ChevronRight className="size-3.5" />
-                <span className="sr-only">Go forward</span>
-              </Button>
-            }
-          />
-          <TooltipContent>
-            Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" />
-          </TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* Breadcrumb — search + separator + context / primary */}
-      <div
-        className="flex min-w-0 flex-1 items-center gap-0 px-1"
-        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-      >
-        <button
-          type="button"
-          onClick={openPalette}
-          className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-input bg-muted/20 px-2 text-xs text-muted-foreground transition-colors hover:bg-muted/40"
-        >
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span>Search</span>
-          <ShortcutKbd binding={openCommandPaletteBinding} className="ml-0.5" />
-        </button>
-        <div className="mx-2 h-3.5 w-px shrink-0 bg-border" />
         {activeTab?.type === "thread" && activeTabThread ? (
           <div className="flex min-w-0 flex-1 items-center gap-1">
             {activeTabWorkspace && (
@@ -439,16 +352,9 @@ export function TitleBar() {
 
       {/* Right — session actions */}
       <div
-        className="flex shrink-0 items-center gap-0.5 px-2"
+        className="flex shrink-0 items-center gap-1.5 px-2"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
-        <OpenWithButton
-          workspaceId={urlActiveWorkspace?.id}
-          workspacePath={urlActiveWorkspace?.path}
-          openWithAppId={urlActiveWorkspace?.openWithAppId}
-        />
-        <CommitDialog sessionId={urlActiveThread?.sessionId ?? undefined} />
-
         <Tooltip>
           <TooltipTrigger
             render={
@@ -489,10 +395,17 @@ export function TitleBar() {
           <TooltipContent>MCP servers</TooltipContent>
         </Tooltip>
 
+        <OpenWithButton
+          workspaceId={urlActiveWorkspace?.id}
+          workspacePath={urlActiveWorkspace?.path}
+          openWithAppId={urlActiveWorkspace?.openWithAppId}
+        />
+        <CommitDialog sessionId={urlActiveThread?.sessionId ?? undefined} />
+
         <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
 
         {/* Panel toggles — segmented control; active buttons lift above the tray */}
-        <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5">
+        <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
           <Tooltip>
             <TooltipTrigger
               render={

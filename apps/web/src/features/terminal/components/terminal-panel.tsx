@@ -13,7 +13,7 @@ const TERMINAL_OUTPUT_FLUSH_MS = 16
 const TERMINAL_IMMEDIATE_FLUSH_THRESHOLD = 8_192
 
 const DARK_TERMINAL_THEME = {
-  background: "#121212",
+  background: "#0d0d0d",
   foreground: "#e8e8d3",
   cursor: "#8197bf",
   cursorAccent: "#0c0c0c",

@@ -149,7 +149,7 @@
 /* ── Jellybeans Dark ──────────────────────────────────────────────── */
 .dark {
   /* ── Base ── */
-  --background: #121212;
+  --background: #0d0d0d;
   --foreground: #e8e8d3;
 
   /* ── Surface 1 · card: darker, denser surface ── */
@@ -191,14 +191,14 @@
   --chart-4: #cf6a4c;
   --chart-5: #ffb964;
 
-  /* ── Sidebar: same as title bar (background) ── */
-  --sidebar: #121212;
+  /* ── Sidebar: darker than content area ── */
+  --sidebar: #0a0a0a;
   --sidebar-foreground: #e8e8d3;
   --sidebar-primary: #3a6090;
   --sidebar-primary-foreground: #e8e8d3;
-  --sidebar-accent: #242424;
+  --sidebar-accent: #1a1a1a;
   --sidebar-accent-foreground: #e8e8d3;
-  --sidebar-border: #161616;
+  --sidebar-border: #141414;
   --sidebar-ring: #3a6090;
 }
 

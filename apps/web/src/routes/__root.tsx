@@ -1,6 +1,7 @@
-import { createRootRoute, Outlet, useParams } from "@tanstack/react-router"
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { createRootRoute, Outlet, useParams, useRouter } from "@tanstack/react-router"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { AppSidebar } from "@/features/workspace"
 import { TitleBar } from "@/features/layout"
@@ -9,8 +10,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/shared/ui/resizable"
-import { SidebarInset, SidebarProvider } from "@/shared/ui/sidebar"
-import { TooltipProvider } from "@/shared/ui/tooltip"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/shared/ui/sidebar"
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip"
 import { WorkspaceProvider, useWorkspace } from "@/features/workspace"
 import { useTerminal } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
@@ -27,6 +28,8 @@ import {
   ServerUnavailable,
   useElectronServerStatus,
   useElectronUpdateStatus,
+  useElectronPlatform,
+  useElectronFullscreen,
   useInstallUpdate,
 } from "@/features/electron"
 import { SettingsModal, ConfigureProviderModal } from "@/features/settings"
@@ -35,6 +38,10 @@ import { ErrorBoundary } from "@/shared/components/error-boundary"
 import { SplashScreen } from "@/shared/components/splash-screen"
 import { Toaster } from "@/shared/ui/sonner"
 import { cn } from "@/shared/lib/utils"
+import { Button } from "@/shared/ui/button"
+import { useShortcutBinding } from "@/shared/components/keyboard-shortcuts-provider"
+import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
+import { ShortcutKbd } from "@/shared/ui/kbd"
 
 const TerminalPanel = lazy(() =>
   import("@/features/terminal").then((module) => ({
@@ -53,6 +60,93 @@ const FileTree = lazy(() =>
     default: module.FileTree,
   }))
 )
+
+function NavigationControls() {
+  const { data: platform } = useElectronPlatform()
+  const { data: isFullscreen = false } = useElectronFullscreen()
+  const isMac = platform === "darwin"
+
+  const router = useRouter()
+  const canGoBack = router.history.canGoBack()
+  const { subscribe, getSnapshot } = useMemo(() => {
+    let count = 0
+    return {
+      subscribe: (notify: () => void) =>
+        router.history.subscribe(({ action }) => {
+          if (action.type === "PUSH" || action.type === "REPLACE") count = 0
+          else if (action.type === "BACK") count++
+          else if (action.type === "FORWARD") count = Math.max(0, count - 1)
+          notify()
+        }),
+      getSnapshot: () => count > 0,
+    }
+  }, [router.history])
+  const canGoForward = useSyncExternalStore(subscribe, getSnapshot, () => false)
+
+  const sidebarBinding = useShortcutBinding(SHORTCUT_ACTIONS.TOGGLE_SIDEBAR)
+  const backBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_BACK)
+  const forwardBinding = useShortcutBinding(SHORTCUT_ACTIONS.NAVIGATE_FORWARD)
+
+  return (
+    <div
+      className={cn(
+        "fixed top-0 z-50 flex h-11 items-center gap-0.5 pr-2",
+        isMac && !isFullscreen ? "pl-20" : "pl-2"
+      )}
+      style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+    >
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <SidebarTrigger className="size-7 text-muted-foreground/70 hover:text-foreground" />
+          }
+        />
+        <TooltipContent>
+          Toggle sidebar <ShortcutKbd binding={sidebarBinding} className="ml-1" />
+        </TooltipContent>
+      </Tooltip>
+      <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => router.history.back()}
+              disabled={!canGoBack}
+              className="size-6 text-muted-foreground/60 hover:text-foreground disabled:opacity-25"
+            >
+              <ChevronLeft className="size-3.5" />
+              <span className="sr-only">Go back</span>
+            </Button>
+          }
+        />
+        <TooltipContent>
+          Go back <ShortcutKbd binding={backBinding} className="ml-1" />
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => router.history.forward()}
+              disabled={!canGoForward}
+              className="size-6 text-muted-foreground/60 hover:text-foreground disabled:opacity-25"
+            >
+              <ChevronRight className="size-3.5" />
+              <span className="sr-only">Go forward</span>
+            </Button>
+          }
+        />
+        <TooltipContent>
+          Go forward <ShortcutKbd binding={forwardBinding} className="ml-1" />
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
+}
 
 function MainContentArea() {
   const { activeTab, tabs, addFileTab } = useMainTabs()
@@ -260,50 +354,49 @@ function RootLayoutInner() {
 
   return (
     <TooltipProvider>
-      <SidebarProvider className="h-svh flex-col">
-        <TitleBar />
-        <UpdateBanner />
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <AppSidebar />
-          <SidebarInset className="min-w-0 overflow-hidden">
-            <ResizablePanelGroup
-              orientation="vertical"
-              className="flex-1 min-h-0"
-            >
-              <ResizablePanel className="min-h-0 overflow-hidden" minSize="20">
-                <MainContentArea />
-              </ResizablePanel>
-              {anyWorkspaceHasTerminals && (
-                <>
-                  <ResizableHandle
-                    withHandle
-                    className={cn(!activeTerminalOpen && "hidden")}
-                  />
-                  <ResizablePanel
-                    panelRef={terminalPanelRef}
-                    collapsible
-                    collapsedSize={0}
-                    defaultSize="33"
-                    minSize="15"
-                  >
-                    {terminalHost && (
-                      <Suspense
-                        fallback={
-                          <div className="h-full border-t bg-background" />
-                        }
-                      >
-                        <TerminalPanel
-                          activeWorkspaceId={terminalHost.id}
-                          cwd={terminalHost.path}
-                        />
-                      </Suspense>
-                    )}
-                  </ResizablePanel>
-                </>
-              )}
-            </ResizablePanelGroup>
-          </SidebarInset>
-        </div>
+      <SidebarProvider className="h-svh bg-sidebar">
+        <NavigationControls />
+        <AppSidebar />
+        <SidebarInset className="relative z-20 min-w-0 overflow-hidden rounded-2xl border border-border shadow-sm">
+          <TitleBar />
+          <UpdateBanner />
+          <ResizablePanelGroup
+            orientation="vertical"
+            className="flex-1 min-h-0"
+          >
+            <ResizablePanel className="min-h-0 overflow-hidden" minSize="20">
+              <MainContentArea />
+            </ResizablePanel>
+            {anyWorkspaceHasTerminals && (
+              <>
+                <ResizableHandle
+                  withHandle
+                  className={cn(!activeTerminalOpen && "hidden")}
+                />
+                <ResizablePanel
+                  panelRef={terminalPanelRef}
+                  collapsible
+                  collapsedSize={0}
+                  defaultSize="33"
+                  minSize="15"
+                >
+                  {terminalHost && (
+                    <Suspense
+                      fallback={
+                        <div className="h-full border-t bg-background" />
+                      }
+                    >
+                      <TerminalPanel
+                        activeWorkspaceId={terminalHost.id}
+                        cwd={terminalHost.path}
+                      />
+                    </Suspense>
+                  )}
+                </ResizablePanel>
+              </>
+            )}
+          </ResizablePanelGroup>
+        </SidebarInset>
         <CommandPalette />
       </SidebarProvider>
     </TooltipProvider>

@@ -30,6 +30,7 @@ import {
   SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -210,6 +211,7 @@ export function AppSidebar() {
   const { openSettings } = useSettingsModal()
   const { addThreadTab, pendingThreadIds } = useMainTabs()
 
+
   async function handleConfirmDelete() {
     if (!deletingWorkspace) return
     setIsDeleting(true)
@@ -266,7 +268,8 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas">
-      <SidebarContent className="pt-10">
+      <SidebarHeader className="h-11 shrink-0 p-0" />
+      <SidebarContent>
         {/* Pinned threads section */}
         {pinnedThreads.length > 0 && (
           <SidebarGroup>
