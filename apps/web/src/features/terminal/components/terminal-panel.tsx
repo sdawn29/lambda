@@ -260,7 +260,7 @@ export const TerminalPanel = memo(function TerminalPanel({
   return (
     <div className="flex h-full shrink-0 flex-col border-t bg-background">
       {/* Tab bar — shows only the active workspace's tabs */}
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
+      <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-background px-1">
         {/* Scrollable tab list */}
         <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-1">
           {tabs.map((tab) => {
@@ -273,7 +273,7 @@ export const TerminalPanel = memo(function TerminalPanel({
                 className={cn(
                   "group relative flex h-7 shrink-0 items-center gap-1.5 rounded-md pl-3 pr-1.5 font-mono text-xs select-none transition-all duration-150",
                   isActive
-                    ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+                    ? "bg-muted/30 text-foreground shadow-sm ring-1 ring-border/60"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/70"
                 )}
               >
@@ -306,19 +306,18 @@ export const TerminalPanel = memo(function TerminalPanel({
             )
           })}
 
-          {/* New tab */}
+        </div>
+
+        {/* New tab + Kill all */}
+        <div className="flex items-center gap-0.5 px-1">
           <button
             type="button"
             onClick={() => ctx.addTab(activeWorkspaceId, cwd)}
             aria-label="New terminal tab"
-            className="flex h-7 items-center rounded-md px-2 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
-        </div>
-
-        {/* Kill all */}
-        <div className="flex items-center px-1">
           <Button
             variant="ghost"
             size="icon-sm"

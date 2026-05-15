@@ -214,11 +214,7 @@ export function ChatView({
       }
       scrollSaveTimeoutRef.current = setTimeout(() => {
         scrollSaveTimeoutRef.current = null
-        syncEngine.saveScrollMeta(sessionId, {
-          scrollTop,
-          isPinned: pinnedRef.current,
-          visited: true,
-        })
+        syncEngine.saveScrollMeta(sessionId, meta)
       }, 150)
     },
     [queryClient, sessionId, syncEngine]
@@ -275,19 +271,15 @@ export function ChatView({
     setShowScrollButton(distanceFromBottom >= 80)
   }, [threadId, sessionId, queryClient, syncEngine])
 
-  useEffect(() => {
+  // Scroll to bottom synchronously (before paint) whenever loading state or
+  // messages change, so there is no 1-frame window where a scroll-anchoring
+  // event or other onScroll can flip pinnedRef to false before we act.
+  // This runs after the session-restore useLayoutEffect (which appears earlier
+  // in the file), so pinnedRef already holds the correct restored value.
+  useLayoutEffect(() => {
     const el = scrollContainerRef.current
-    if (!el) return
-    const frame = requestAnimationFrame(() => {
-      // Guard inside the RAF so it's checked after useLayoutEffect has already
-      // set pinnedRef to the restored value for this thread. If we checked
-      // pinnedRef before the RAF, we'd always read `true` (set at the top of
-      // the layout effect) and incorrectly scroll to bottom on every switch.
-      if (!pinnedRef.current) return
-      el.scrollTop = el.scrollHeight
-    })
-
-    return () => cancelAnimationFrame(frame)
+    if (!el || !pinnedRef.current) return
+    el.scrollTop = el.scrollHeight
   }, [isLoading, visibleMessages])
 
   const handleScroll = useCallback(() => {
@@ -477,7 +469,7 @@ export function ChatView({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex w-full flex-1 flex-col overflow-y-auto pt-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [overflow-anchor:none]"
         >
           {visibleMessages.length === 0 && !isLoading && (
             <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-6 text-center select-none">

@@ -81,7 +81,7 @@ export function MainTabBar() {
 
   return (
     <>
-      <div className="flex h-9 shrink-0 items-center border-b bg-muted/20 px-1 gap-0.5 overflow-x-auto scrollbar-none">
+      <div className="flex h-9 shrink-0 items-center border-b bg-background px-1 gap-0.5 overflow-x-auto scrollbar-none">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
         const isDragging = draggingTabId === tab.id
@@ -127,7 +127,7 @@ export function MainTabBar() {
             className={cn(
               "group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md pl-2.5 pr-1.5 text-xs select-none transition-all duration-150",
               isActive
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+                ? "bg-muted/30 text-foreground shadow-sm ring-1 ring-border/60"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground/70",
               isDragging && "opacity-40",
               dropBefore && "border-l-2 border-primary",

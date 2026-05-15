@@ -236,7 +236,7 @@ export const FileRow = memo(function FileRow({
   return (
     <div
       className={cn(
-        "flex w-full cursor-pointer items-center gap-2 border-t border-border/20 px-4 py-2 text-left first:border-t-0 transition-colors hover:bg-muted/40",
+        "group/row flex w-full cursor-pointer items-center gap-2.5 border-t border-border/15 px-4 py-2 text-left first:border-t-0 transition-colors hover:bg-muted/30",
         className
       )}
       onClick={handleClick}
@@ -252,15 +252,15 @@ export const FileRow = memo(function FileRow({
       <StatusBadge file={file} />
       <Icon
         icon={`catppuccin:${getIconName(fileName)}`}
-        className="size-3.5 shrink-0"
+        className="size-3.5 shrink-0 opacity-80 transition-opacity group-hover/row:opacity-100"
         aria-hidden
       />
       <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
-        <span className="shrink-0 font-mono text-xs font-medium text-foreground/85">
+        <span className="shrink-0 font-mono text-[11.5px] font-medium text-foreground/80 transition-colors group-hover/row:text-foreground">
           {fileName}
         </span>
         {dirPath && (
-          <span className="truncate font-mono text-[10px] text-muted-foreground/40">
+          <span className="truncate font-mono text-[10px] text-muted-foreground/35">
             {dirPath}
           </span>
         )}
