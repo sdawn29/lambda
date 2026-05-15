@@ -8,6 +8,24 @@ import { threadStatusBroadcaster, type ThreadStatus } from "./thread-status-broa
 
 const MAX_RECENT_EVENTS = 512;
 
+// ── Session status types ──────────────────────────────────────────────────────
+
+export type SessionPendingError = {
+  title: string;
+  message: string;
+  retryable: boolean;
+  retryCount?: number;
+};
+
+export type SessionStatus = {
+  isRunning: boolean;
+  isCompacting: boolean;
+  compactionReason: "manual" | "threshold" | "overflow" | null;
+  pendingError: SessionPendingError | null;
+};
+
+// ── Internal event types ──────────────────────────────────────────────────────
+
 type ServerErrorEvent = { type: "server_error"; message: string };
 type TurnFileChangedEvent = {
   type: "turn_file_changed";
@@ -85,6 +103,9 @@ class SessionEventHub {
   private nextEventId = 0;
   private runInProgress = false;
   private disposed = false;
+  private isCompacting = false;
+  private compactionReason: "manual" | "threshold" | "overflow" | null = null;
+  private pendingErrorState: SessionPendingError | null = null;
   private turnContext: TurnContext | null = null;
   private pendingThinkingLevel: string | null = null;
   private currentToolBlocks = new Map<string, ToolContext>();
@@ -330,6 +351,9 @@ class SessionEventHub {
   }
 
   dismissPendingErrors(): void {
+    this.pendingErrorState = null;
+    this.isCompacting = false;
+    this.compactionReason = null;
     const errorTypes = new Set([
       "server_error",
       "auto_retry_start",
@@ -340,6 +364,15 @@ class SessionEventHub {
     this.recentEvents = this.recentEvents.filter(
       (record) => !errorTypes.has(record.event.type),
     );
+  }
+
+  getStatus(): SessionStatus {
+    return {
+      isRunning: this.runInProgress,
+      isCompacting: this.isCompacting,
+      compactionReason: this.compactionReason,
+      pendingError: this.pendingErrorState,
+    };
   }
 
   ensureStarted() {
@@ -416,13 +449,11 @@ class SessionEventHub {
   private getReplayEvents(lastEventId?: string): SessionEventRecord[] {
     const parsedLastEventId = parseEventId(lastEventId);
     if (parsedLastEventId === null) {
-      // New connection without lastEventId - replay all recent events
-      // to allow client to restore state from server snapshot
-      if (this.recentEvents.length > 0) {
-        return [...this.recentEvents];
-      }
+      // Fresh connect (no lastEventId) — state is restored via the REST /status
+      // endpoint; no event replay needed for idle sessions. Only replay events
+      // from the currently-in-progress agent turn so the client can track live
+      // streaming state (tool execution, text deltas, etc.).
       if (this.runInProgress) {
-        // Include running tool blocks from DB for new subscribers
         const toolBlocks = listRunningToolBlocks(this.threadId);
         const toolEvents: SessionEventRecord[] = toolBlocks
           .filter((b) => b.role === "tool" && b.toolStatus === "running")
@@ -440,18 +471,17 @@ class SessionEventHub {
       }
       return [];
     }
+    // Client has a lastEventId — replay only genuinely missed events.
+    // Prefer currentRunEvents for the active turn; fall back to recentEvents.
     const currentRunStartId = this.currentRunEvents[0]?.id;
     const currentRunEndId = this.currentRunEvents.at(-1)?.id;
     if (
       currentRunStartId !== undefined &&
       currentRunEndId !== undefined &&
+      parsedLastEventId >= currentRunStartId &&
       parsedLastEventId <= currentRunEndId
     ) {
-      return parsedLastEventId < currentRunStartId
-        ? [...this.currentRunEvents]
-        : this.currentRunEvents.filter(
-            (record) => record.id > parsedLastEventId,
-          );
+      return this.currentRunEvents.filter((record) => record.id > parsedLastEventId);
     }
     return this.recentEvents.filter((record) => record.id > parsedLastEventId);
   }
@@ -667,6 +697,43 @@ class SessionEventHub {
       this.recentEvents.shift();
     }
 
+    // ── Track session status state ────────────────────────────────────────────
+    if (event.type === "agent_start") {
+      this.pendingErrorState = null;
+    } else if (event.type === "compaction_start") {
+      const cs = event as { reason: "manual" | "threshold" | "overflow" };
+      this.isCompacting = true;
+      this.compactionReason = cs.reason;
+      this.pendingErrorState = null;
+    } else if (event.type === "compaction_end") {
+      const ce = event as { aborted?: boolean; errorMessage?: string };
+      this.isCompacting = false;
+      this.compactionReason = null;
+      if (!ce.aborted && ce.errorMessage) {
+        this.pendingErrorState = { title: "Compaction Failed", message: ce.errorMessage, retryable: false };
+      } else if (!ce.aborted) {
+        this.pendingErrorState = null;
+        // Prune compaction events from currentRunEvents so mid-turn reconnects
+        // (parsedLastEventId === null + runInProgress) don't re-fire the success toast.
+        this.currentRunEvents = this.currentRunEvents.filter(
+          (r) => r.event.type !== "compaction_start" && r.event.type !== "compaction_end",
+        );
+      }
+    } else if (event.type === "server_error") {
+      const se = event as { message: string };
+      this.pendingErrorState = { title: "Error", message: se.message, retryable: true };
+    } else if (event.type === "auto_retry_start") {
+      const ar = event as { attempt: number; errorMessage: string };
+      this.pendingErrorState = { title: "Retrying", message: ar.errorMessage, retryable: true, retryCount: ar.attempt };
+    } else if (event.type === "auto_retry_end") {
+      const ar = event as { success: boolean; finalError?: string };
+      if (ar.success) {
+        this.pendingErrorState = null;
+      } else if (ar.finalError) {
+        this.pendingErrorState = { title: "Retry Failed", message: ar.finalError, retryable: true };
+      }
+    }
+
     if (event.type === "agent_end" || event.type === "server_error") {
       this.runInProgress = false;
       threadStatusBroadcaster.broadcast(this.threadId, "idle");
@@ -711,6 +778,15 @@ class SessionEventRegistry {
 
   dismissPendingErrors(sessionId: string): void {
     this.hubs.get(sessionId)?.dismissPendingErrors();
+  }
+
+  getStatus(sessionId: string): SessionStatus {
+    return this.hubs.get(sessionId)?.getStatus() ?? {
+      isRunning: false,
+      isCompacting: false,
+      compactionReason: null,
+      pendingError: null,
+    };
   }
 
   getLastTurnChanges(sessionId: string): string {

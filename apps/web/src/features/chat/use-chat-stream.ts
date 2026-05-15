@@ -2,22 +2,19 @@
  * Chat stream hook — connects the WebSocket stream to UI state.
  *
  * Responsibilities:
- * - Opens a WebSocket for the session and dispatches events to callbacks
+ * - Opens a WebSocket for the session and dispatches live events to callbacks
+ * - Fetches a status snapshot on mount to restore transient state (isRunning,
+ *   isCompacting, pendingError) without relying on WebSocket event replay
  * - Manages isLoading, isCompacting, pendingError as local state
  * - Provides startUserPrompt() which optimistically adds the user message
- *
- * The isLoading state is scoped to the current sessionId. When sessionId
- * changes (thread switch), the previous session's loading is cleared by the
- * new session's WebSocket opening (which calls onIsLoadingChange(true) via
- * onMessageStart). No explicit session change handling is needed here.
  */
-import { useCallback, useEffect, useState, useRef } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { useSessionStream } from "./hooks/use-session-stream"
 import { useVisibleMessages } from "./hooks/use-visible-messages"
-import { messagesQueryKey } from "./queries"
+import { messagesQueryKey, useSessionStatus } from "./queries"
 import { dismissSessionError } from "./api"
 import { createErrorMessage } from "./types"
 import type { ErrorMessage, Message } from "./types"
@@ -73,14 +70,7 @@ export function useChatStream({
   const [pendingError, setPendingError] = useState<ReturnType<typeof createErrorMessage> | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Track whether a live message_start fired in this session. Only errors that
-  // follow a live stream should mark the thread as "error" — replayed agent_end
-  // events from a previous run must not re-raise the red dot on refresh or
-  // when switching back to this thread.
-  const hadLiveLoadingRef = useRef(false)
-
-  // Reset state during render when the session changes ("adjusting state while
-  // rendering" — React batches these setters and does one synchronous re-render).
+  // Reset state synchronously during render when the session changes.
   const [localSessionId, setLocalSessionId] = useState(sessionId)
   if (localSessionId !== sessionId) {
     setLocalSessionId(sessionId)
@@ -91,23 +81,33 @@ export function useChatStream({
     setPendingError(null)
   }
 
-  // Reset the ref flag on session change. An effect that only mutates a ref
-  // (no setState) does not cause cascading renders and is safe in React 19.
+  // Fetch the status snapshot from the server on every thread mount/switch.
+  // This replaces event-replay as the mechanism for restoring transient UI state
+  // (isRunning, isCompacting, pendingError) without side-effect re-fires.
+  const { data: sessionStatus } = useSessionStatus(sessionId)
+
   useEffect(() => {
-    hadLiveLoadingRef.current = false
-  }, [sessionId])
+    if (!sessionStatus) return
+    setIsLoading(sessionStatus.isRunning)
+    setIsCompacting(sessionStatus.isCompacting)
+    setCompactionReason(sessionStatus.compactionReason)
+    if (sessionStatus.pendingError) {
+      const { title, message, retryable, retryCount } = sessionStatus.pendingError
+      setPendingError(createErrorMessage(title, message, { retryable, retryCount, action: { type: "dismiss" } }))
+      setThreadStatus(threadId, "error")
+    }
+  }, [sessionStatus, setThreadStatus, threadId])
 
   const { messages } = useVisibleMessages({ sessionId, pendingError })
 
   const handleIsLoadingChange = useCallback((loading: boolean) => {
-    if (loading) hadLiveLoadingRef.current = true
     setIsLoading(loading)
   }, [])
 
+  // All errors reaching this callback are from live events (no replay); mark
+  // the thread as error unconditionally.
   const handleError = useCallback(() => {
-    if (hadLiveLoadingRef.current) {
-      setThreadStatus(threadId, "error")
-    }
+    setThreadStatus(threadId, "error")
   }, [setThreadStatus, threadId])
 
   const handleToolExecutionEnd = useCallback((toolName: string) => {

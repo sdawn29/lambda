@@ -371,6 +371,24 @@ export function compactSession(sessionId: string): Promise<{ ok: boolean }> {
   })
 }
 
+// ── Session status ─────────────────────────────────────────────────────────
+
+export interface SessionStatus {
+  isRunning: boolean
+  isCompacting: boolean
+  compactionReason: "manual" | "threshold" | "overflow" | null
+  pendingError: {
+    title: string
+    message: string
+    retryable: boolean
+    retryCount?: number
+  } | null
+}
+
+export function fetchSessionStatus(sessionId: string): Promise<SessionStatus> {
+  return apiFetch<SessionStatus>(`/session/${sessionId}/status`)
+}
+
 // ── Session stats ──────────────────────────────────────────────────────────
 
 export interface SessionTokenStats {

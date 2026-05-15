@@ -6,6 +6,7 @@ import {
   fetchContextUsage,
   fetchThinkingLevels,
   fetchSessionStats,
+  fetchSessionStatus,
 } from "./api"
 import { blocksToMessages, type MessageBlock, type Message } from "./types"
 import {
@@ -33,6 +34,8 @@ export const chatKeys = {
     [...chatSessionKey(sessionId), "stats"] as const,
   thinkingLevels: (sessionId: string) =>
     [...chatSessionKey(sessionId), "thinking-levels"] as const,
+  status: (sessionId: string) =>
+    [...chatSessionKey(sessionId), "status"] as const,
   scroll: (sessionId: string) =>
     [...chatSessionKey(sessionId), "meta", "scroll"] as const,
   errors: (sessionId: string) =>
@@ -142,5 +145,23 @@ export function useSessionStats(sessionId: string | undefined) {
     gcTime: 30 * 1000,
     staleTime: 30_000,
     select: (data) => data.stats,
+  })
+}
+
+// ── Session status ─────────────────────────────────────────────────────────
+//
+// Fetches a snapshot of transient session state (isRunning, isCompacting,
+// pendingError) on every thread mount. Replaces event-replay as the mechanism
+// for restoring UI state when switching threads.
+
+export function useSessionStatus(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: sessionId ? chatKeys.status(sessionId) : chatKeys.all,
+    queryFn: () => fetchSessionStatus(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   })
 }

@@ -57,6 +57,12 @@ sessions.post("/session/:id/dismiss-error", (c) => {
   return c.json({ ok: true });
 });
 
+sessions.get("/session/:id/status", (c) => {
+  const id = c.req.param("id");
+  if (!store.has(id)) return c.json({ error: "Not found" }, 404);
+  return c.json(sessionEvents.getStatus(id));
+});
+
 interface PromptRequestBody {
   text?: string;
   provider?: string;
