@@ -146,8 +146,8 @@ type QueuedEvent =
   | { kind: "agent_end"; agentMessages: AgentEndMessage[]; meta: TurnMeta | null }
   | { kind: "auto_retry_start"; attempt: number; errorMessage: string }
   | { kind: "auto_retry_end"; success: boolean; finalError?: string; lastPrompt: { text: string; thinkingLevel?: string } | null }
-  | { kind: "compaction_start" }
-  | { kind: "compaction_end"; errorMessage?: string; aborted?: boolean }
+  | { kind: "compaction_start"; reason: "manual" | "threshold" | "overflow" }
+  | { kind: "compaction_end"; reason: "manual" | "threshold" | "overflow"; errorMessage?: string; aborted?: boolean; willRetry?: boolean }
   | { kind: "server_error"; message: string; lastPrompt: { text: string; thinkingLevel?: string } | null }
   | { kind: "transport_error"; lastPrompt: { text: string; thinkingLevel?: string } | null }
 
@@ -288,6 +288,8 @@ export interface UseSessionStreamOptions {
   onMessageEnd?: () => void
   onIsLoadingChange?: (loading: boolean) => void
   onIsCompactingChange?: (compacting: boolean) => void
+  onCompactionReasonChange?: (reason: "manual" | "threshold" | "overflow" | null) => void
+  onCompactionEnd?: (success: boolean) => void
   onPendingErrorChange?: (error: ReturnType<typeof createErrorMessage> | null) => void
   onError?: () => void
   onToolExecutionEnd?: (toolName: string) => void
@@ -299,6 +301,8 @@ export function useSessionStream({
   onMessageEnd,
   onIsLoadingChange,
   onIsCompactingChange,
+  onCompactionReasonChange,
+  onCompactionEnd,
   onPendingErrorChange,
   onError,
   onToolExecutionEnd,
@@ -326,10 +330,10 @@ export function useSessionStream({
 
   // Always-current callbacks — stored in a ref so the queue processor (which
   // is stable across renders) always calls the latest versions.
-  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd })
+  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onCompactionEnd, onPendingErrorChange, onError, onToolExecutionEnd })
   useEffect(() => {
-    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd }
-  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onPendingErrorChange, onError, onToolExecutionEnd])
+    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onCompactionEnd, onPendingErrorChange, onError, onToolExecutionEnd }
+  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onCompactionEnd, onPendingErrorChange, onError, onToolExecutionEnd])
 
   // ── Queue processor ───────────────────────────────────────────────────────
   //
@@ -431,7 +435,10 @@ export function useSessionStream({
           break
 
         case "compaction_start":
-          sideEffects.push(() => cb.onIsCompactingChange?.(true))
+          sideEffects.push(() => {
+            cb.onIsCompactingChange?.(true)
+            cb.onCompactionReasonChange?.(event.reason)
+          })
           break
 
         case "compaction_end":
@@ -439,6 +446,8 @@ export function useSessionStream({
             const { errorMessage } = event
             sideEffects.push(() => {
               cb.onIsCompactingChange?.(false)
+              cb.onCompactionReasonChange?.(null)
+              cb.onCompactionEnd?.(false)
               cb.onPendingErrorChange?.(
                 createErrorMessage("Compaction Failed", errorMessage, { action: { type: "dismiss" } })
               )
@@ -447,6 +456,8 @@ export function useSessionStream({
           } else {
             sideEffects.push(() => {
               cb.onIsCompactingChange?.(false)
+              cb.onCompactionReasonChange?.(null)
+              if (!event.aborted) cb.onCompactionEnd?.(true)
               cb.onPendingErrorChange?.(null)
             })
           }
@@ -708,14 +719,14 @@ export function useSessionStream({
             })
           },
 
-          onCompactionStart: () => {
+          onCompactionStart: ({ reason }) => {
             if (doneFlag.current) return
-            enqueue({ kind: "compaction_start" })
+            enqueue({ kind: "compaction_start", reason })
           },
 
-          onCompactionEnd: ({ errorMessage, aborted }) => {
+          onCompactionEnd: ({ reason, errorMessage, aborted, willRetry }) => {
             if (doneFlag.current) return
-            enqueue({ kind: "compaction_end", errorMessage, aborted })
+            enqueue({ kind: "compaction_end", reason, errorMessage, aborted, willRetry })
           },
 
           onServerError: ({ message }) => {

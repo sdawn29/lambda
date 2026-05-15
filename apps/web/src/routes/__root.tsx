@@ -303,8 +303,11 @@ function RootLayoutInner() {
   const { threadId: activeThreadId } = useParams({ strict: false }) as {
     threadId?: string
   }
+  const { tabs } = useMainTabs()
   const { states: terminalStates } = useTerminal()
   const { isFullscreen: diffFullscreen } = useDiffPanel()
+
+  const isEmptyState = tabs.length === 0 && !activeThreadId
 
   // Prefetch all thread messages in the background for instant thread switching
   usePrefetchThreadsMessages({ activeThreadId })
@@ -358,7 +361,7 @@ function RootLayoutInner() {
         <NavigationControls />
         <AppSidebar />
         <SidebarInset className="relative z-20 min-w-0 overflow-hidden rounded-2xl border border-border shadow-sm">
-          <TitleBar />
+          {!isEmptyState && <TitleBar />}
           <UpdateBanner />
           <ResizablePanelGroup
             orientation="vertical"

@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useState, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { useSessionStream } from "./hooks/use-session-stream"
 import { useVisibleMessages } from "./hooks/use-visible-messages"
@@ -52,6 +53,7 @@ interface UseChatStreamResult {
   isLoading: boolean
   isStopped: boolean
   isCompacting: boolean
+  compactionReason: "manual" | "threshold" | "overflow" | null
   startUserPrompt: (text: string, thinkingLevel?: string) => void
   markStopped: () => void
   markSendFailed: () => void
@@ -67,6 +69,7 @@ export function useChatStream({
   const queryClient = useQueryClient()
   const [isStopped, setIsStopped] = useState(initialIsStopped)
   const [isCompacting, setIsCompacting] = useState(false)
+  const [compactionReason, setCompactionReason] = useState<"manual" | "threshold" | "overflow" | null>(null)
   const [pendingError, setPendingError] = useState<ReturnType<typeof createErrorMessage> | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -84,6 +87,7 @@ export function useChatStream({
     setIsLoading(false)
     setIsStopped(initialIsStopped)
     setIsCompacting(false)
+    setCompactionReason(null)
     setPendingError(null)
   }
 
@@ -115,11 +119,22 @@ export function useChatStream({
     }
   }, [queryClient, sessionId])
 
+  const handleCompactionEnd = useCallback((success: boolean) => {
+    if (success) {
+      toast.success("Context compacted", {
+        description: "Conversation history was summarized to free up the context window.",
+        duration: 3000,
+      })
+    }
+  }, [])
+
   // Connect to WebSocket stream
   const { lastPromptRef, pendingThinkingLevelRef } = useSessionStream({
     sessionId,
     onIsLoadingChange: handleIsLoadingChange,
     onIsCompactingChange: setIsCompacting,
+    onCompactionReasonChange: setCompactionReason,
+    onCompactionEnd: handleCompactionEnd,
     onPendingErrorChange: setPendingError,
     onError: handleError,
     onToolExecutionEnd: handleToolExecutionEnd,
@@ -188,6 +203,7 @@ export function useChatStream({
     isLoading,
     isStopped,
     isCompacting,
+    compactionReason,
     startUserPrompt,
     markStopped,
     markSendFailed,

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { Loader2Icon, SparklesIcon } from "lucide-react"
 import {
   Popover,
@@ -37,7 +38,6 @@ export function ContextChart({
 }: ContextChartProps) {
   const queryClient = useQueryClient()
   const [isCompacting, setIsCompacting] = useState(false)
-  const [compactError, setCompactError] = useState<string | null>(null)
   const lastValidRef = useRef<ContextUsage | null>(null)
 
   if (contextUsage && contextUsage.tokens != null) {
@@ -77,17 +77,14 @@ export function ContextChart({
   async function handleCompact() {
     if (!sessionId || isCompacting) return
     setIsCompacting(true)
-    setCompactError(null)
     try {
       await compactSession(sessionId)
-      void queryClient.invalidateQueries({
-        queryKey: chatKeys.contextUsage(sessionId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: chatKeys.sessionStats(sessionId),
-      })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.contextUsage(sessionId) })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.sessionStats(sessionId) })
     } catch (err) {
-      setCompactError(err instanceof Error ? err.message : "Compaction failed")
+      toast.error("Compaction failed", {
+        description: err instanceof Error ? err.message : "Could not compact context. Please try again.",
+      })
     } finally {
       setIsCompacting(false)
     }
@@ -246,11 +243,6 @@ export function ContextChart({
           </div>
         )}
 
-        {compactError && (
-          <div className="px-3 pb-2">
-            <p className="text-[9px] text-destructive">{compactError}</p>
-          </div>
-        )}
       </PopoverContent>
     </Popover>
   )

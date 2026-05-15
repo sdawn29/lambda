@@ -83,6 +83,7 @@ export function ChatView({
     hasConversationHistory,
     isLoading,
     isCompacting,
+    compactionReason,
     startUserPrompt,
     markStopped,
     markSendFailed,
@@ -573,8 +574,10 @@ export function ChatView({
             </div>
           )}
           <div className="mx-auto w-full max-w-3xl px-6">
-            {isLoading && <ThinkingIndicator className="py-0.5" />}
-            {isCompacting && <CompactingIndicator />}
+            {isCompacting
+              ? <CompactingIndicator reason={compactionReason} />
+              : isLoading && <ThinkingIndicator className="py-0.5" />
+            }
           </div>
 
           {/* File changes card - shown after chat completion */}

@@ -66,40 +66,41 @@
 
 /* ── Jellybeans Light ─────────────────────────────────────────────── */
 :root {
-  /* ── Base: warm off-white page background ── */
+  /* ── Base: warm parchment page background (avg L 238) ── */
   --background: #f3efe8;
-  --foreground: #1a1815;
+  --foreground: #1c1916;
 
-  /* ── Card: darker warm surface — sits visibly below base ── */
-  --card: #ece7df;
-  --card-foreground: #1a1815;
+  /* ── Card: elevated warm surface (avg L 230, step −8) ── */
+  --card: #ede7de;
+  --card-foreground: #1c1916;
 
-  /* ── Popover: matches card ── */
-  --popover: #ece7df;
-  --popover-foreground: #1a1815;
+  /* ── Popover: same as card ── */
+  --popover: #ede7de;
+  --popover-foreground: #1c1916;
 
-  /* ── Secondary: recessed inputs / nested panels ── */
-  --secondary: #ebe7df;
-  --secondary-foreground: #1a1815;
+  /* ── Secondary: recessed inputs / nested panels (avg L 216, step −14) ── */
+  --secondary: #e0d9cf;
+  --secondary-foreground: #1c1916;
 
-  /* ── Muted: disabled / faded areas ── */
-  --muted: #dedad2;
+  /* ── Muted: disabled / faded areas (avg L 204, step −12) ── */
+  --muted: #d4cdc4;
   --muted-foreground: #5c5854;
 
-  /* ── Accent: hover / selection highlight ── */
-  --accent: #d3cfc7;
-  --accent-foreground: #1a1815;
+  /* ── Accent: hover / selection highlight (avg L 192, step −12) ── */
+  --accent: #c8c1b7;
+  --accent-foreground: #1c1916;
 
-  /* ── Primary (jellybeans steel blue, darker) ── */
+  /* ── Primary (jellybeans steel blue) ── */
   --primary: #1a4080;
   --primary-foreground: #f3efe8;
 
   /* ── Destructive (jellybeans error red) ── */
   --destructive: #902020;
 
-  /* ── Border: barely-there separators · Input: form field outlines ── */
-  --border: #e4ded5;
-  --input: #d4cfc7;
+  /* ── Border: subtle separator between bg and card ── */
+  /* ── Input: outline for form fields (between secondary and muted) ── */
+  --border: #e7e1d8;
+  --input: #dad3ca;
   --ring: #1a4080;
 
   /* ── Charts (jellybeans syntax colors, darkened for light bg) ── */
@@ -112,14 +113,14 @@
   /* ── Radius ── */
   --radius: 0.5rem;
 
-  /* ── Sidebar: same as title bar (background) ── */
-  --sidebar: #f3efe8;
-  --sidebar-foreground: #1a1815;
+  /* ── Sidebar: distinct panel, darker than content area (avg L 225) ── */
+  --sidebar: #e8e2d9;
+  --sidebar-foreground: #1c1916;
   --sidebar-primary: #1a4080;
   --sidebar-primary-foreground: #f3efe8;
-  --sidebar-accent: #dedad3;
-  --sidebar-accent-foreground: #1a1815;
-  --sidebar-border: #ddd7ce;
+  --sidebar-accent: #ddd7ce;
+  --sidebar-accent-foreground: #1c1916;
+  --sidebar-border: #d4cec5;
   --sidebar-ring: #1a4080;
 }
 
@@ -450,6 +451,37 @@
 
   *::-webkit-scrollbar {
     display: none;
+  }
+
+  /* ── xterm.js terminal scrollbar ─────────────────────────────────────────
+     Re-enable and style only the terminal viewport scrollbar.
+     Auto-hides when idle; reveals on hover with design-system colors.    ── */
+  .xterm-viewport {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent) transparent;
+  }
+
+  .xterm-viewport::-webkit-scrollbar {
+    display: block;
+    width: 3px;
+  }
+
+  .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 99px;
+  }
+
+  .xterm-viewport::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+    border-radius: 99px;
+  }
+
+  .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+  }
+
+  .xterm-viewport::-webkit-scrollbar-thumb:active {
+    background: color-mix(in srgb, var(--primary) 70%, transparent);
   }
 
   /* Remove the backtick pseudo-elements Tailwind Typography adds around <code> */
