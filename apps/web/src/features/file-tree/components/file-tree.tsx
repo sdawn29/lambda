@@ -243,7 +243,7 @@ export function FileTree({ workspaceId, workspacePath }: FileTreeProps) {
 
   return (
     <div className="flex h-full w-full flex-col bg-background text-sidebar-foreground">
-      <SidebarHeader className="h-9 flex-row items-center justify-between border-b bg-muted/20 px-2 py-0">
+      <SidebarHeader className="h-9 flex-row items-center justify-between border-b bg-background px-2 py-0">
         <SidebarGroupLabel className="h-9 px-0 text-[10px] font-medium tracking-wider text-sidebar-foreground/60">
           FILES
         </SidebarGroupLabel>

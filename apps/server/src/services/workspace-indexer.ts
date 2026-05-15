@@ -10,16 +10,6 @@ import { workspaceIndexBroadcaster } from "../workspace-index-broadcaster.js";
 
 const EXCLUDED_DIRS = new Set([
   ".git",
-  "node_modules",
-  "dist",
-  "build",
-  "out",
-  ".next",
-  ".nuxt",
-  "coverage",
-  ".turbo",
-  ".cache",
-  ".svelte-kit",
 ]);
 
 const FLUSH_DEBOUNCE_MS = 150;

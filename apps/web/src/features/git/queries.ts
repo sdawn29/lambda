@@ -47,6 +47,7 @@ export function useGitStatus(sessionId: string) {
     queryFn: () => gitStatus(sessionId),
     enabled: !!sessionId,
     staleTime: 0,
+    refetchInterval: 3_000,
   })
 }
 
@@ -70,6 +71,7 @@ export function useGitFileDiff(
     enabled: enabled && !!sessionId && !!filePath,
     gcTime: 60 * 1000,
     staleTime: 0,
+    refetchInterval: 3_000,
   })
 }
 
@@ -84,6 +86,7 @@ export function useGitDiffStat(sessionId: string) {
     enabled: !!sessionId,
     gcTime: 30 * 1000,
     staleTime: 0,
+    refetchInterval: 3_000,
   })
 }
 

@@ -10,6 +10,7 @@ import {
   FileDiff,
   FolderTree,
   Server,
+  Play,
 } from "lucide-react"
 import { Icon } from "@iconify/react"
 import {
@@ -44,6 +45,7 @@ import {
 import { SHORTCUT_ACTIONS } from "@/shared/lib/keyboard-shortcuts"
 import { ShortcutKbd } from "@/shared/ui/kbd"
 import { McpDialog, useMcpServerStatus } from "@/features/mcp"
+import { TasksDialog } from "@/features/tasks"
 import { useCommandPalette } from "@/features/command-palette"
 import { useMainTabs } from "@/features/main-tabs"
 import { getIconName } from "@/shared/ui/file-icon"
@@ -119,7 +121,7 @@ export function TitleBar() {
           .slice(activeTabFile.workspacePath.length)
           .replace(/^[/\\]+/, "")
 
-  const { isOpen: terminalOpen, toggle: toggleTerminal } =
+  const { isOpen: terminalOpen, toggle: toggleTerminal, runCommand: runTerminalCommand } =
     useTerminalForWorkspace(
       urlActiveWorkspace?.id ?? "",
       urlActiveWorkspace?.path ?? ""
@@ -143,6 +145,7 @@ export function TitleBar() {
   const [renameValue, setRenameValue] = useState("")
   const renameInputRef = useRef<HTMLInputElement>(null)
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
+  const [tasksDialogOpen, setTasksDialogOpen] = useState(false)
   const { data: mcpServerStatus } = useMcpServerStatus(
     urlActiveWorkspace?.id ?? ""
   )
@@ -452,6 +455,23 @@ export function TitleBar() {
               <Button
                 variant="outline"
                 size="icon"
+                onClick={() => setTasksDialogOpen(true)}
+                className="h-7 w-auto gap-1.5 px-2"
+              >
+                <Play className="size-3.5 shrink-0" />
+                <span className="sr-only">Tasks</span>
+              </Button>
+            }
+          />
+          <TooltipContent>Tasks</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => setMcpDialogOpen(true)}
                 className="h-7 w-auto gap-1.5 px-2"
               >
@@ -550,6 +570,13 @@ export function TitleBar() {
         open={mcpDialogOpen}
         onOpenChange={setMcpDialogOpen}
         workspaceId={urlActiveWorkspace?.id}
+      />
+
+      <TasksDialog
+        open={tasksDialogOpen}
+        onOpenChange={setTasksDialogOpen}
+        workspaceId={urlActiveWorkspace?.id}
+        onRunTask={runTerminalCommand}
       />
     </div>
   )

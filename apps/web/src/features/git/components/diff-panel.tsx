@@ -63,6 +63,7 @@ import { FilesSection } from "./files-section"
 import { HistoryView } from "./history-view"
 import { FileListItem } from "./file-list-item"
 import { FileHeader } from "./file-header"
+import { SectionCard } from "./section-card"
 import { SORT_OPTIONS, type SortMode, applySortMode } from "./sort-utils"
 import { cn } from "@/shared/lib/utils"
 import { useTheme } from "@/shared/components/theme-provider"
@@ -150,16 +151,20 @@ const LastTurnView = memo(function LastTurnView({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto py-0.5">
-      {files.map((file) => (
-        <FileListItem
-          key={file.filePath}
-          file={file}
-          sessionId={sessionId}
-          mode={mode}
-          showActions={false}
-        />
-      ))}
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <SectionCard label={`${files.length} file${files.length !== 1 ? "s" : ""} changed`}>
+        <div className="divide-y divide-border/20">
+          {files.map((file) => (
+            <FileListItem
+              key={file.filePath}
+              file={file}
+              sessionId={sessionId}
+              mode={mode}
+              showActions={false}
+            />
+          ))}
+        </div>
+      </SectionCard>
     </div>
   )
 })
@@ -953,7 +958,7 @@ export const DiffPanel = memo(function DiffPanel({
     <>
       <div className="flex h-full w-full flex-col bg-background">
         {/* Tab bar */}
-        <div className="flex h-9 shrink-0 items-center gap-1 border-b bg-muted/20 px-2">
+        <div className="flex h-9 shrink-0 items-center gap-1 border-b bg-background px-2">
           {/* View selector — always on the left; clicking also activates SC content */}
           <DropdownMenu>
             <DropdownMenuTrigger

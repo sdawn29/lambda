@@ -66,6 +66,7 @@ interface TerminalInstanceProps {
   id: string
   cwd: string
   isActive: boolean
+  initialCommand?: string
   onTitleChange: (id: string, title: string) => void
 }
 
@@ -73,6 +74,7 @@ const TerminalInstance = memo(function TerminalInstance({
   id,
   cwd,
   isActive,
+  initialCommand,
   onTitleChange,
 }: TerminalInstanceProps) {
   const { resolvedTheme } = useTheme()
@@ -162,6 +164,13 @@ const TerminalInstance = memo(function TerminalInstance({
           ws!.send(
             JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows })
           )
+        }
+        if (initialCommand) {
+          setTimeout(() => {
+            if (ws?.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "input", data: initialCommand + "\r" }))
+            }
+          }, 150)
         }
       }
 
@@ -341,6 +350,7 @@ export const TerminalPanel = memo(function TerminalPanel({
               id={tab.id}
               cwd={tab.cwd}
               isActive={wsId === activeWorkspaceId && tab.id === state.activeTabId}
+              initialCommand={tab.initialCommand}
               onTitleChange={(id, title) => ctx.renameTab(wsId, id, title)}
             />
           ))

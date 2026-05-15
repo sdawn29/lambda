@@ -4,6 +4,7 @@ export interface TerminalTab {
   id: string
   title: string
   cwd: string
+  initialCommand?: string
 }
 
 export interface WorkspaceTerminalState {
@@ -23,10 +24,10 @@ function makeDefaultState(): WorkspaceTerminalState {
 // Module-level counters — never drive re-renders
 const tabCounters: Record<string, number> = {}
 
-function makeTab(workspaceId: string, cwd: string): TerminalTab {
+function makeTab(workspaceId: string, cwd: string, initialCommand?: string): TerminalTab {
   const counter = (tabCounters[workspaceId] ?? 0) + 1
   tabCounters[workspaceId] = counter
-  return { id: crypto.randomUUID(), title: `Terminal ${counter}`, cwd }
+  return { id: crypto.randomUUID(), title: `Terminal ${counter}`, cwd, initialCommand }
 }
 
 interface TerminalStore {
@@ -36,6 +37,7 @@ interface TerminalStore {
   open: (workspaceId: string, cwd: string) => void
   close: (workspaceId: string) => void
   addTab: (workspaceId: string, cwd: string) => string
+  runCommand: (workspaceId: string, cwd: string, command: string) => string
   closeTab: (workspaceId: string, tabId: string) => void
   setActiveTab: (workspaceId: string, tabId: string) => void
   renameTab: (workspaceId: string, tabId: string, title: string) => void
@@ -107,6 +109,19 @@ export const useTerminalStore = create<TerminalStore>()((set, get) => ({
     return tab.id
   },
 
+  runCommand: (workspaceId, cwd, command) => {
+    const tab = makeTab(workspaceId, cwd, command)
+    set((s) => ({
+      states: updateWorkspace(s.states, workspaceId, (p) => ({
+        ...p,
+        isOpen: true,
+        tabs: [...p.tabs, tab],
+        activeTabId: tab.id,
+      })),
+    }))
+    return tab.id
+  },
+
   closeTab: (workspaceId, tabId) =>
     set((s) => ({
       states: updateWorkspace(s.states, workspaceId, (p) => {
@@ -156,6 +171,7 @@ export function useTerminalForWorkspace(workspaceId: string, cwd: string) {
     open: () => store().open(workspaceId, cwd),
     close: () => store().close(workspaceId),
     addTab: () => store().addTab(workspaceId, cwd),
+    runCommand: (command: string) => store().runCommand(workspaceId, cwd, command),
     closeTab: (tabId: string) => store().closeTab(workspaceId, tabId),
     setActiveTab: (tabId: string) => store().setActiveTab(workspaceId, tabId),
     renameTab: (tabId: string, title: string) => store().renameTab(workspaceId, tabId, title),

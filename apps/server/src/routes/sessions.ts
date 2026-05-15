@@ -13,13 +13,6 @@ import type { PromptOptions, SdkConfig } from "@lamda/pi-sdk";
 
 const EXCLUDED_DIRS = new Set([
   ".git",
-  "node_modules",
-  "dist",
-  "build",
-  "out",
-  ".next",
-  "coverage",
-  ".turbo",
 ]);
 
 const sessions = new Hono();
