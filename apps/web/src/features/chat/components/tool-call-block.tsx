@@ -1,24 +1,13 @@
 import { lazy, memo, Suspense, useEffect, useRef, useState } from "react"
 import {
   AlertCircleIcon,
-  BookOpenTextIcon,
   CheckIcon,
   ChevronRightIcon,
   CopyIcon,
-  FileEditIcon,
-  FilePlusIcon,
-  FolderSearchIcon,
-  ListTreeIcon,
-  Loader2Icon,
-  SearchIcon,
-  TerminalSquareIcon,
-  WrenchIcon,
-  XIcon,
 } from "lucide-react"
 import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
 
 import { cn } from "@/shared/lib/utils"
-import { formatDuration } from "@/shared/lib/formatters"
 import { LivePre } from "./live-pre"
 import { DiffView, detectLanguage } from "@/features/git"
 import { useTheme } from "@/shared/components/theme-provider"
@@ -26,51 +15,7 @@ import type { ToolMessage } from "../types"
 
 const PrismCode = lazy(() => import("./prism-code"))
 
-// ── Tool glyph icons ────────────────────────────────────────────────────────────
 
-function ToolGlyph({ toolName }: { toolName: string }) {
-  const cls = "h-3 w-3 shrink-0"
-  switch (toolName.toLowerCase()) {
-    case "bash":
-      return <TerminalSquareIcon className={cls} />
-    case "edit":
-      return <FileEditIcon className={cls} />
-    case "find":
-      return <FolderSearchIcon className={cls} />
-    case "grep":
-      return <SearchIcon className={cls} />
-    case "ls":
-      return <ListTreeIcon className={cls} />
-    case "read":
-      return <BookOpenTextIcon className={cls} />
-    case "write":
-      return <FilePlusIcon className={cls} />
-    default:
-      return <WrenchIcon className={cls} />
-  }
-}
-
-// ── Status badge ────────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: ToolMessage["status"] }) {
-  if (status === "running") {
-    return (
-      <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-        <Loader2Icon className="h-2.5 w-2.5 animate-spin" />
-        Running
-      </span>
-    )
-  }
-  if (status === "error") {
-    return (
-      <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-        <XIcon className="h-2.5 w-2.5" />
-        Error
-      </span>
-    )
-  }
-  return null
-}
 
 // ── Edit tool detection ────────────────────────────────────────────────────────
 
@@ -130,12 +75,18 @@ function getResultText(msg: ToolMessage): string | null {
   return JSON.stringify(resultSource, null, 2)
 }
 
-function argsSummary(args: unknown): string {
+function toRelativePath(p: string, rootPath?: string): string {
+  if (!rootPath) return p
+  const root = rootPath.endsWith("/") ? rootPath : rootPath + "/"
+  return p.startsWith(root) ? p.slice(root.length) : p
+}
+
+function argsSummary(args: unknown, rootPath?: string): string {
   if (typeof args !== "object" || args === null) return ""
   const a = args as Record<string, unknown>
   if (typeof a.command === "string") return a.command
-  if (typeof a.path === "string") return a.path
-  if (typeof a.file_path === "string") return a.file_path
+  if (typeof a.path === "string") return toRelativePath(a.path, rootPath)
+  if (typeof a.file_path === "string") return toRelativePath(a.file_path, rootPath)
   if (typeof a.pattern === "string") return a.pattern
   const first = Object.values(a)[0]
   return typeof first === "string" ? first : ""
@@ -239,9 +190,11 @@ function WriteView({
 export const ToolCallBlock = memo(function ToolCallBlock({
   msg,
   isNew = true,
+  rootPath,
 }: {
   msg: ToolMessage
   isNew?: boolean
+  rootPath?: string
 }) {
   const normalizedToolName = msg.toolName.toLowerCase()
   const isEdit = normalizedToolName === "edit" && isEditArgs(msg.args)
@@ -277,7 +230,7 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   }
 
   const resultText = getResultText(msg)
-  const summary = argsSummary(msg.args)
+  const summary = argsSummary(msg.args, rootPath)
 
   // Body is shown when there is something to render at any status.
   // "running" and "error" must always open the body so their respective
@@ -302,55 +255,39 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   return (
     <div
       className={cn(
-        "group w-full cursor-pointer rounded-lg border border-border/50 text-xs",
-        "transition-all duration-150 hover:border-border/80 hover:bg-muted/20",
-        isNew && "animate-in duration-150 fade-in-0 slide-in-from-bottom-1",
-        expanded && "bg-muted/15"
+        "w-full text-xs",
+        isNew && "animate-in duration-150 fade-in-0 slide-in-from-bottom-1"
       )}
-      onClick={toggle}
-      role="button"
-      aria-expanded={expanded}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          setExpanded((prev) => !prev)
-        }
-      }}
     >
-      {/* Card header row */}
-      <div className="flex items-center gap-2 px-2.5 py-1.5">
-        {/* Tool badge — icon + name pill */}
-        <span className="flex shrink-0 items-center gap-1.5 rounded bg-muted/70 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-          <ToolGlyph toolName={msg.toolName} />
-          <span className="leading-none">{msg.toolName}</span>
+      {/* Trigger row — text accordion style */}
+      <button
+        type="button"
+        className="flex items-center gap-1.5 text-left"
+        onClick={toggle}
+        aria-expanded={expanded}
+      >
+        <span className={cn(
+          "text-sm font-medium",
+          msg.status === "running" ? "text-foreground/60" : msg.status === "error" ? "text-destructive/70" : "text-muted-foreground/45"
+        )}>
+          {msg.toolName}
         </span>
 
-        {/* Summary — fills available space, truncated */}
         {summary && (
-          <span className="min-w-0 flex-1 truncate text-muted-foreground/55 group-hover:text-muted-foreground/75">
+          <span className="truncate text-sm text-muted-foreground/35">
             {summary}
           </span>
         )}
 
-        {/* Right side — status + chevron */}
-        <span className="flex shrink-0 items-center gap-1.5">
-          <StatusBadge status={msg.status} />
-          {msg.duration != null && msg.status !== "running" && (
-            <span className="text-muted-foreground/30 tabular-nums">
-              {formatDuration(msg.duration)}
-            </span>
+        <ChevronRightIcon
+          className={cn(
+            "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform duration-200",
+            expanded && "rotate-90"
           )}
-          <ChevronRightIcon
-            className={cn(
-              "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform duration-200",
-              expanded && "rotate-90"
-            )}
-          />
-        </span>
-      </div>
+        />
+      </button>
 
-      {/* Collapsible content — inside the card */}
+      {/* Collapsible content */}
       <div
         className={cn(
           "grid transition-all duration-300 ease-in-out",
@@ -358,100 +295,104 @@ export const ToolCallBlock = memo(function ToolCallBlock({
         )}
       >
         <div className="overflow-hidden">
-          <div className="border-t border-border/30 px-3 py-2">
-            {/* Write tool: show content from args immediately — available at tool_start */}
-            {isWrite && writeArgs && msg.status !== "error" && (
-              <WriteView
-                content={writeArgs.content}
-                filePath={writeArgs.path}
-                live={msg.status === "running"}
-              />
-            )}
+          <div className="group/copy mt-2 overflow-hidden rounded-lg border border-border/40 bg-black/5 dark:bg-white/[0.03]">
+            {/* Header: summary + copy */}
+            <div className="flex items-start gap-2 border-b border-border/30 px-3 py-1.5">
+              {normalizedToolName === "bash" && (
+                <span className="mt-px font-mono text-[11px] font-bold text-foreground/60">$</span>
+              )}
+              <span className={cn(
+                "flex-1 font-mono text-[11px] text-foreground/60",
+                normalizedToolName === "bash" ? "break-all whitespace-pre-wrap" : "truncate"
+              )}>
+                {summary || msg.toolName}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className={cn(
+                  "shrink-0 rounded p-1 text-muted-foreground/40 opacity-0 transition-colors group-hover/copy:opacity-100 hover:bg-muted hover:text-muted-foreground",
+                  copied && "text-emerald-500"
+                )}
+                aria-label="Copy result"
+              >
+                {copied ? (
+                  <CheckIcon className="h-3 w-3" />
+                ) : (
+                  <CopyIcon className="h-3 w-3" />
+                )}
+              </button>
+            </div>
 
-            {/* Running placeholder — always for edit (no partial results), only
-                when there is no content yet for read/other tools */}
-            {msg.status === "running" &&
-              !isWrite &&
-              (isEdit || !resultText) && (
-                <span className="text-muted-foreground/40">
-                  {isEdit ? "Editing…" : isRead ? "Reading…" : "Running…"}
-                </span>
+            {/* Content */}
+            <div className="px-3 py-2">
+              {/* Write tool: show content from args immediately — available at tool_start */}
+              {isWrite && writeArgs && msg.status !== "error" && (
+                <WriteView
+                  content={writeArgs.content}
+                  filePath={writeArgs.path}
+                  live={msg.status === "running"}
+                />
               )}
 
-            {/* Running: partial result for read / other tools */}
-            {msg.status === "running" && !isWrite && resultText && (
-              <>
-                {isRead && readFilePath && (
-                  <ReadView
-                    text={resultText}
-                    filePath={readFilePath}
-                    live={true}
-                  />
-                )}
-                {!isRead && <LivePre text={resultText} live={true} />}
-              </>
-            )}
-
-            {/* Done state */}
-            {msg.status === "done" && (
-              <>
-                {isEdit && diff !== null && (
-                  <DiffView
-                    diff={diff}
-                    filePath={(msg.args as { path?: string }).path}
-                  />
+              {/* Running placeholder — always for edit (no partial results), only
+                  when there is no content yet for read/other tools */}
+              {msg.status === "running" &&
+                !isWrite &&
+                (isEdit || !resultText) && (
+                  <span className="text-muted-foreground/40">
+                    {isEdit ? "Editing…" : isRead ? "Reading…" : "Running…"}
+                  </span>
                 )}
 
-                {isRead && readFilePath && resultText && (
-                  <ReadView
-                    text={resultText}
-                    filePath={readFilePath}
-                    live={false}
-                  />
-                )}
+              {/* Running: partial result for read / other tools */}
+              {msg.status === "running" && !isWrite && resultText && (
+                <>
+                  {isRead && readFilePath && (
+                    <ReadView
+                      text={resultText}
+                      filePath={readFilePath}
+                      live={true}
+                    />
+                  )}
+                  {!isRead && <LivePre text={resultText} live={true} />}
+                </>
+              )}
 
-                {!isEdit && !isRead && !isWrite && resultText && (
-                  <div className="group/copy relative">
-                    {normalizedToolName === "bash" && (
-                      <div className="mb-2 flex items-start gap-2 text-muted-foreground/50">
-                        <span className="font-mono text-[11px] font-semibold">
-                          $
-                        </span>
-                        <span className="font-mono text-[11px] text-foreground/70">
-                          {summary}
-                        </span>
-                      </div>
-                    )}
+              {/* Done state */}
+              {msg.status === "done" && (
+                <>
+                  {isEdit && diff !== null && (
+                    <DiffView
+                      diff={diff}
+                      filePath={(msg.args as { path?: string }).path}
+                    />
+                  )}
+
+                  {isRead && readFilePath && resultText && (
+                    <ReadView
+                      text={resultText}
+                      filePath={readFilePath}
+                      live={false}
+                    />
+                  )}
+
+                  {!isEdit && !isRead && !isWrite && resultText && (
                     <LivePre text={resultText} live={false} />
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      className={cn(
-                        "absolute top-1.5 right-1.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-colors group-hover/copy:opacity-100 hover:bg-muted hover:text-muted-foreground",
-                        copied && "text-emerald-500"
-                      )}
-                      aria-label="Copy result"
-                    >
-                      {copied ? (
-                        <CheckIcon className="h-3 w-3" />
-                      ) : (
-                        <CopyIcon className="h-3 w-3" />
-                      )}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
 
-            {/* Error state */}
-            {msg.status === "error" && (
-              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
-                <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
-                <pre className="flex-1 overflow-auto text-xs break-all whitespace-pre-wrap text-destructive/80">
-                  {resultText ?? "Tool execution failed"}
-                </pre>
-              </div>
-            )}
+              {/* Error state */}
+              {msg.status === "error" && (
+                <div className="flex items-start gap-2 rounded border border-destructive/30 bg-destructive/10 px-3 py-2">
+                  <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/80" />
+                  <pre className="flex-1 overflow-auto text-xs break-all whitespace-pre-wrap text-destructive/80">
+                    {resultText ?? "Tool execution failed"}
+                  </pre>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

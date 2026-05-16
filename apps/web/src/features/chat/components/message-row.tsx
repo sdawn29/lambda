@@ -6,7 +6,6 @@ import { AlertCircleIcon, RotateCwIcon, XIcon } from "lucide-react"
 import { ToolCallBlock } from "./tool-call-block"
 import { markdownComponents } from "./markdown-components"
 import { UserMessageContent } from "./user-message"
-import { ThinkingBlock } from "./thinking-block"
 import { CopyButton } from "@/shared/components/copy-button"
 import { Button } from "@/shared/ui/button"
 import { getProviderMeta } from "@/shared/lib/provider-meta"
@@ -70,11 +69,10 @@ function AssistantMessageBlock({
   isLastInTurn = true,
   turnMessages,
 }: AssistantMessageBlockProps) {
-  const hasThinking = showThinking && message.thinking.trim().length > 0
   const hasContent = message.content.length > 0
   const hasError = !!message.errorMessage
 
-  if (!hasThinking && !hasContent && !hasError) return null
+  if (!hasContent && !hasError) return null
 
   const providerMeta = message.provider
     ? getProviderMeta(message.provider)
@@ -91,7 +89,7 @@ function AssistantMessageBlock({
   const hasMeta = !!(message.model || thinkingLabel || message.responseTime != null)
 
   const proseClass =
-    "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-headings:text-sm prose-headings:leading-[1.55] prose-headings:my-0 prose-p:leading-[1.55] prose-p:mt-0 prose-p:mb-0 prose-ul:my-0 prose-ol:my-0 prose-li:my-0 prose-blockquote:my-0 [&_li]:leading-[1.55] [&_li]:text-sm [&>*+*]:mt-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
+    "prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-headings:text-sm prose-headings:leading-[1.75] prose-headings:my-0 prose-p:leading-[1.75] prose-p:mt-0 prose-p:mb-[1.25em] prose-ul:my-0 prose-ol:my-0 prose-li:my-0 prose-blockquote:my-0 [&_li]:leading-[1.75] [&_li]:text-sm [&>*+*]:mt-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:transition-colors [&_a:hover]:text-primary/70"
 
   return (
     <div
@@ -100,8 +98,6 @@ function AssistantMessageBlock({
         isNew && "animate-in duration-300 fade-in-0 slide-in-from-bottom-1"
       )}
     >
-      {hasThinking && <ThinkingBlock thinking={message.thinking} />}
-
       {hasContent && (
         <div className={proseClass}>
           <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -277,6 +273,7 @@ export interface MessageRowProps {
   isNewMessage?: boolean
   isLastInTurn?: boolean
   turnMessages?: AssistantMessage[]
+  rootPath?: string
 }
 
 function AbortBlock({ message: _ }: { message: AbortMessage }) {
@@ -300,9 +297,10 @@ export const MessageRow = memo(function MessageRow({
   isNewMessage = true,
   isLastInTurn = true,
   turnMessages,
+  rootPath,
 }: MessageRowProps) {
   if (message.role === "tool") {
-    return <ToolCallBlock msg={message} isNew={isNewMessage} />
+    return <ToolCallBlock msg={message} isNew={isNewMessage} rootPath={rootPath} />
   }
 
   if (message.role === "abort") {
@@ -319,7 +317,7 @@ export const MessageRow = memo(function MessageRow({
         )}
       >
         <div
-          className="rounded-xl bg-muted px-4 py-2.5 text-sm"
+          className="max-w-3/4 rounded-xl bg-muted px-4 py-2.5 text-sm"
           data-selectable
         >
           <UserMessageContent

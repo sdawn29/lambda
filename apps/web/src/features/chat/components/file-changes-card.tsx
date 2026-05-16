@@ -1,9 +1,12 @@
 import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { GitCompare, ChevronDown, ChevronRight, Sparkles, Undo2, Loader2 } from "lucide-react"
+import { GitCompare, ChevronRight, Undo2, Loader2, Sparkles, Eye, ExternalLink } from "lucide-react"
+import { openFileWithApp } from "@/features/electron/api"
+import { useElectronPlatform, useOpenWithApps } from "@/features/electron"
+import { Button } from "@/shared/ui/button"
 import { useLastTurnChanges, useRevertLastTurn, useGitFileDiff, DiffView, DiffStat, parseDiffCounts } from "@/features/git"
 import { useDiffPanel } from "@/features/git"
+import { useMainTabs } from "@/features/main-tabs"
 import { useGitRevertFile } from "@/features/git/mutations"
-import { Button } from "@/shared/ui/button"
 import { type ChangedFile, parseStatusLine } from "@/features/git/components/status-badge"
 import { Icon } from "@iconify/react"
 import { getIconName } from "@/shared/ui/file-icon"
@@ -24,15 +27,27 @@ import { cn } from "@/shared/lib/utils"
 const ChangedFileItem = memo(function ChangedFileItem({
   file,
   sessionId,
+  rootPath,
+  openWithAppId,
   onRevert,
 }: {
   file: ChangedFile
   sessionId: string
+  rootPath?: string
+  openWithAppId?: string | null
   onRevert?: (file: ChangedFile) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [reverting, setReverting] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const { addFileTab } = useMainTabs()
+  const { data: platform } = useElectronPlatform()
+  const isMac = platform === "darwin"
+  const { data: apps = [] } = useOpenWithApps(isMac)
+  const effectiveAppId = useMemo(() => {
+    if (!isMac || apps.length === 0) return undefined
+    return openWithAppId ?? apps[0].id
+  }, [isMac, apps, openWithAppId])
 
   useEffect(() => {
     if (expanded) {
@@ -51,6 +66,7 @@ const ChangedFileItem = memo(function ChangedFileItem({
   const pathParts = file.filePath.split("/")
   const fileName = pathParts[pathParts.length - 1] ?? file.filePath
   const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join("/") + "/" : null
+
   const handleRevert = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation()
@@ -66,25 +82,26 @@ const ChangedFileItem = memo(function ChangedFileItem({
   )
 
   return (
-    <div ref={cardRef} className={cn(
-      "overflow-hidden rounded-lg border bg-background/50 transition-colors",
-      expanded ? "border-border/50" : "border-border/30 hover:border-border/50 hover:bg-background/80"
-    )}>
-      {/* Row */}
+    <div ref={cardRef}>
       <div
         role="button"
         tabIndex={0}
         onClick={() => setExpanded((v) => !v)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded((v) => !v) } }}
-        className="group flex cursor-pointer items-center gap-2.5 px-3 py-2"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setExpanded((v) => !v)
+          }
+        }}
+        className="group flex cursor-pointer items-center gap-1.5 px-3 py-1.5 transition-colors hover:bg-muted/20"
       >
         <Icon
           icon={`catppuccin:${getIconName(fileName)}`}
-          className="size-3.5 shrink-0 opacity-70"
+          className="size-3 shrink-0 opacity-60"
           aria-hidden
         />
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
-          <span className="shrink-0 font-mono text-[11.5px] font-medium text-foreground/80">
+          <span className="shrink-0 font-mono text-[11px] font-medium text-foreground/70">
             {fileName}
           </span>
           {dirPath && (
@@ -96,32 +113,61 @@ const ChangedFileItem = memo(function ChangedFileItem({
             <DiffStat added={counts.added} removed={counts.removed} />
           )}
         </span>
-        {!file.isUntracked && onRevert && (
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             type="button"
-            onClick={handleRevert}
-            disabled={reverting}
-            aria-label="Revert file"
-            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-30"
+            onClick={(e) => {
+              e.stopPropagation()
+              const absPath = rootPath
+                ? `${rootPath.replace(/\/$/, "")}/${file.filePath}`
+                : file.filePath
+              addFileTab({ filePath: absPath, title: fileName, workspacePath: rootPath })
+            }}
+            aria-label="Open in file tab"
+            className="flex size-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:bg-muted hover:text-muted-foreground"
           >
-            {reverting ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Undo2 className="h-3 w-3" />
-            )}
+            <Eye className="h-3 w-3" />
           </button>
-        )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              const absPath = rootPath
+                ? `${rootPath.replace(/\/$/, "")}/${file.filePath}`
+                : file.filePath
+              void openFileWithApp(absPath, effectiveAppId)
+            }}
+            aria-label="Open in editor"
+            className="flex size-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:bg-muted hover:text-muted-foreground"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </button>
+          {!file.isUntracked && onRevert && (
+            <button
+              type="button"
+              onClick={handleRevert}
+              disabled={reverting}
+              aria-label="Revert file"
+              className="flex size-5 items-center justify-center rounded text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-30"
+            >
+              {reverting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Undo2 className="h-3 w-3" />
+              )}
+            </button>
+          )}
+        </div>
         <ChevronRight className={cn(
           "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform duration-150",
           expanded && "rotate-90"
         )} />
       </div>
 
-      {/* Diff */}
       {expanded && (
-        <div className="border-t border-border/30 px-2 pb-2 pt-1">
+        <div className="border-t border-border/30 px-3 py-2">
           {diffLoading ? (
-            <div className="flex items-center gap-2 rounded-lg border border-border/30 bg-muted/10 px-3 py-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 rounded border border-border/30 bg-muted/10 px-3 py-2.5 text-xs text-muted-foreground/50">
               <Loader2 className="h-3 w-3 animate-spin" />
               Loading diff…
             </div>
@@ -136,10 +182,14 @@ const ChangedFileItem = memo(function ChangedFileItem({
 
 interface FileChangesCardProps {
   sessionId: string
+  rootPath?: string
+  openWithAppId?: string | null
 }
 
 export const FileChangesCard = memo(function FileChangesCard({
   sessionId,
+  rootPath,
+  openWithAppId,
 }: FileChangesCardProps) {
   const { data: rawChanges } = useLastTurnChanges(sessionId)
   const { open: openDiffPanel } = useDiffPanel()
@@ -178,60 +228,49 @@ export const FileChangesCard = memo(function FileChangesCard({
 
   return (
     <>
-      <div className="mx-auto w-full max-w-3xl px-6 py-3">
-        <div className="overflow-hidden rounded-xl border border-border/40 bg-gradient-to-b from-muted/30 to-muted/10 shadow-sm">
-          {/* Card Header */}
-          <div
-            className={cn(
-              "flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/20",
-              expanded && "border-b border-border/25"
-            )}
-            onClick={() => setExpanded(!expanded)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                setExpanded(!expanded)
-              }
-            }}
-          >
-            {/* Icon */}
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/8 ring-1 ring-primary/12">
-              <Sparkles className="h-3.5 w-3.5 text-primary/60" />
-            </div>
-
-            {/* Label + count */}
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="text-[13px] font-medium text-foreground/75">
-                Changes this turn
-              </span>
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 font-mono text-[10px] font-semibold text-primary/70 ring-1 ring-primary/15">
+      <div className="mx-auto w-full max-w-3xl px-6 py-2">
+        <div className="overflow-hidden rounded-lg border border-border/40 bg-black/5 dark:bg-white/[0.03]">
+          {/* Header */}
+          <div className={cn("flex items-center gap-3 px-3 py-2.5", expanded && "border-b border-border/30")}>
+            {/* Left: icon + label + count — clickable to expand */}
+            <div
+              className="flex flex-1 cursor-pointer items-center gap-2"
+              onClick={() => setExpanded(!expanded)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  setExpanded(!expanded)
+                }
+              }}
+            >
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted">
+                <Sparkles className="h-3 w-3 text-muted-foreground/60" />
+              </div>
+              <span className="text-xs font-medium text-foreground/70">Changes this turn</span>
+              <span className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-muted px-1.5 font-mono text-[10px] tabular-nums text-muted-foreground/60">
                 {files.length}
               </span>
             </div>
 
             {/* Actions */}
-            <div
-              className="flex items-center gap-1.5"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="flex items-center gap-1.5">
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 onClick={openDiffPanel}
-                className="h-7 gap-1.5 rounded-lg border border-border/50 bg-background/60 px-2.5 text-[11px] font-medium text-muted-foreground shadow-xs hover:border-border hover:bg-background hover:text-foreground"
+                className="h-7 gap-1.5 px-2.5 text-[11px] text-muted-foreground hover:text-foreground"
               >
                 <GitCompare className="h-3 w-3" />
                 Diff
               </Button>
-
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 onClick={() => setConfirmOpen(true)}
                 disabled={revertLastTurn.isPending}
-                className="h-7 gap-1.5 rounded-lg border border-border/50 bg-background/60 px-2.5 text-[11px] font-medium text-muted-foreground shadow-xs hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive disabled:opacity-50"
+                className="h-7 gap-1.5 px-2.5 text-[11px] text-muted-foreground disabled:opacity-50"
               >
                 {revertLastTurn.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -240,25 +279,30 @@ export const FileChangesCard = memo(function FileChangesCard({
                 )}
                 Revert
               </Button>
-
-              <span className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:text-muted-foreground/70">
-                {expanded ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" />
-                )}
-              </span>
+              <button
+                type="button"
+                onClick={() => setExpanded(!expanded)}
+                className="rounded p-1 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+                aria-label={expanded ? "Collapse" : "Expand"}
+              >
+                <ChevronRight className={cn(
+                  "h-3.5 w-3.5 transition-transform duration-200",
+                  expanded && "rotate-90"
+                )} />
+              </button>
             </div>
           </div>
 
-          {/* File List */}
+          {/* File list */}
           {expanded && (
-            <div className="flex flex-col gap-1.5 p-2">
+            <div className="divide-y divide-border/20">
               {files.map((file, index) => (
                 <ChangedFileItem
                   key={`${file.filePath}-${index}`}
                   file={file}
                   sessionId={sessionId}
+                  rootPath={rootPath}
+                  openWithAppId={openWithAppId}
                   onRevert={handleRevertFile}
                 />
               ))}

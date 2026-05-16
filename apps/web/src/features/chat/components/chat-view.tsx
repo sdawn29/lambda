@@ -1,7 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { AssistantMessage, ErrorAction } from "../types"
+import type { AssistantMessage, ErrorAction, Message, ToolMessage } from "../types"
+import { WorkingBlock, type WorkingMessage } from "./working-block"
 import {
   ArrowDownIcon,
   Code2Icon,
@@ -42,6 +43,7 @@ import {
   useUpdateThreadStopped,
   useUpdateThreadTitle,
 } from "@/features/workspace/mutations"
+import { useWorkspace } from "@/features/workspace"
 import { useChatStream } from "../use-chat-stream"
 import { getChatSyncEngine } from "../hooks/use-chat-sync-engine"
 import { FileChangesCard } from "./file-changes-card"
@@ -55,6 +57,67 @@ const PROMPT_SUGGESTIONS = [
   { icon: FileSearchIcon, text: "Find something", description: "Locate a function, component, or pattern" },
   { icon: GitBranchIcon, text: "Review changes", description: "Explain recent git changes in plain language" },
 ] as const
+
+type MessageGroup =
+  | { type: "regular"; message: Message; index: number; suppressThinking?: boolean }
+  | { type: "working"; messages: WorkingMessage[]; startIndex: number; finalThinking?: string }
+
+function groupChatMessages(messages: Message[]): MessageGroup[] {
+  const groups: MessageGroup[] = []
+  let i = 0
+  let suppressNextThinking = false
+
+  const isWorkingEntry = (m: Message): boolean => {
+    if (m.role === "tool") return true
+    if (m.role === "assistant") {
+      return !(m as AssistantMessage).content.trim() && !(m as AssistantMessage).errorMessage
+    }
+    return false
+  }
+
+  while (i < messages.length) {
+    const msg = messages[i]
+    if (isWorkingEntry(msg)) {
+      suppressNextThinking = false
+      const workingMsgs: WorkingMessage[] = []
+      const startIndex = i
+      while (i < messages.length && isWorkingEntry(messages[i])) {
+        workingMsgs.push(messages[i] as WorkingMessage)
+        i++
+      }
+      // Pull thinking from the following assistant response into this block
+      const nextMsg = i < messages.length ? messages[i] : undefined
+      let finalThinking: string | undefined
+      if (
+        nextMsg?.role === "assistant" &&
+        (nextMsg as AssistantMessage).thinking.trim().length > 0
+      ) {
+        finalThinking = (nextMsg as AssistantMessage).thinking
+        suppressNextThinking = true
+      }
+      groups.push({ type: "working", messages: workingMsgs, startIndex, finalThinking })
+    } else {
+      const suppress = suppressNextThinking && msg.role === "assistant"
+      suppressNextThinking = false
+
+      // If this assistant message has thinking that wasn't already pulled into a
+      // preceding working block, create a synthetic working block for it now.
+      if (
+        !suppress &&
+        msg.role === "assistant" &&
+        (msg as AssistantMessage).thinking.trim().length > 0
+      ) {
+        groups.push({ type: "working", messages: [], startIndex: i, finalThinking: (msg as AssistantMessage).thinking })
+        groups.push({ type: "regular", message: msg, index: i, suppressThinking: true })
+      } else {
+        groups.push({ type: "regular", message: msg, index: i, suppressThinking: suppress })
+      }
+      i++
+    }
+  }
+
+  return groups
+}
 
 interface ChatViewProps {
   sessionId: string
@@ -74,6 +137,10 @@ export function ChatView({
   const queryClient = useQueryClient()
   const syncEngine = getChatSyncEngine()
   const showThinkingSetting = useShowThinkingSetting()
+  const { workspaces } = useWorkspace()
+  const activeWorkspace = workspaces.find((w) => w.id === workspaceId)
+  const rootPath = activeWorkspace?.path
+  const openWithAppId = activeWorkspace?.openWithAppId
   const { data: models, isLoading: modelsLoading } = useModels()
   const { openConfigure } = useConfigureProvider()
   const noProvider = !modelsLoading && !models?.models?.length
@@ -196,6 +263,16 @@ export function ChatView({
     () => new Map((commandsData ?? []).map((command) => [command.name, command])),
     [commandsData]
   )
+
+  const groupedMessages = useMemo(
+    () => groupChatMessages(visibleMessages),
+    [visibleMessages]
+  )
+
+  const hasActiveWorkingGroup =
+    isLoading &&
+    groupedMessages.length > 0 &&
+    groupedMessages[groupedMessages.length - 1].type === "working"
 
   // ── Scroll position persistence via query cache & localStorage ──────────────────
   // Scroll positions are stored in both TanStack Query cache and localStorage.
@@ -513,9 +590,41 @@ export function ChatView({
               </div>
             </div>
           )}
-          {visibleMessages.length > 0 && (
+          {groupedMessages.length > 0 && (
             <div className="mx-auto w-full max-w-3xl px-6">
-              {visibleMessages.map((message, index) => {
+              {groupedMessages.map((group, groupIndex) => {
+                if (group.type === "working") {
+                  const isGroupActive =
+                    isLoading && groupIndex === groupedMessages.length - 1
+                  const firstMsg = group.messages[0] as WorkingMessage | undefined
+                  const firstKey = firstMsg
+                    ? firstMsg.role === "tool"
+                      ? (firstMsg as ToolMessage).toolCallId
+                      : `assistant-${group.startIndex}`
+                    : `working-${group.startIndex}`
+                  const isNewGroup =
+                    initialSnapshot !== null &&
+                    initialSnapshot.sessionId === sessionId &&
+                    !initialSnapshot.keys.has(firstKey)
+                  const workingKey =
+                    (group.messages.find((m) => m.role === "tool") as ToolMessage | undefined)
+                      ?.toolCallId ?? `working-${group.startIndex}`
+                  return (
+                    <div key={`w-${workingKey}`} className="pb-5">
+                      <WorkingBlock
+                        messages={group.messages}
+                        isActive={isGroupActive}
+                        showThinking={showThinkingSetting}
+                        isNew={isNewGroup}
+                        finalThinking={group.finalThinking}
+                        rootPath={rootPath}
+                      />
+                    </div>
+                  )
+                }
+
+                // Regular message
+                const { message, index } = group
                 if (
                   message.role === "assistant" &&
                   !message.content.trim() &&
@@ -524,17 +633,11 @@ export function ChatView({
                 )
                   return null
                 const key = getMessageKey(message, index)
-                // Only animate messages that arrived after the initial cache snapshot
-                // for this session. A missing or stale snapshot (wrong sessionId) means
-                // we haven't captured initial keys yet → no animation for existing messages.
                 const isNewMessage =
                   initialSnapshot !== null &&
                   initialSnapshot.sessionId === sessionId &&
                   !initialSnapshot.keys.has(key)
-                // Only show the metadata bar (time + copy) on the last assistant
-                // block in a turn — i.e. when no further assistant message follows
-                // before the next user/error/abort message, and only once the turn
-                // is complete (not while the agent is still streaming).
+                // Only show the metadata bar on the last assistant block in a turn.
                 let isLastInTurn = true
                 let turnMessages: AssistantMessage[] | undefined
                 if (message.role === "assistant") {
@@ -558,15 +661,16 @@ export function ChatView({
                   }
                 }
                 return (
-                  <div key={key} className="pb-3">
+                  <div key={key} className="pb-5">
                     <MessageRow
                       message={message}
                       commandsByName={commandsByName}
-                      showThinking={showThinkingSetting}
+                      showThinking={group.suppressThinking ? false : showThinkingSetting}
                       onAction={handleErrorAction}
                       isNewMessage={isNewMessage}
                       isLastInTurn={isLastInTurn}
                       turnMessages={turnMessages}
+                      rootPath={rootPath}
                     />
                   </div>
                 )
@@ -576,13 +680,13 @@ export function ChatView({
           <div className="mx-auto w-full max-w-3xl px-6">
             {isCompacting
               ? <CompactingIndicator reason={compactionReason} />
-              : isLoading && <ThinkingIndicator className="py-0.5" />
+              : isLoading && !hasActiveWorkingGroup && <ThinkingIndicator className="py-0.5" />
             }
           </div>
 
           {/* File changes card - shown after chat completion */}
           {!isLoading && visibleMessages.some((m) => m.role !== "error") && (
-            <FileChangesCard sessionId={sessionId} />
+            <FileChangesCard sessionId={sessionId} rootPath={rootPath} openWithAppId={openWithAppId} />
           )}
         </div>
 

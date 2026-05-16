@@ -133,12 +133,18 @@ export const markdownComponents: Components = {
   // ── Links ───────────────────────────────────────────────────────────────────
   // ── Headings ─────────────────────────────────────────────────────────────
   // Render all heading levels as h4 to keep the chat UI compact.
-  h1: ({ children }) => <h4>{children}</h4>,
-  h2: ({ children }) => <h4>{children}</h4>,
-  h3: ({ children }) => <h4>{children}</h4>,
-  h4: ({ children }) => <h4>{children}</h4>,
-  h5: ({ children }) => <h4>{children}</h4>,
-  h6: ({ children }) => <h4>{children}</h4>,
+  h1: ({ children }) => <p>{children}</p>,
+  h2: ({ children }) => <p>{children}</p>,
+  h3: ({ children }) => <p>{children}</p>,
+  h4: ({ children }) => <p>{children}</p>,
+  h5: ({ children }) => <p>{children}</p>,
+  h6: ({ children }) => <p>{children}</p>,
+
+  // ── Bold ────────────────────────────────────────────────────────────────────
+  strong: ({ children }) => <span>{children}</span>,
+
+  // ── Horizontal rule ─────────────────────────────────────────────────────────
+  hr: () => null,
 
   // ── Links ───────────────────────────────────────────────────────────────────
   a: ({ href, children }) => (
