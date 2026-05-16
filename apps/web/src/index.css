@@ -124,9 +124,28 @@
   --sidebar-ring: #1a4080;
 }
 
+/* ── Prose color override (all modes) ────────────────────────────────────
+   Force all prose text to use the theme foreground token so both light and
+   dark modes render consistently against the app's surface colors. ── */
+.prose,
+.prose :is(*:not([class~="prose"] *)) {
+  --tw-prose-body: var(--foreground) !important;
+  --tw-prose-headings: var(--foreground) !important;
+  --tw-prose-lead: var(--foreground) !important;
+  --tw-prose-bold: var(--foreground) !important;
+  --tw-prose-counters: var(--foreground) !important;
+  --tw-prose-bullets: var(--foreground) !important;
+  --tw-prose-quotes: var(--foreground) !important;
+  --tw-prose-quote-borders: var(--foreground) !important;
+  --tw-prose-captions: var(--foreground) !important;
+  --tw-prose-code: var(--foreground) !important;
+  --tw-prose-th-borders: var(--border) !important;
+  --tw-prose-td-borders: var(--border) !important;
+}
+
 /* ── Dark mode prose override ─────────────────────────────────────────────
-   The prose plugin sets colors via CSS custom properties on each element.
-   Override them with !important so they always win over plugin defaults. ── */
+   Keep the dark-mode invert rule so prose-invert continues to work if used
+   standalone outside the app's theming context. ── */
 .dark .prose-invert,
 .dark .prose-invert :is(*:not([class~="prose"] *)) {
   --tw-prose-body: var(--foreground) !important;
