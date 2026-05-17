@@ -8,6 +8,32 @@ import type { AssistantMessage, ToolMessage } from "../types"
 
 export type WorkingMessage = AssistantMessage | ToolMessage
 
+function RollingTimerText({ text }: { text: string }) {
+  return (
+    <span className="tabular-nums">
+      {text.split("").map((char, i) =>
+        /\d/.test(char) ? (
+          <span
+            key={i}
+            className="inline-block"
+            style={{ clipPath: "inset(0)" }}
+          >
+            <span
+              key={char}
+              className="inline-block"
+              style={{ animation: "digit-in 180ms ease-out" }}
+            >
+              {char}
+            </span>
+          </span>
+        ) : (
+          <span key={i}>{char}</span>
+        )
+      )}
+    </span>
+  )
+}
+
 interface WorkingBlockProps {
   messages: WorkingMessage[]
   isActive: boolean
@@ -121,15 +147,17 @@ export const WorkingBlock = memo(function WorkingBlock({
       >
         <span
           className={cn(
-            "text-sm font-medium tabular-nums",
+            "text-sm font-medium",
             isActive ? "text-foreground/60" : "text-muted-foreground"
           )}
         >
-          {isActive
-            ? `Working for ${formatDuration(elapsed)}`
-            : displayDuration > 0
-              ? `Worked for ${formatDuration(displayDuration)}`
-              : "Worked"}
+          {isActive ? (
+            <>Working for <RollingTimerText text={formatDuration(elapsed)} /></>
+          ) : displayDuration > 0 ? (
+            `Worked for ${formatDuration(displayDuration)}`
+          ) : (
+            "Worked"
+          )}
         </span>
 
         <ChevronRightIcon

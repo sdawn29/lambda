@@ -8,6 +8,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@keyframes digit-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0%);
+    opacity: 1;
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Google Sans Flex", sans-serif;
