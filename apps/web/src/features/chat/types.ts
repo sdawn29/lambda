@@ -112,9 +112,18 @@ export interface AbortMessage {
   createdAt?: number
 }
 
+// ── Compaction Messages ────────────────────────────────────────────────────────
+
+export interface CompactionMessage {
+  role: "compaction"
+  id: string
+  reason: "manual" | "threshold" | "overflow"
+  createdAt?: number
+}
+
 // ── Union Type ─────────────────────────────────────────────────────────────────
 
-export type Message = UserMessage | AssistantMessage | ToolMessage | ErrorMessage | AbortMessage
+export type Message = UserMessage | AssistantMessage | ToolMessage | ErrorMessage | AbortMessage | CompactionMessage
 
 // ── Database Block Types ─────────────────────────────────────────────────────
 
@@ -126,7 +135,7 @@ export interface MessageBlock {
   id: string
   threadId: string
   blockIndex: number
-  role: "user" | "assistant" | "tool" | "abort"
+  role: "user" | "assistant" | "tool" | "abort" | "compaction"
   content: string | null
   thinking: string | null
   model: string | null
@@ -239,6 +248,14 @@ export function blockToMessage(block: MessageBlock): Message {
       return {
         role: "abort",
         id: block.id,
+        createdAt: block.createdAt,
+      }
+
+    case "compaction":
+      return {
+        role: "compaction",
+        id: block.id,
+        reason: (block.content ?? "threshold") as "manual" | "threshold" | "overflow",
         createdAt: block.createdAt,
       }
 

@@ -8,7 +8,7 @@ import type { AssistantMessage, ToolMessage } from "../types"
 
 export type WorkingMessage = AssistantMessage | ToolMessage
 
-function RollingTimerText({ text }: { text: string }) {
+export function RollingTimerText({ text }: { text: string }) {
   return (
     <span className="tabular-nums">
       {text.split("").map((char, i) =>

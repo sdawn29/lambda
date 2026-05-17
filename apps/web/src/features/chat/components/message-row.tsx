@@ -1,20 +1,18 @@
 import { memo } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { AlertCircleIcon, RotateCwIcon, XIcon } from "lucide-react"
+import { AlertCircleIcon, SparklesIcon } from "lucide-react"
 
 import { ToolCallBlock } from "./tool-call-block"
 import { markdownComponents } from "./markdown-components"
 import { UserMessageContent } from "./user-message"
 import { CopyButton } from "@/shared/components/copy-button"
-import { Button } from "@/shared/ui/button"
 import { getProviderMeta } from "@/shared/lib/provider-meta"
 import { formatDuration, formatTime } from "@/shared/lib/formatters"
 import type { SlashCommand } from "../api"
 import {
   type AssistantMessage,
-  type ErrorAction,
-  type ErrorMessage,
+  type CompactionMessage,
   type Message,
   type UserMessage,
   type AbortMessage,
@@ -164,7 +162,7 @@ function AssistantMessageBlock({
 }
 
 export function getMessageKey(message: Message, index: number): string {
-  if (message.role === "error" || message.role === "abort") return message.id
+  if (message.role === "error" || message.role === "abort" || message.role === "compaction") return message.id
   return message.role === "tool"
     ? message.toolCallId
     : `${message.role}-${index}`
@@ -180,96 +178,18 @@ export function estimateMessageSize(message: Message): number {
   }
 
   const contentLength =
-    message.role === "error"
-      ? (message as ErrorMessage).message.length
-      : (message as AssistantMessage).content.length +
-        (message as AssistantMessage).thinking.length
+    (message as AssistantMessage).content.length +
+    (message as AssistantMessage).thinking.length
   if (contentLength > 1_200) return 320
   if (contentLength > 400) return 220
   if (contentLength > 120) return 144
   return 104
 }
 
-function ErrorBlock({
-  message,
-  onAction,
-  isNew = true,
-}: {
-  message: ErrorMessage
-  onAction?: (action: ErrorAction, id: string) => void
-  isNew?: boolean
-}) {
-  const { action } = message
-  const canRetry = action?.type === "retry" && !!action.prompt
-  const canDismiss = !!onAction && !!action && action.type !== "continue"
-
-  return (
-    <div
-      className={cn(
-        "group flex flex-col",
-        isNew && "animate-in duration-300 fade-in-0 slide-in-from-bottom-1"
-      )}
-    >
-      <div className="rounded-lg border border-border/50 px-3 py-2.5">
-        <div className="flex items-start gap-2">
-          <AlertCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive/70" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xs font-medium text-foreground">
-                {message.title}
-              </span>
-              {message.retryCount != null && (
-                <span className="text-[10px] text-muted-foreground/60">
-                  attempt {message.retryCount}
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-              {message.message}
-            </p>
-            {canDismiss && canRetry && (
-              <div className="mt-2 flex gap-1.5">
-                <Button
-                  size="xs"
-                  variant="destructive"
-                  onClick={() => onAction(action!, message.id)}
-                >
-                  <RotateCwIcon />
-                  Retry
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  className="text-muted-foreground/60 hover:text-foreground/80"
-                  onClick={() => onAction({ type: "dismiss" }, message.id)}
-                >
-                  Dismiss
-                </Button>
-              </div>
-            )}
-          </div>
-          {canDismiss && !canRetry && (
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="-mt-0.5 shrink-0 text-muted-foreground/40 hover:text-muted-foreground"
-              onClick={() => onAction({ type: "dismiss" }, message.id)}
-            >
-              <XIcon />
-              <span className="sr-only">Dismiss</span>
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export interface MessageRowProps {
   message: Message
   commandsByName: ReadonlyMap<string, SlashCommand>
   showThinking: boolean
-  onAction?: (action: ErrorAction, id: string) => void
   isNewMessage?: boolean
   isLastInTurn?: boolean
   turnMessages?: AssistantMessage[]
@@ -289,11 +209,29 @@ function AbortBlock({ message: _ }: { message: AbortMessage }) {
   )
 }
 
+const COMPACTION_LABEL: Record<CompactionMessage["reason"], string> = {
+  manual: "Context compacted",
+  threshold: "Context compacted",
+  overflow: "Context window freed",
+}
+
+function CompactionBlock({ message }: { message: CompactionMessage }) {
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="h-px flex-1 bg-border/40" />
+      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/40 bg-card px-3 py-1 text-[11px] text-muted-foreground/60">
+        <SparklesIcon className="h-3 w-3 text-primary/50" />
+        <span>{COMPACTION_LABEL[message.reason]}</span>
+      </div>
+      <div className="h-px flex-1 bg-border/40" />
+    </div>
+  )
+}
+
 export const MessageRow = memo(function MessageRow({
   message,
   commandsByName,
   showThinking,
-  onAction,
   isNewMessage = true,
   isLastInTurn = true,
   turnMessages,
@@ -305,6 +243,10 @@ export const MessageRow = memo(function MessageRow({
 
   if (message.role === "abort") {
     return <AbortBlock message={message} />
+  }
+
+  if (message.role === "compaction") {
+    return <CompactionBlock message={message as CompactionMessage} />
   }
 
   if (message.role === "user") {
@@ -332,16 +274,6 @@ export const MessageRow = memo(function MessageRow({
           )}
         </div>
       </div>
-    )
-  }
-
-  if (message.role === "error") {
-    return (
-      <ErrorBlock
-        message={message as ErrorMessage}
-        onAction={onAction}
-        isNew={isNewMessage}
-      />
     )
   }
 

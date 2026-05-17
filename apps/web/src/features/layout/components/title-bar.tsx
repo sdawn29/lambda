@@ -32,7 +32,6 @@ import { useTerminalForWorkspace } from "@/features/terminal"
 import { useDiffPanel } from "@/features/git"
 import { useFileTree } from "@/features/file-tree/store"
 import { useElectronFullscreen, useElectronPlatform } from "@/features/electron"
-import { CommitDialog } from "@/features/git"
 import { useGitDiffStat } from "@/features/git/queries"
 import { OpenWithButton } from "./open-with-button"
 import {
@@ -400,8 +399,6 @@ export function TitleBar() {
           workspacePath={urlActiveWorkspace?.path}
           openWithAppId={urlActiveWorkspace?.openWithAppId}
         />
-        <CommitDialog sessionId={urlActiveThread?.sessionId ?? undefined} />
-
         <div className="mx-1 h-3.5 w-px shrink-0 bg-border" />
 
         {/* Panel toggles — segmented control; active buttons lift above the tray */}

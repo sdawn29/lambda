@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, updateToolBlockPartialResult, listRunningToolBlocks, insertAgentTurn } from "@lamda/db";
+import { insertUserBlock, insertAssistantStartBlock, insertToolBlock, appendAssistantTextDelta, appendAssistantThinkingDelta, finalizeAssistantBlock, updateToolBlockResult, updateToolBlockPartialResult, listRunningToolBlocks, insertAgentTurn, insertCompactionBlock } from "@lamda/db";
 import type { ManagedSessionHandle, SessionEvent } from "@lamda/pi-sdk";
 import { gitStatus } from "@lamda/git";
 import { threadStatusBroadcaster, type ThreadStatus } from "./thread-status-broadcaster.js";
@@ -645,6 +645,15 @@ class SessionEventHub {
           toolContext.toolBlockId,
           JSON.stringify(msg.partialResult)
         );
+      }
+      return;
+    }
+
+    // compaction_end - persist a marker so the divider survives page refresh
+    if (event.type === "compaction_end") {
+      const ce = event as { reason: "manual" | "threshold" | "overflow"; aborted?: boolean; errorMessage?: string };
+      if (!ce.aborted && !ce.errorMessage) {
+        insertCompactionBlock(this.threadId, ce.reason);
       }
       return;
     }

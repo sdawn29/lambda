@@ -122,7 +122,15 @@ git.post("/session/:id/git/init", async (c) => {
 git.get("/session/:id/git/status", async (c) => {
   const cwd = gitCwd(c.req.param("id"));
   if (!cwd) return c.json({ error: "Session not found" }, 404);
-  return c.json({ raw: await gitStatus(cwd) });
+  try {
+    return c.json({ raw: await gitStatus(cwd), isGitRepo: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not a git repository")) {
+      return c.json({ raw: "", isGitRepo: false });
+    }
+    return c.json({ error: parseGitError(err, "Git status failed") }, 500);
+  }
 });
 
 git.get("/session/:id/git/diff-stat", async (c) => {

@@ -10,7 +10,7 @@ export interface MessageBlock {
   id: string;
   threadId: string;
   blockIndex: number;
-  role: "user" | "assistant" | "tool" | "abort";
+  role: "user" | "assistant" | "tool" | "abort" | "compaction";
   content: string | null;
   thinking: string | null;
   model: string | null;
@@ -302,6 +302,29 @@ export function listRunningToolBlocks(threadId: string): MessageBlock[] {
     .orderBy(asc(messageBlocks.blockIndex))
     .all()
     .map(toMessageBlock);
+}
+
+/**
+ * Insert a compaction marker block.
+ * This marks the point in conversation history where context compaction occurred.
+ */
+export function insertCompactionBlock(
+  threadId: string,
+  reason: "manual" | "threshold" | "overflow"
+): string {
+  const id = randomUUID();
+  const blockIndex = getNextBlockIndex(threadId);
+  db.insert(messageBlocks)
+    .values({
+      id,
+      threadId,
+      blockIndex,
+      role: "compaction",
+      content: reason,
+      createdAt: Date.now(),
+    })
+    .run();
+  return id;
 }
 
 /**

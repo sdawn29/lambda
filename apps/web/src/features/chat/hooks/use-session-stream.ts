@@ -214,6 +214,21 @@ function applyQueuedEvent(msgs: Message[], event: QueuedEvent): Message[] {
       }))
     }
 
+    case "compaction_end": {
+      if (!event.errorMessage && !event.aborted) {
+        return [
+          ...msgs,
+          {
+            role: "compaction" as const,
+            id: crypto.randomUUID(),
+            reason: event.reason,
+            createdAt: Date.now(),
+          },
+        ]
+      }
+      return msgs
+    }
+
     case "agent_end": {
       let result = finalizeRunningTools(msgs, event.agentMessages)
       const { meta } = event
@@ -289,7 +304,6 @@ export interface UseSessionStreamOptions {
   onIsLoadingChange?: (loading: boolean) => void
   onIsCompactingChange?: (compacting: boolean) => void
   onCompactionReasonChange?: (reason: "manual" | "threshold" | "overflow" | null) => void
-  onCompactionEnd?: (success: boolean) => void
   onPendingErrorChange?: (error: ReturnType<typeof createErrorMessage> | null) => void
   onError?: () => void
   onToolExecutionEnd?: (toolName: string) => void
@@ -330,10 +344,10 @@ export function useSessionStream({
 
   // Always-current callbacks — stored in a ref so the queue processor (which
   // is stable across renders) always calls the latest versions.
-  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onCompactionEnd, onPendingErrorChange, onError, onToolExecutionEnd })
+  const callbacksRef = useRef({ onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onPendingErrorChange, onError, onToolExecutionEnd })
   useEffect(() => {
-    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onCompactionEnd, onPendingErrorChange, onError, onToolExecutionEnd }
-  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onCompactionEnd, onPendingErrorChange, onError, onToolExecutionEnd])
+    callbacksRef.current = { onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onPendingErrorChange, onError, onToolExecutionEnd }
+  }, [onMessageStart, onIsLoadingChange, onMessageEnd, onIsCompactingChange, onCompactionReasonChange, onPendingErrorChange, onError, onToolExecutionEnd])
 
   // ── Queue processor ───────────────────────────────────────────────────────
   //
@@ -447,7 +461,6 @@ export function useSessionStream({
             sideEffects.push(() => {
               cb.onIsCompactingChange?.(false)
               cb.onCompactionReasonChange?.(null)
-              cb.onCompactionEnd?.(false)
               cb.onPendingErrorChange?.(
                 createErrorMessage("Compaction Failed", errorMessage, { action: { type: "dismiss" } })
               )
@@ -457,8 +470,9 @@ export function useSessionStream({
             sideEffects.push(() => {
               cb.onIsCompactingChange?.(false)
               cb.onCompactionReasonChange?.(null)
-              if (!event.aborted) cb.onCompactionEnd?.(true)
               cb.onPendingErrorChange?.(null)
+              void queryClient.invalidateQueries({ queryKey: chatKeys.contextUsage(sessionId) })
+              void queryClient.invalidateQueries({ queryKey: chatKeys.sessionStats(sessionId) })
             })
           }
           break

@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Columns2,
   AlignLeft,
+  FolderGit2,
   GitCommit,
   GitCompare,
   History,
@@ -21,7 +22,6 @@ import {
   MoreHorizontal,
   PackageMinus,
   PackagePlus,
-  Search,
   Undo2,
   X,
   Maximize2,
@@ -30,7 +30,6 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/shared/ui/alert"
-import { Input } from "@/shared/ui/input"
 import { Icon } from "@iconify/react"
 import { getIconName } from "@/shared/ui/file-icon"
 import { Button } from "@/shared/ui/button"
@@ -54,9 +53,11 @@ import {
   useGitRevertFile,
   useGitFetch,
   useGitPull,
+  useInitializeGitRepository,
 } from "../mutations"
 import { type ChangedFile, parseStatusLine } from "./status-badge"
 import { type DiffMode } from "./diff-view"
+import { CommitInputSection } from "./commit-dialog"
 import { StashInputBar } from "./stash-input-bar"
 import { StashSection } from "./stash-section"
 import { FilesSection } from "./files-section"
@@ -192,9 +193,9 @@ const SourceControlToolbarSection = memo(function SourceControlToolbarSection({
   const hasLastTurnFiles = lastTurnData.length > 0
   const revertLastTurn = useRevertLastTurn(sessionId)
 
-  const { data: statusRaw } = useGitStatus(sessionId)
+  const { data: statusData } = useGitStatus(sessionId)
   const { hasStaged, hasUnstaged, hasChanges } = useMemo(() => {
-    const all = (statusRaw ?? "")
+    const all = (statusData?.raw ?? "")
       .split("\n")
       .map((l: string) => l.trimEnd())
       .filter(Boolean)
@@ -204,7 +205,7 @@ const SourceControlToolbarSection = memo(function SourceControlToolbarSection({
       hasUnstaged: all.some((f: ChangedFile) => !f.isStaged),
       hasChanges: all.length > 0,
     }
-  }, [statusRaw])
+  }, [statusData])
 
   const { stageAll, unstageAll } = useGitStageAll(sessionId)
   const bulkWorking = stageAll.isPending || unstageAll.isPending
@@ -399,35 +400,35 @@ const SourceControlContent = memo(function SourceControlContent({
   )
 
   const {
-    data: statusRaw,
+    data: statusData,
     isLoading: loading,
     error: statusError,
   } = useGitStatus(sessionId)
 
-  const [filter, setFilter] = useState("")
+  const isGitRepo = statusData?.isGitRepo !== false
+  const statusRaw = statusData?.raw ?? ""
 
   const { staged, unstaged } = useMemo(() => {
-    const q = filter.toLowerCase()
-    const all = (statusRaw ?? "")
+    const all = statusRaw
       .split("\n")
       .map((l: string) => l.trimEnd())
       .filter(Boolean)
       .map(parseStatusLine)
-    const matchesFilter = (f: ChangedFile) =>
-      !q || f.filePath.toLowerCase().includes(q)
     return {
       staged: applySortMode(
-        all.filter((f: ChangedFile) => f.isStaged && matchesFilter(f)),
+        all.filter((f: ChangedFile) => f.isStaged),
         sortMode
       ),
       unstaged: applySortMode(
-        all.filter((f: ChangedFile) => !f.isStaged && matchesFilter(f)),
+        all.filter((f: ChangedFile) => !f.isStaged),
         sortMode
       ),
     }
-  }, [statusRaw, sortMode, filter])
+  }, [statusRaw, sortMode])
 
   const error = statusError instanceof Error ? statusError.message : null
+
+  const initRepo = useInitializeGitRepository(sessionId)
 
   const { stage, unstage } = useGitStage(sessionId)
   const { stash } = useGitStashMutations(sessionId)
@@ -472,6 +473,7 @@ const SourceControlContent = memo(function SourceControlContent({
           <HistoryView sessionId={sessionId} />
         ) : (
           <>
+            <CommitInputSection sessionId={sessionId} />
             <div className="min-h-0 flex-1 overflow-y-auto">
               {stashInputOpen && (
                 <StashInputBar
@@ -480,26 +482,36 @@ const SourceControlContent = memo(function SourceControlContent({
                 />
               )}
 
-              {/* Filter input */}
-              <div className="relative px-2 py-1.5">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
-                <Input
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder="Filter files…"
-                  className="h-7 pl-7 pr-7 text-xs"
-                />
-                {filter && (
-                  <button
-                    type="button"
-                    onClick={() => setFilter("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+              {!loading && !isGitRepo && (
+                <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <FolderGit2 className="h-5 w-5 text-muted-foreground/40" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground/60">Not a git repository</p>
+                    <p className="text-[10px] leading-relaxed text-muted-foreground/40">
+                      This folder is not tracked by git
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={() => initRepo.mutate()}
+                    disabled={initRepo.isPending}
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
+                    {initRepo.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <FolderGit2 className="h-3 w-3" />
+                    )}
+                    Initialize Repository
+                  </Button>
+                </div>
+              )}
 
+              {isGitRepo && (
+                <>
               {loading && staged.length === 0 && unstaged.length === 0 && (
                 <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
@@ -519,17 +531,8 @@ const SourceControlContent = memo(function SourceControlContent({
                     <GitCompare className="h-5 w-5 text-muted-foreground/40" />
                   </div>
                   <div className="space-y-1">
-                    {filter ? (
-                      <>
-                        <p className="text-xs font-medium text-muted-foreground/60">No files match</p>
-                        <p className="text-[10px] text-muted-foreground/40">Try a different filter</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-xs font-medium text-muted-foreground/60">No changes</p>
-                        <p className="text-[10px] text-muted-foreground/40">Your working tree is clean</p>
-                      </>
-                    )}
+                    <p className="text-xs font-medium text-muted-foreground/60">No changes</p>
+                    <p className="text-[10px] text-muted-foreground/40">Your working tree is clean</p>
                   </div>
                 </div>
               )}
@@ -555,6 +558,8 @@ const SourceControlContent = memo(function SourceControlContent({
                   onStageToggle={handleStageToggle}
                   onRevert={handleRevert}
                 />
+              )}
+                </>
               )}
             </div>
 

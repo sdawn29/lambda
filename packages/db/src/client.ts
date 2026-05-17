@@ -152,12 +152,11 @@ function createDb() {
     CREATE INDEX IF NOT EXISTS agent_turn_files_turn_idx ON agent_turn_files(turn_id);
   `);
 
-  // Migration: Update message_blocks CHECK constraint to include 'abort' role
-  // SQLite doesn't support ALTER TABLE for CHECK constraints, so we need to recreate
+  // Migration: Update message_blocks CHECK constraint to include 'abort' and 'compaction' roles.
+  // SQLite doesn't support ALTER TABLE for CHECK constraints, so we recreate the table when needed.
   try {
     const result = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='message_blocks'").get() as { sql: string } | undefined;
-    if (result && !result.sql.includes("'abort'")) {
-      // Check constraint doesn't include 'abort', need to migrate
+    if (result && !result.sql.includes("'compaction'")) {
       const columns = [
         'id', 'thread_id', 'block_index', 'role', 'content', 'thinking',
         'model', 'provider', 'thinking_level', 'response_time', 'error_message',
@@ -165,14 +164,12 @@ function createDb() {
         'tool_duration', 'tool_start_time', 'created_at'
       ];
       const colList = columns.join(', ');
-      
-      // Create new table with updated constraint
       sqlite.exec(`
         CREATE TABLE IF NOT EXISTS message_blocks_new (
           id              TEXT PRIMARY KEY,
           thread_id       TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
           block_index     INTEGER NOT NULL,
-          role            TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool', 'abort')),
+          role            TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool', 'abort', 'compaction')),
           content         TEXT,
           thinking        TEXT,
           model           TEXT,
@@ -195,8 +192,7 @@ function createDb() {
       `);
     }
   } catch (e) {
-    // Migration may fail if table already has correct schema or on first run
-    // This is expected and safe to ignore
+    // Migration may fail if table already has correct schema or on first run — safe to ignore.
   }
 
   return db;

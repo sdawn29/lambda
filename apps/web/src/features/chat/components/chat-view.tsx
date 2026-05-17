@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { AssistantMessage, ErrorAction, Message, ToolMessage } from "../types"
+import type { AssistantMessage, ErrorAction, ErrorMessage, Message, ToolMessage } from "../types"
 import { WorkingBlock, type WorkingMessage } from "./working-block"
 import {
   ArrowDownIcon,
@@ -37,6 +37,7 @@ import { useModels } from "../queries"
 import { useConfigureProvider } from "@/features/settings"
 import { ThinkingIndicator } from "./thinking-indicator"
 import { CompactingIndicator } from "./compacting-indicator"
+import { ChatErrorAlert } from "./chat-error-alert"
 import { useShowThinkingSetting } from "@/shared/lib/thinking-visibility"
 import {
   useUpdateThreadModel,
@@ -151,6 +152,7 @@ export function ChatView({
     isLoading,
     isCompacting,
     compactionReason,
+    pendingError,
     startUserPrompt,
     markStopped,
     markSendFailed,
@@ -666,7 +668,6 @@ export function ChatView({
                       message={message}
                       commandsByName={commandsByName}
                       showThinking={group.suppressThinking ? false : showThinkingSetting}
-                      onAction={handleErrorAction}
                       isNewMessage={isNewMessage}
                       isLastInTurn={isLastInTurn}
                       turnMessages={turnMessages}
@@ -689,6 +690,8 @@ export function ChatView({
             <FileChangesCard sessionId={sessionId} rootPath={rootPath} openWithAppId={openWithAppId} />
           )}
         </div>
+
+        <ChatErrorAlert error={pendingError} onAction={handleErrorAction} />
 
         {showScrollButton && (
           <div className="pointer-events-none absolute inset-x-0 bottom-40 z-10 flex justify-center">

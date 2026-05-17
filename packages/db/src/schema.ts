@@ -38,7 +38,7 @@ export const messageBlocks = sqliteTable("message_blocks", {
     .notNull()
     .references(() => threads.id, { onDelete: "cascade" }),
   blockIndex: integer("block_index").notNull(),
-  role: text("role", { enum: ["user", "assistant", "tool", "abort"] }).notNull(),
+  role: text("role", { enum: ["user", "assistant", "tool", "abort", "compaction"] }).notNull(),
   content: text("content"),
   thinking: text("thinking"),
   model: text("model"),

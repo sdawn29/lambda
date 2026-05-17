@@ -2,9 +2,12 @@ import { apiFetch } from "@/shared/lib/client"
 
 const base = (sessionId: string) => `/session/${sessionId}/git`
 
-export async function gitStatus(sessionId: string): Promise<string> {
-  const { raw } = await apiFetch<{ raw: string }>(`${base(sessionId)}/status`)
-  return raw
+export async function gitStatus(
+  sessionId: string
+): Promise<{ raw: string; isGitRepo: boolean }> {
+  return apiFetch<{ raw: string; isGitRepo: boolean }>(
+    `${base(sessionId)}/status`
+  )
 }
 
 export async function gitDiffStat(

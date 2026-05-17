@@ -48,6 +48,7 @@ export function useGitStatus(sessionId: string) {
     enabled: !!sessionId,
     staleTime: 0,
     refetchInterval: 3_000,
+    placeholderData: { raw: "", isGitRepo: true },
   })
 }
 

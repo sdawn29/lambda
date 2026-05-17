@@ -10,7 +10,6 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 
 import { useSessionStream } from "./hooks/use-session-stream"
 import { useVisibleMessages } from "./hooks/use-visible-messages"
@@ -51,6 +50,7 @@ interface UseChatStreamResult {
   isStopped: boolean
   isCompacting: boolean
   compactionReason: "manual" | "threshold" | "overflow" | null
+  pendingError: ErrorMessage | null
   startUserPrompt: (text: string, thinkingLevel?: string) => void
   markStopped: () => void
   markSendFailed: () => void
@@ -98,7 +98,7 @@ export function useChatStream({
     }
   }, [sessionStatus, setThreadStatus, threadId])
 
-  const { messages } = useVisibleMessages({ sessionId, pendingError })
+  const { messages } = useVisibleMessages({ sessionId })
 
   const handleIsLoadingChange = useCallback((loading: boolean) => {
     setIsLoading(loading)
@@ -119,22 +119,12 @@ export function useChatStream({
     }
   }, [queryClient, sessionId])
 
-  const handleCompactionEnd = useCallback((success: boolean) => {
-    if (success) {
-      toast.success("Context compacted", {
-        description: "Conversation history was summarized to free up the context window.",
-        duration: 3000,
-      })
-    }
-  }, [])
-
   // Connect to WebSocket stream
   const { lastPromptRef, pendingThinkingLevelRef } = useSessionStream({
     sessionId,
     onIsLoadingChange: handleIsLoadingChange,
     onIsCompactingChange: setIsCompacting,
     onCompactionReasonChange: setCompactionReason,
-    onCompactionEnd: handleCompactionEnd,
     onPendingErrorChange: setPendingError,
     onError: handleError,
     onToolExecutionEnd: handleToolExecutionEnd,
@@ -204,6 +194,7 @@ export function useChatStream({
     isStopped,
     isCompacting,
     compactionReason,
+    pendingError,
     startUserPrompt,
     markStopped,
     markSendFailed,

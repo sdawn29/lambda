@@ -9,8 +9,9 @@ import { jellybeansdark, jellybeanslight } from "@/shared/lib/syntax-theme"
 
 import { cn } from "@/shared/lib/utils"
 import { LivePre } from "./live-pre"
-import { DiffView, detectLanguage } from "@/features/git"
+import { DiffView, detectLanguage, parseDiffCounts } from "@/features/git"
 import { useTheme } from "@/shared/components/theme-provider"
+import { RollingTimerText } from "./working-block"
 import type { ToolMessage } from "../types"
 
 const PrismCode = lazy(() => import("./prism-code"))
@@ -232,6 +233,14 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   const resultText = getResultText(msg)
   const summary = argsSummary(msg.args, rootPath)
 
+  const editCounts =
+    isEdit && msg.status === "done" && diff !== null
+      ? parseDiffCounts(diff)
+      : null
+
+  const writeLineCount =
+    isWrite && writeArgs ? writeArgs.content.split("\n").length : null
+
   // Body is shown when there is something to render at any status.
   // "running" and "error" must always open the body so their respective
   // placeholder / error block is reachable inside the collapsed grid.
@@ -276,6 +285,29 @@ export const ToolCallBlock = memo(function ToolCallBlock({
         {summary && (
           <span className="truncate text-sm text-muted-foreground/35">
             {summary}
+          </span>
+        )}
+
+        {editCounts && (editCounts.added > 0 || editCounts.removed > 0) && (
+          <span className="flex shrink-0 items-baseline gap-0.5 font-mono text-xs tabular-nums">
+            {editCounts.added > 0 && (
+              <span className="text-green-600 dark:text-green-400">
+                +<RollingTimerText text={String(editCounts.added)} />
+              </span>
+            )}
+            {editCounts.removed > 0 && (
+              <span className="text-red-500 dark:text-red-400">
+                -<RollingTimerText text={String(editCounts.removed)} />
+              </span>
+            )}
+          </span>
+        )}
+
+        {writeLineCount !== null && writeLineCount > 0 && (
+          <span className="flex shrink-0 items-baseline font-mono text-xs tabular-nums">
+            <span className="text-green-600 dark:text-green-400">
+              +<RollingTimerText text={String(writeLineCount)} />
+            </span>
           </span>
         )}
 
