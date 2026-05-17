@@ -6,6 +6,7 @@ import { cn } from "@/shared/lib/utils"
 import type { SlashCommand } from "../api"
 
 const ZERO_WIDTH_SPACE_RE = /\u200B/g
+const NBSP_RE = /\u00A0/g
 
 export interface RichInputHandle {
   getValue: () => string
@@ -48,7 +49,7 @@ function readRichInputValue(root: Node): string {
   }
 
   walk(root.childNodes)
-  return text.replace(ZERO_WIDTH_SPACE_RE, "")
+  return text.replace(ZERO_WIDTH_SPACE_RE, "").replace(NBSP_RE, " ")
 }
 
 function isRichInputEmpty(root: Node): boolean {

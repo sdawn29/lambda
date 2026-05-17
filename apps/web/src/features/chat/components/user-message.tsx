@@ -26,14 +26,27 @@ function isFileMention(path: string): boolean {
 function FileChip({ filePath }: { filePath: string }) {
   const basename = filePath.split("/").pop() ?? filePath
   return (
-    <span className={CHIP_BASE_CLASS}>
-      <Icon
-        icon={`catppuccin:${getIconName(basename)}`}
-        className="size-3.5 shrink-0"
-        aria-hidden
-      />
-      {basename}
-    </span>
+    <TooltipProvider delay={500}>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="inline-flex align-middle">
+              <span className={CHIP_BASE_CLASS}>
+                <Icon
+                  icon={`catppuccin:${getIconName(basename)}`}
+                  className="size-3.5 shrink-0"
+                  aria-hidden
+                />
+                {basename}
+              </span>
+            </span>
+          }
+        />
+        <TooltipContent side="top" align="start" sideOffset={8}>
+          <span className="font-mono text-xs break-all">{filePath}</span>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
@@ -41,10 +54,23 @@ function FolderChip({ folderPath }: { folderPath: string }) {
   const normalized = folderPath.replace(/\/+$/, "")
   const basename = normalized.split("/").pop() || normalized
   return (
-    <span className={CHIP_BASE_CLASS}>
-      <Icon icon="catppuccin:folder" className="size-3.5 shrink-0" aria-hidden />
-      {basename}
-    </span>
+    <TooltipProvider delay={500}>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="inline-flex align-middle">
+              <span className={CHIP_BASE_CLASS}>
+                <Icon icon="catppuccin:folder" className="size-3.5 shrink-0" aria-hidden />
+                {basename}
+              </span>
+            </span>
+          }
+        />
+        <TooltipContent side="top" align="start" sideOffset={8}>
+          <span className="font-mono text-xs break-all">{normalized}</span>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 

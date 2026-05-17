@@ -266,7 +266,7 @@ export const ChatTextbox = memo(
       const chip = buildSlashCommandChip(cmd)
       range.insertNode(chip)
 
-      const space = document.createTextNode(" ")
+      const space = document.createTextNode(" ")
       chip.after(space)
 
       const newRange = document.createRange()
@@ -292,7 +292,7 @@ export const ChatTextbox = memo(
       const chip = buildMentionChip(entry.path)
       range.insertNode(chip)
 
-      const space = document.createTextNode(" ")
+      const space = document.createTextNode(" ")
       chip.after(space)
       const newRange = document.createRange()
       newRange.setStart(space, 1)
